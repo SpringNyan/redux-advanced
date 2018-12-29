@@ -1,0 +1,8 @@
+{
+  "name": "redux-advanced",
+  "version": "0.0.0",
+  "description": "Redux advanced helper",
+  "authors": "SpringNyan",
+  "license": "MIT",
+  "repository": "github:SpringNyan/redux-advanced"
+}
