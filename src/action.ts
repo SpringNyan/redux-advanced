@@ -1,7 +1,10 @@
 import { Dispatch } from "redux";
 
-import { Effect, Effects } from "./effect";
-import { Reducer, Reducers } from "./reducer";
+import { Effect, Effects, ExtractEffects } from "./effect";
+import { Model } from "./model";
+import { ExtractReducers, Reducer, Reducers } from "./reducer";
+
+import { getStoreCache } from "./cache";
 
 export const actionTypes = {
   register: "@@REGISTER",
@@ -110,4 +113,29 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
 
     return promise;
   }
+}
+
+export function createModelActionHelpers<TModel extends Model>(
+  storeId: number,
+  model: TModel,
+  namespace: string
+): ConvertReducersAndEffectsToActionHelpers<
+  ExtractReducers<TModel>,
+  ExtractEffects<TModel>
+> {
+  const { dispatch } = getStoreCache(storeId);
+
+  const actionHelpers: ActionHelpers = {};
+  [...Object.keys(model.reducers), ...Object.keys(model.effects)].forEach(
+    (key) => {
+      if (actionHelpers[key] == null) {
+        actionHelpers[key] = new ActionHelperImpl(
+          `${namespace}/${key}`,
+          dispatch
+        );
+      }
+    }
+  );
+
+  return actionHelpers as any;
 }

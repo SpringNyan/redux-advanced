@@ -5,6 +5,8 @@ import { Reducers } from "./reducer";
 import { ConvertSelectorsToGetters, Selectors } from "./selector";
 import { StateFactory } from "./state";
 
+import { getStoreCache } from "./cache";
+
 export interface Model<
   TDependencies = any,
   TProps = any,
@@ -27,6 +29,35 @@ export interface Model<
     ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
   >;
 }
+
+export interface Models<TDependencies = any> {
+  [key: string]:
+    | Model<TDependencies>
+    | Array<Model<TDependencies>>
+    | Models<TDependencies>;
+}
+
+export type ExtractDependencies<T extends Model> = T extends Model<
+  infer TDependencies,
+  any,
+  any,
+  any,
+  any,
+  any
+>
+  ? TDependencies
+  : never;
+
+export type ExtractProps<T extends Model> = T extends Model<
+  any,
+  infer TProps,
+  any,
+  any,
+  any,
+  any
+>
+  ? TProps
+  : never;
 
 export class ModelBuilder<
   TDependencies = any,
@@ -270,6 +301,20 @@ function cloneModel<T extends Model>(model: T): T {
   } as T;
 }
 
+export function isModel(obj: any): obj is Model {
+  const model = obj as Model;
+  return (
+    model != null &&
+    model.defaultProps != null &&
+    model.state != null &&
+    model.selectors != null &&
+    model.reducers != null &&
+    model.effects != null &&
+    model.epics != null &&
+    typeof model.state === "function"
+  );
+}
+
 export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
   return new ModelBuilder({
     defaultProps: {},
@@ -279,5 +324,25 @@ export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
     reducers: {},
     effects: {},
     epics: []
+  });
+}
+
+export function registerModel<TModel extends Model>(
+  storeId: number,
+  model: TModel | TModel[],
+  namespace: string
+): void {
+  const { cacheByModel } = getStoreCache(storeId);
+
+  const models = Array.isArray(model) ? model : [model];
+  models.forEach((mod) => {
+    if (cacheByModel.has(mod)) {
+      throw new Error("model is already registered");
+    }
+
+    cacheByModel.set(mod, {
+      namespace,
+      containers: {}
+    });
   });
 }

@@ -2,6 +2,7 @@ import { ActionsObservable, StateObservable } from "redux-observable";
 import { Observable } from "rxjs";
 
 import { ActionHelpers, AnyAction } from "./action";
+import { UseContainer } from "./container";
 import { Getters } from "./selector";
 
 export interface EpicContext<
@@ -20,6 +21,8 @@ export interface EpicContext<
   props: TProps;
   getters: TGetters;
   actions: TActionHelpers;
+
+  useContainer: UseContainer;
 }
 
 export type Epic<
