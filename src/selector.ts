@@ -43,23 +43,27 @@ export type Selector<
   >
 ) => TResult;
 
-export type SelectorInternal<
+export interface SelectorInternal<
   TDependencies = any,
   TProps = any,
   TState = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
-> = Selector<
-  TDependencies,
-  TProps,
-  TState,
-  TGetters,
-  TActionHelpers,
-  TResult
-> & {
+> {
+  (
+    context: SelectorContext<
+      TDependencies,
+      TProps,
+      TState,
+      TGetters,
+      TActionHelpers
+    >,
+    cacheId?: number
+  ): TResult;
+
   __deleteCache?(cacheId: number): void;
-};
+}
 
 export interface Selectors<
   TDependencies = any,
@@ -669,8 +673,8 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
 export function createModelGetters<TModel extends Model>(
   storeId: number,
   containerId: number,
-  model: TModel,
   namespace: string,
+  model: TModel,
   dependencies: ExtractDependencies<TModel>,
   props: ExtractProps<TModel>,
   actions: ConvertReducersAndEffectsToActionHelpers<
@@ -681,15 +685,15 @@ export function createModelGetters<TModel extends Model>(
 ): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
   const path = convertNamespaceToPath(namespace);
 
-  const { getState } = getStoreCache(storeId);
+  const storeCache = getStoreCache(storeId);
 
   const getters: Getters = {};
   Object.keys(model.selectors).forEach((key) => {
     Object.defineProperty(getters, key, {
       get() {
-        const selector = model.selectors[key];
+        const selector = model.selectors[key] as SelectorInternal;
 
-        const rootState = getState();
+        const rootState = storeCache.getState();
         const state = rootState[path];
 
         return selector(

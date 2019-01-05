@@ -329,20 +329,17 @@ export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
 
 export function registerModel<TModel extends Model>(
   storeId: number,
-  model: TModel | TModel[],
-  namespace: string
+  namespace: string,
+  model: TModel | TModel[]
 ): void {
-  const { cacheByModel } = getStoreCache(storeId);
+  const storeCache = getStoreCache(storeId);
 
   const models = Array.isArray(model) ? model : [model];
-  models.forEach((mod) => {
-    if (cacheByModel.has(mod)) {
+  models.forEach((_model) => {
+    if (storeCache.namespaceByModel.has(_model)) {
       throw new Error("model is already registered");
     }
 
-    cacheByModel.set(mod, {
-      namespace,
-      containers: {}
-    });
+    storeCache.namespaceByModel.set(_model, namespace);
   });
 }

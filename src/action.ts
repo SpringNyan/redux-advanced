@@ -117,13 +117,13 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
 
 export function createModelActionHelpers<TModel extends Model>(
   storeId: number,
-  model: TModel,
-  namespace: string
+  namespace: string,
+  model: TModel
 ): ConvertReducersAndEffectsToActionHelpers<
   ExtractReducers<TModel>,
   ExtractEffects<TModel>
 > {
-  const { dispatch } = getStoreCache(storeId);
+  const storeCache = getStoreCache(storeId);
 
   const actionHelpers: ActionHelpers = {};
   [...Object.keys(model.reducers), ...Object.keys(model.effects)].forEach(
@@ -131,7 +131,7 @@ export function createModelActionHelpers<TModel extends Model>(
       if (actionHelpers[key] == null) {
         actionHelpers[key] = new ActionHelperImpl(
           `${namespace}/${key}`,
-          dispatch
+          storeCache.dispatch
         );
       }
     }

@@ -1,4 +1,10 @@
+import produce from "immer";
+import { Reducer as ReduxReducer } from "redux";
+
 import { Model } from "./model";
+
+import { getStoreCache } from "./cache";
+import { parseActionType } from "./util";
 
 export interface ReducerContext<
   TDependencies = any,
@@ -35,3 +41,62 @@ export type ExtractReducers<T extends Model> = T extends Model<
 >
   ? TReducers
   : never;
+
+export function createReduxRootReducer(storeId: number): ReduxReducer {
+  const storeCache = getStoreCache(storeId);
+
+  return (rootState, action) => {
+    if (rootState === undefined) {
+      rootState = {};
+    }
+
+    let initialRootState: { [namespace: string]: any } | undefined;
+
+    storeCache.initNamespaces.forEach((_namespace) => {
+      const _namespaceCache = storeCache.cacheByNamespace[_namespace];
+      if (_namespaceCache == null) {
+        return;
+      }
+
+      if (rootState[_namespaceCache.path] === undefined) {
+        if (initialRootState == null) {
+          initialRootState = {};
+        }
+
+        initialRootState[_namespaceCache.path] = _namespaceCache.model.state({
+          dependencies: storeCache.dependencies,
+          props: _namespaceCache.props
+        });
+      }
+    });
+    storeCache.initNamespaces = [];
+
+    if (initialRootState != null) {
+      rootState = {
+        ...rootState,
+        ...initialRootState
+      };
+    }
+
+    const actionType = "" + action.type;
+    const { namespace, key } = parseActionType(actionType);
+
+    const namespaceCache = storeCache.cacheByNamespace[namespace];
+    if (namespaceCache == null) {
+      return rootState;
+    }
+
+    const reducer = namespaceCache.model.reducers[key] as Reducer;
+    if (reducer == null) {
+      return rootState;
+    }
+
+    return produce(rootState, (draft) => {
+      reducer(draft[namespaceCache.path], action.payload, {
+        dependencies: storeCache.dependencies,
+        props: namespaceCache.props,
+        originalState: rootState[namespaceCache.path]
+      });
+    });
+  };
+}

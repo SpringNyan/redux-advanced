@@ -12,9 +12,7 @@ export interface EpicContext<
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
-  action$: ActionsObservable<AnyAction>;
   rootAction$: ActionsObservable<AnyAction>;
-  state$: StateObservable<TState>;
   rootState$: StateObservable<unknown>;
 
   dependencies: TDependencies;
@@ -23,6 +21,8 @@ export interface EpicContext<
   actions: TActionHelpers;
 
   useContainer: UseContainer;
+
+  getState: () => TState;
 }
 
 export type Epic<

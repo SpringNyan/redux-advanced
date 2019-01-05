@@ -1,9 +1,11 @@
 import { Dispatch, Store } from "redux";
+import { StateObservable } from "redux-observable";
 
 import { Container, UseContainer } from "./container";
 import { Model } from "./model";
 
 import { ContainerImpl } from "./container";
+import { buildNamespace } from "./util";
 
 const cacheByStoreId: {
   [storeId: number]: {
@@ -13,18 +15,19 @@ const cacheByStoreId: {
     dispatch: Dispatch;
     useContainer: UseContainer;
 
-    modelByNamespace: {
-      [namespace: string]: Model;
+    initNamespaces: string[];
+
+    cacheByNamespace: {
+      [namespace: string]: {
+        path: string;
+
+        model: Model;
+        props: any;
+
+        container: Container;
+      };
     };
-    cacheByModel: Map<
-      Model,
-      {
-        namespace: string;
-        containers: {
-          [key: string]: Container;
-        };
-      }
-    >;
+    namespaceByModel: Map<Model, string>;
   };
 } = {};
 
@@ -36,24 +39,27 @@ export function getStoreCache(storeId: number) {
       getState: (...args) => cacheByStoreId[storeId].store!.getState(...args),
       dispatch: (...args) => cacheByStoreId[storeId].store!.dispatch(...args),
       useContainer: (model, key) => {
-        if (key == null) {
-          key = "";
-        }
+        const { cacheByNamespace, namespaceByModel } = cacheByStoreId[storeId];
 
-        const { cacheByModel } = cacheByStoreId[storeId];
-
-        if (!cacheByModel.has(model)) {
+        if (!namespaceByModel.has(model)) {
           throw new Error("model is not registered yet");
         }
-        const { namespace, containers } = cacheByModel.get(model)!;
 
-        return containers[key] != null
-          ? containers[key]
-          : new ContainerImpl(storeId, model, namespace, key);
+        const baseNamespace = namespaceByModel.get(model)!;
+        const namespace = buildNamespace(baseNamespace, key);
+
+        const cache = cacheByNamespace[namespace];
+        if (cache == null || cache.model !== model) {
+          return new ContainerImpl(storeId, namespace, model);
+        } else {
+          return cache.container;
+        }
       },
 
-      modelByNamespace: {},
-      cacheByModel: new Map()
+      initNamespaces: [],
+
+      cacheByNamespace: {},
+      namespaceByModel: new Map()
     };
   }
 
