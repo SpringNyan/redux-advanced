@@ -6,6 +6,7 @@ import { ConvertSelectorsToGetters, Selectors } from "./selector";
 import { StateFactory } from "./state";
 
 import { getStoreCache } from "./cache";
+import { buildNamespace } from "./util";
 
 export interface Model<
   TDependencies = any,
@@ -341,5 +342,27 @@ export function registerModel<TModel extends Model>(
     }
 
     storeCache.namespaceByModel.set(_model, namespace);
+  });
+}
+
+export function registerModels(
+  storeId: number,
+  namespace: string,
+  models: Models
+): void {
+  const storeCache = getStoreCache(storeId);
+
+  Object.keys(models).forEach((key) => {
+    const model = models[key];
+    const modelNamespace = buildNamespace(namespace, key);
+
+    if (typeof model === "function") {
+      registerModel(storeId, modelNamespace, model);
+    } else if (isModel(model)) {
+      registerModel(storeId, modelNamespace, model);
+      storeCache.useContainer(model).register();
+    } else {
+      registerModels(storeId, modelNamespace, model as Models);
+    }
   });
 }

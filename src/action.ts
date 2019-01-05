@@ -1,5 +1,6 @@
 import { Dispatch } from "redux";
 
+import { StoreCache } from "./cache";
 import { Effect, Effects, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
@@ -56,20 +57,12 @@ export type ConvertReducersAndEffectsToActionHelpers<
   ExtractActionPayloads<TReducers> & ExtractActionPayloads<TEffects>
 >;
 
-export const actionEffectDispatchHandlerMap = new Map<
-  AnyAction,
-  {
-    hasEffect: boolean;
-    resolve: () => void;
-    reject: (err: unknown) => void;
-  }
->();
-
 export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
-  constructor(
-    public readonly type: string,
-    private readonly _defaultDispatch: Dispatch
-  ) {}
+  private readonly _storeCache: StoreCache;
+
+  constructor(storeId: number, public readonly type: string) {
+    this._storeCache = getStoreCache(storeId);
+  }
 
   public is(action: any): action is Action<TPayload> {
     return action != null && action.type === this.type;
@@ -85,19 +78,19 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
   public dispatch(payload: TPayload, dispatch?: Dispatch): Promise<void> {
     const action = this.create(payload);
     if (dispatch == null) {
-      dispatch = this._defaultDispatch;
+      dispatch = this._storeCache.dispatch;
     }
 
     const promise = new Promise<void>((resolve, reject) => {
-      actionEffectDispatchHandlerMap.set(action, {
+      this._storeCache.effectDispatchHandlerByAction.set(action, {
         hasEffect: false,
         resolve: () => {
           resolve();
-          actionEffectDispatchHandlerMap.delete(action);
+          this._storeCache.effectDispatchHandlerByAction.delete(action);
         },
         reject: (err) => {
           reject(err);
-          actionEffectDispatchHandlerMap.delete(action);
+          this._storeCache.effectDispatchHandlerByAction.delete(action);
         }
       });
     });
@@ -105,7 +98,9 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
     dispatch(action);
 
     Promise.resolve().then(() => {
-      const handler = actionEffectDispatchHandlerMap.get(action);
+      const handler = this._storeCache.effectDispatchHandlerByAction.get(
+        action
+      );
       if (handler != null && !handler.hasEffect) {
         handler.resolve();
       }
@@ -115,27 +110,25 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
   }
 }
 
-export function createModelActionHelpers<TModel extends Model>(
+export function createActionHelpers<TModel extends Model>(
   storeId: number,
-  namespace: string,
-  model: TModel
+  namespace: string
 ): ConvertReducersAndEffectsToActionHelpers<
   ExtractReducers<TModel>,
   ExtractEffects<TModel>
 > {
   const storeCache = getStoreCache(storeId);
+  const namespaceCache = storeCache.cacheByNamespace[namespace];
 
   const actionHelpers: ActionHelpers = {};
-  [...Object.keys(model.reducers), ...Object.keys(model.effects)].forEach(
-    (key) => {
-      if (actionHelpers[key] == null) {
-        actionHelpers[key] = new ActionHelperImpl(
-          `${namespace}/${key}`,
-          storeCache.dispatch
-        );
-      }
+  [
+    ...Object.keys(namespaceCache.model.reducers),
+    ...Object.keys(namespaceCache.model.effects)
+  ].forEach((key) => {
+    if (actionHelpers[key] == null) {
+      actionHelpers[key] = new ActionHelperImpl(storeId, `${namespace}/${key}`);
     }
-  );
+  });
 
   return actionHelpers as any;
 }

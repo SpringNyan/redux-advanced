@@ -3,8 +3,9 @@ import { Reducer as ReduxReducer } from "redux";
 
 import { Model } from "./model";
 
+import { actionTypes } from "./action";
 import { getStoreCache } from "./cache";
-import { parseActionType } from "./util";
+import { convertNamespaceToPath, parseActionType } from "./util";
 
 export interface ReducerContext<
   TDependencies = any,
@@ -52,7 +53,7 @@ export function createReduxRootReducer(storeId: number): ReduxReducer {
 
     let initialRootState: { [namespace: string]: any } | undefined;
 
-    storeCache.initNamespaces.forEach((_namespace) => {
+    storeCache.pendingNamespaces.forEach((_namespace) => {
       const _namespaceCache = storeCache.cacheByNamespace[_namespace];
       if (_namespaceCache == null) {
         return;
@@ -69,7 +70,7 @@ export function createReduxRootReducer(storeId: number): ReduxReducer {
         });
       }
     });
-    storeCache.initNamespaces = [];
+    storeCache.pendingNamespaces = [];
 
     if (initialRootState != null) {
       rootState = {
@@ -80,6 +81,13 @@ export function createReduxRootReducer(storeId: number): ReduxReducer {
 
     const actionType = "" + action.type;
     const { namespace, key } = parseActionType(actionType);
+
+    if (key === actionTypes.unregister) {
+      rootState = {
+        ...rootState
+      };
+      delete rootState[convertNamespaceToPath(namespace)];
+    }
 
     const namespaceCache = storeCache.cacheByNamespace[namespace];
     if (namespaceCache == null) {

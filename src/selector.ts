@@ -670,43 +670,35 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
   return resultSelector;
 }) as any;
 
-export function createModelGetters<TModel extends Model>(
+export function createGetters<TModel extends Model>(
   storeId: number,
-  containerId: number,
-  namespace: string,
-  model: TModel,
-  dependencies: ExtractDependencies<TModel>,
-  props: ExtractProps<TModel>,
-  actions: ConvertReducersAndEffectsToActionHelpers<
-    ExtractReducers<TModel>,
-    ExtractEffects<TModel>
-  >,
-  useContainer: UseContainer
+  namespace: string
 ): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
-  const path = convertNamespaceToPath(namespace);
-
   const storeCache = getStoreCache(storeId);
+  const namespaceCache = storeCache.cacheByNamespace[namespace];
 
   const getters: Getters = {};
-  Object.keys(model.selectors).forEach((key) => {
+  Object.keys(namespaceCache.model.selectors).forEach((key) => {
     Object.defineProperty(getters, key, {
       get() {
-        const selector = model.selectors[key] as SelectorInternal;
+        const selector = namespaceCache.model.selectors[
+          key
+        ] as SelectorInternal;
 
         const rootState = storeCache.getState();
-        const state = rootState[path];
+        const state = rootState[namespaceCache.path];
 
         return selector(
           {
-            dependencies,
-            props,
+            dependencies: storeCache.dependencies,
+            props: namespaceCache.props,
             state,
             getters,
-            actions,
+            actions: namespaceCache.container.actions,
 
-            useContainer
+            useContainer: storeCache.useContainer
           },
-          containerId
+          namespaceCache.containerId
         );
       },
       enumerable: true,

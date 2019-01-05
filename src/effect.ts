@@ -4,16 +4,16 @@ import {
   Epic as ReduxObservableEpic,
   StateObservable
 } from "redux-observable";
-import { empty, Observable } from "rxjs";
-import { mergeMap } from "rxjs/operators";
+import { merge, Observable } from "rxjs";
+import { catchError, mergeMap, takeUntil } from "rxjs/operators";
 
-import { ActionHelpers, AnyAction } from "./action";
+import { Action, ActionHelpers, AnyAction } from "./action";
 import { Model } from "./model";
 import { Getters } from "./selector";
 
+import { actionTypes } from "./action";
 import { getStoreCache } from "./cache";
 import { UseContainer } from "./container";
-import { parseActionType } from "./util";
 
 export type EffectDispatch = (dispatch: Dispatch<AnyAction>) => Promise<void>;
 
@@ -97,45 +97,79 @@ export function toActionObservable(
   });
 }
 
-export function createEffectReduxObservableEpic(
-  storeId: number
+export function createEffectsReduxObservableEpic(
+  storeId: number,
+  namespace: string
 ): ReduxObservableEpic {
   const storeCache = getStoreCache(storeId);
+  const namespaceCache = storeCache.cacheByNamespace[namespace];
 
-  return (rootAction$, rootState$) =>
-    rootAction$.pipe(
-      mergeMap((action) => {
-        const actionType = "" + action.type;
-        const { namespace, key } = parseActionType(actionType);
-
-        const namespaceCache = storeCache.cacheByNamespace[namespace];
-        if (namespaceCache == null) {
-          return empty();
-        }
-
+  return (rootAction$, rootState$) => {
+    const outputObservables = Object.keys(namespaceCache.model.effects).map(
+      (key) => {
         const effect = namespaceCache.model.effects[key] as Effect;
-        if (effect == null) {
-          return empty();
-        }
 
-        const effectDispatch = effect(
-          {
-            rootAction$,
-            rootState$,
+        let output$ = rootAction$.ofType(`${namespace}/${key}`).pipe(
+          mergeMap((action: Action) => {
+            const effectDispatchHandler = storeCache.effectDispatchHandlerByAction.get(
+              action
+            );
+            if (effectDispatchHandler != null) {
+              effectDispatchHandler.hasEffect = true;
+            }
 
-            dependencies: storeCache.dependencies,
-            props: namespaceCache.props,
-            getters: namespaceCache.container.getters,
-            actions: namespaceCache.container.actions,
+            const effectDispatch = effect(
+              {
+                rootAction$,
+                rootState$,
 
-            useContainer: storeCache.useContainer,
+                dependencies: storeCache.dependencies,
+                props: namespaceCache.props,
+                getters: namespaceCache.container.getters,
+                actions: namespaceCache.container.actions,
 
-            getState: () => rootState$.value[namespaceCache.path]
-          },
-          action.payload
+                useContainer: storeCache.useContainer,
+
+                getState: () => rootState$.value[namespaceCache.path]
+              },
+              action.payload
+            );
+
+            const wrappedEffectDispatch = (dispatch: Dispatch) => {
+              const promise = effectDispatch(dispatch);
+              promise.then(
+                () => {
+                  if (effectDispatchHandler != null) {
+                    effectDispatchHandler.resolve();
+                  }
+                },
+                (err) => {
+                  if (effectDispatchHandler != null) {
+                    effectDispatchHandler.reject(err);
+                  }
+                }
+              );
+              return promise;
+            };
+
+            return toActionObservable(wrappedEffectDispatch);
+          })
         );
 
-        return toActionObservable(effectDispatch);
-      })
+        if (storeCache.options.epicErrorHandler != null) {
+          output$ = output$.pipe(
+            catchError(storeCache.options.epicErrorHandler)
+          );
+        }
+
+        return output$;
+      }
     );
+
+    const takeUntil$ = rootAction$.ofType(
+      `${namespace}/${actionTypes.unregister}`
+    );
+
+    return merge(...outputObservables).pipe(takeUntil(takeUntil$));
+  };
 }

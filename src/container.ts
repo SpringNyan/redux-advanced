@@ -1,4 +1,7 @@
+import { combineEpics } from "redux-observable";
+
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
+import { StoreCache } from "./cache";
 import { ExtractEffects } from "./effect";
 import { ExtractProps, Model } from "./model";
 import { ExtractReducers } from "./reducer";
@@ -9,9 +12,12 @@ import {
 } from "./selector";
 import { ExtractState } from "./state";
 
-import { createModelActionHelpers } from "./action";
+import { createActionHelpers } from "./action";
+import { actionTypes } from "./action";
 import { getStoreCache } from "./cache";
-import { createModelGetters } from "./selector";
+import { createEffectsReduxObservableEpic } from "./effect";
+import { createEpicsReduxObservableEpic } from "./epic";
+import { createGetters } from "./selector";
 import { convertNamespaceToPath } from "./util";
 
 export interface Container<TModel extends Model = any> {
@@ -39,6 +45,8 @@ export type UseContainer = <TModel extends Model>(
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   private static _nextContainerId = 1;
 
+  private readonly _storeCache: StoreCache;
+
   private readonly _containerId: number;
   private readonly _path: string;
 
@@ -54,15 +62,13 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       >
     | undefined;
 
-  private get _storeCache() {
-    return getStoreCache(this._storeId);
-  }
-
   constructor(
     private readonly _storeId: number,
     public readonly namespace: string,
     private readonly _model: TModel
   ) {
+    this._storeCache = getStoreCache(this._storeId);
+
     this._containerId = ContainerImpl._nextContainerId;
     ContainerImpl._nextContainerId += 1;
 
@@ -89,18 +95,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   public get getters() {
     if (this.isRegistered) {
       if (this._cachedGetters == null) {
-        const { dependencies, useContainer } = this._storeCache;
-
-        this._cachedGetters = createModelGetters(
-          this._storeId,
-          this._containerId,
-          this.namespace,
-          this._model,
-          dependencies,
-          this._props,
-          this.actions,
-          useContainer
-        );
+        this._cachedGetters = createGetters(this._storeId, this.namespace);
       }
 
       return this._cachedGetters;
@@ -112,10 +107,9 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   public get actions() {
     if (this.isRegistered) {
       if (this._cachedActions == null) {
-        this._cachedActions = createModelActionHelpers(
+        this._cachedActions = createActionHelpers(
           this._storeId,
-          this.namespace,
-          this._model
+          this.namespace
         );
       }
 
@@ -126,7 +120,14 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   }
 
   public register(props?: ExtractProps<TModel>) {
-    const { cacheByNamespace, initNamespaces } = this._storeCache;
+    const {
+      cacheByNamespace,
+      pendingNamespaces,
+      store,
+      dispatch,
+      addEpic$,
+      initialEpics
+    } = this._storeCache;
 
     if (!this.canRegister) {
       throw new Error("namespace is already used");
@@ -140,22 +141,44 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       model: this._model,
       props: this._props,
 
+      containerId: this._containerId,
       container: this
     };
 
-    initNamespaces.push(this.namespace);
+    pendingNamespaces.push(this.namespace);
 
-    // TODO: epics
+    const epic = combineEpics(
+      createEffectsReduxObservableEpic(this._storeId, this.namespace),
+      createEpicsReduxObservableEpic(this._storeId, this.namespace)
+    );
+
+    if (store != null) {
+      addEpic$.next(epic);
+
+      dispatch({
+        type: `${this.namespace}/${actionTypes.register}`
+      });
+    } else {
+      initialEpics.push(epic);
+    }
   }
 
   public unregister() {
-    const { cacheByNamespace } = this._storeCache;
+    const { cacheByNamespace, dispatch } = this._storeCache;
 
     if (!this.isRegistered) {
       throw new Error("container is not registered yet");
     }
 
+    dispatch({
+      type: `${this.namespace}/${actionTypes.epicEnd}`
+    });
+
     delete cacheByNamespace[this.namespace];
+
+    dispatch({
+      type: `${this.namespace}/${actionTypes.unregister}`
+    });
 
     Object.keys(this._model.selectors).forEach((key) => {
       const selector = this._model.selectors[key] as SelectorInternal;
@@ -163,7 +186,5 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
         selector.__deleteCache(this._containerId);
       }
     });
-
-    // TODO: epics
   }
 }

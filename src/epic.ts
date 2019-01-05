@@ -1,9 +1,17 @@
-import { ActionsObservable, StateObservable } from "redux-observable";
-import { Observable } from "rxjs";
+import {
+  ActionsObservable,
+  Epic as ReduxObservableEpic,
+  StateObservable
+} from "redux-observable";
+import { merge, Observable } from "rxjs";
+import { catchError, takeUntil } from "rxjs/operators";
 
 import { ActionHelpers, AnyAction } from "./action";
 import { UseContainer } from "./container";
 import { Getters } from "./selector";
+
+import { actionTypes } from "./action";
+import { getStoreCache } from "./cache";
 
 export interface EpicContext<
   TDependencies = any,
@@ -42,3 +50,41 @@ export type Epics<
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > = Array<Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>>;
+
+export function createEpicsReduxObservableEpic(
+  storeId: number,
+  namespace: string
+): ReduxObservableEpic {
+  const storeCache = getStoreCache(storeId);
+  const namespaceCache = storeCache.cacheByNamespace[namespace];
+
+  return (rootAction$, rootState$) => {
+    const outputObservables = namespaceCache.model.epics.map((epic: Epic) => {
+      let output$ = epic({
+        rootAction$,
+        rootState$,
+
+        dependencies: storeCache.dependencies,
+        props: namespaceCache.props,
+        getters: namespaceCache.container.getters,
+        actions: namespaceCache.container.actions,
+
+        useContainer: storeCache.useContainer,
+
+        getState: () => rootState$.value[namespaceCache.path]
+      });
+
+      if (storeCache.options.epicErrorHandler != null) {
+        output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
+      }
+
+      return output$;
+    });
+
+    const takeUntil$ = rootAction$.ofType(
+      `${namespace}/${actionTypes.unregister}`
+    );
+
+    return merge(...outputObservables).pipe(takeUntil(takeUntil$));
+  };
+}
