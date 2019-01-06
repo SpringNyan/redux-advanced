@@ -9,7 +9,7 @@
     "redux",
     "typescript"
   ],
-  "main": "lib/index.js",
+  "main": "dist/redux-advanced.js",
   "typings": "lib/index.d.ts",
   "devDependencies": {
     "@types/chai": "^4.1.7",
@@ -19,6 +19,7 @@
     "mocha": "^5.2.0",
     "redux": "^4.0.1",
     "redux-observable": "^1.0.0",
+    "rollup": "^1.0.2",
     "rxjs": "^6.3.3",
     "tslint": "^5.12.0",
     "tslint-config-prettier": "^1.17.0",
@@ -27,7 +28,7 @@
     "webpack-cli": "^3.1.2"
   },
   "scripts": {
-    "build": "tsc -p .",
+    "build": "tsc -p . && rollup -c",
     "test": "npm run build && tsc -p test && webpack --config test/webpack.config.js && mocha test/test.build.js"
   }
 }
