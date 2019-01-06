@@ -65,6 +65,7 @@ describe("redux-advanced", () => {
       dynamicModels: [dynamicModel]
     });
     const staticModelContainer = store.useContainer(staticModel);
+    expect(staticModelContainer.namespace).eq("staticModel");
 
     expect(staticModelContainer.isRegistered).eq(true);
     expect(staticModelContainer.canRegister).eq(false);
@@ -84,9 +85,11 @@ describe("redux-advanced", () => {
 
     const dynamicModelContainer = store.useContainer(dynamicModel);
     expect(dynamicModelContainer.isRegistered).eq(false);
+    expect(dynamicModelContainer.namespace).eq("dynamicModels");
 
     const dynamicModel1Container = store.useContainer(dynamicModel, "1");
     expect(dynamicModel1Container.isRegistered).eq(false);
+    expect(dynamicModel1Container.namespace).eq("dynamicModels/1");
 
     dynamicModel1Container.register({
       name: "hahaha"
@@ -97,6 +100,7 @@ describe("redux-advanced", () => {
 
     const dynamicModel2Container = store.useContainer(dynamicModel, "2");
     expect(dynamicModel2Container.isRegistered).eq(false);
+    expect(dynamicModel2Container.namespace).eq("dynamicModels/2");
 
     dynamicModel2Container.register({
       name: "zzzzzz"
