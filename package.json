@@ -1,8 +1,34 @@
 {
   "name": "redux-advanced",
-  "version": "0.0.0",
-  "description": "Redux advanced helper",
+  "version": "0.1.0",
+  "description": "Redux advanced store",
   "authors": "SpringNyan",
   "license": "MIT",
-  "repository": "github:SpringNyan/redux-advanced"
+  "repository": "github:SpringNyan/redux-advanced",
+  "keywords": [
+    "redux",
+    "typescript"
+  ],
+  "main": "dist/redux-advanced.js",
+  "typings": "lib/index.d.ts",
+  "devDependencies": {
+    "@types/chai": "^4.1.7",
+    "@types/mocha": "^5.2.5",
+    "chai": "^4.2.0",
+    "immer": "^1.9.3",
+    "mocha": "^5.2.0",
+    "redux": "^4.0.1",
+    "redux-observable": "^1.0.0",
+    "rollup": "^1.0.2",
+    "rxjs": "^6.3.3",
+    "tslint": "^5.12.0",
+    "tslint-config-prettier": "^1.17.0",
+    "typescript": "^3.2.2",
+    "webpack": "^4.28.3",
+    "webpack-cli": "^3.1.2"
+  },
+  "scripts": {
+    "build": "tsc -p . && rollup -c",
+    "test": "npm run build && tsc -p test && webpack --config test/webpack.config.js && mocha test/test.build.js"
+  }
 }

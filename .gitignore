@@ -1,1 +1,4 @@
 node_modules
+
+test/test.js
+test/test.build.js
