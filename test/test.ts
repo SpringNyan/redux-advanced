@@ -8,13 +8,13 @@ interface IDependencies {
   appId: number;
 }
 
+const defaultModelBuilder = createModelBuilder()
+  .dependencies<IDependencies>()
+  .freeze();
+
 describe("redux-advanced", () => {
   it("test", async () => {
-    const defaultModelBuilder = createModelBuilder()
-      .dependencies<IDependencies>()
-      .freeze();
-
-    const staticModel = defaultModelBuilder
+    const testModelBuilder = defaultModelBuilder
       .props({
         name: ""
       })
@@ -45,14 +45,24 @@ describe("redux-advanced", () => {
           await actions.setName.dispatch(payload, dispatch);
         }
       })
-      .build({
-        name: "nyan"
-      });
+      .freeze();
+
+    const staticModel = testModelBuilder.build({
+      name: "nyan"
+    });
+
+    const dynamicModel = testModelBuilder
+      .selectors({
+        staticSummary: ({ useContainer }) =>
+          useContainer(staticModel).getters.summary
+      })
+      .build();
 
     const appDependencies: IDependencies = { appId: 233 };
 
     const store = createAdvancedStore(appDependencies, {
-      staticModel
+      staticModel,
+      dynamicModels: [dynamicModel]
     });
     const staticModelContainer = store.useContainer(staticModel);
 
@@ -65,11 +75,42 @@ describe("redux-advanced", () => {
     staticModelContainer.actions.setAge.dispatch(998);
     expect(staticModelContainer.state.age).eq(998);
 
-    const setNamePromise = staticModelContainer.actions.setNameAsync.dispatch(
+    const staticModelSetNamePromise = staticModelContainer.actions.setNameAsync.dispatch(
       "meow"
     );
     expect(staticModelContainer.state.name).eq("nyan");
-    await setNamePromise;
+    await staticModelSetNamePromise;
     expect(staticModelContainer.state.name).eq("meow");
+
+    const dynamicModelContainer = store.useContainer(dynamicModel);
+    expect(dynamicModelContainer.isRegistered).eq(false);
+
+    const dynamicModel1Container = store.useContainer(dynamicModel, "1");
+    expect(dynamicModel1Container.isRegistered).eq(false);
+
+    dynamicModel1Container.register({
+      name: "hahaha"
+    });
+    expect(dynamicModel1Container.isRegistered).eq(true);
+    expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
+    expect(dynamicModel1Container.getters.staticSummary).eq("meow - 998");
+
+    const dynamicModel2Container = store.useContainer(dynamicModel, "2");
+    expect(dynamicModel2Container.isRegistered).eq(false);
+
+    dynamicModel2Container.register({
+      name: "zzzzzz"
+    });
+    expect(dynamicModel2Container.isRegistered).eq(true);
+    expect(dynamicModel2Container.getters.summary).eq("zzzzzz - 0");
+
+    const dynamicModel2SetNamePromise = dynamicModel2Container.actions.setNameAsync.dispatch(
+      "Orz"
+    );
+    dynamicModel2Container.unregister();
+    expect(dynamicModel2Container.isRegistered).eq(false);
+    expect(dynamicModel2Container.state).eq(undefined);
+    await dynamicModel2SetNamePromise;
+    expect(dynamicModel2Container.state).eq(undefined);
   });
 });

@@ -378,7 +378,7 @@ export function registerModels(
     const model = models[key];
     const modelNamespace = buildNamespace(namespace, key);
 
-    if (typeof model === "function") {
+    if (Array.isArray(model)) {
       registerModel(storeId, modelNamespace, model);
     } else if (isModel(model)) {
       registerModel(storeId, modelNamespace, model);
