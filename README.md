@@ -83,10 +83,9 @@ const model = defaultModelBuilder
   })
   // 提供epics
   .epics([
-    ({ rootAction$, getState }) =>
-      rootAction$.pipe(
+    ({ rootAction$, getState, actions }) =>
+      rootAction$.ofType(actions.setName.type).pipe(
         mergeMap((action) => {
-          console.log(action.type);
           console.log(getState());
           return empty();
         })
