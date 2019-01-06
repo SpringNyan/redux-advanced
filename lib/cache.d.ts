@@ -31,4 +31,4 @@ export interface StoreCache {
     };
     namespaceByModel: Map<Model, string>;
 }
-export declare function getStoreCache(storeId: number): StoreCache;
+export declare function createStoreCache(): StoreCache;

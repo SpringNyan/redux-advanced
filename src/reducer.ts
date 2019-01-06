@@ -1,10 +1,10 @@
 import produce from "immer";
 import { Reducer as ReduxReducer } from "redux";
 
+import { StoreCache } from "./cache";
 import { Model } from "./model";
 
 import { actionTypes } from "./action";
-import { getStoreCache } from "./cache";
 import { convertNamespaceToPath, parseActionType } from "./util";
 
 export interface ReducerContext<
@@ -43,9 +43,7 @@ export type ExtractReducers<T extends Model> = T extends Model<
   ? TReducers
   : never;
 
-export function createReduxRootReducer(storeId: number): ReduxReducer {
-  const storeCache = getStoreCache(storeId);
-
+export function createReduxRootReducer(storeCache: StoreCache): ReduxReducer {
   return (rootState, action) => {
     if (rootState === undefined) {
       rootState = {};

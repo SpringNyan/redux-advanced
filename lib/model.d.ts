@@ -1,4 +1,5 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
+import { StoreCache } from "./cache";
 import { Effects } from "./effect";
 import { Epics } from "./epic";
 import { Reducers } from "./reducer";
@@ -34,5 +35,5 @@ export declare class ModelBuilder<TDependencies = any, TProps = any, TState = an
 }
 export declare function isModel(obj: any): obj is Model;
 export declare function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}>;
-export declare function registerModel<TModel extends Model>(storeId: number, namespace: string, model: TModel | TModel[]): void;
-export declare function registerModels(storeId: number, namespace: string, models: Models): void;
+export declare function registerModel<TModel extends Model>(storeCache: StoreCache, namespace: string, model: TModel | TModel[]): void;
+export declare function registerModels(storeCache: StoreCache, namespace: string, models: Models): void;

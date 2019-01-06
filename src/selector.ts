@@ -1,8 +1,7 @@
 import { ActionHelpers } from "./action";
+import { StoreCache } from "./cache";
 import { UseContainer } from "./container";
 import { Model } from "./model";
-
-import { getStoreCache } from "./cache";
 
 export interface SelectorContext<
   TDependencies = any,
@@ -692,10 +691,9 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
 }) as any;
 
 export function createGetters<TModel extends Model>(
-  storeId: number,
+  storeCache: StoreCache,
   namespace: string
 ): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
-  const storeCache = getStoreCache(storeId);
   const namespaceCache = storeCache.cacheByNamespace[namespace];
 
   const getters: Getters = {};

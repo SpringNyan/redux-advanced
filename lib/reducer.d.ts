@@ -1,4 +1,5 @@
 import { Reducer as ReduxReducer } from "redux";
+import { StoreCache } from "./cache";
 import { Model } from "./model";
 export interface ReducerContext<TDependencies = any, TProps = any, TState = any> {
     dependencies: TDependencies;
@@ -10,4 +11,4 @@ export interface Reducers<TDependencies = any, TProps = any, TState = any> {
     [name: string]: Reducer<TDependencies, TProps, TState>;
 }
 export declare type ExtractReducers<T extends Model> = T extends Model<any, any, any, any, infer TReducers, any> ? TReducers : never;
-export declare function createReduxRootReducer(storeId: number): ReduxReducer;
+export declare function createReduxRootReducer(storeCache: StoreCache): ReduxReducer;

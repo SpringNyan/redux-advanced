@@ -5,8 +5,6 @@ import { Effect, Effects, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
 
-import { getStoreCache } from "./cache";
-
 export const actionTypes = {
   register: "@@REGISTER",
   epicEnd: "@@EPIC_END",
@@ -58,11 +56,10 @@ export type ConvertReducersAndEffectsToActionHelpers<
 >;
 
 export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
-  private readonly _storeCache: StoreCache;
-
-  constructor(storeId: number, public readonly type: string) {
-    this._storeCache = getStoreCache(storeId);
-  }
+  constructor(
+    private readonly _storeCache: StoreCache,
+    public readonly type: string
+  ) {}
 
   public is(action: any): action is Action<TPayload> {
     return action != null && action.type === this.type;
@@ -111,13 +108,12 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
 }
 
 export function createActionHelpers<TModel extends Model>(
-  storeId: number,
+  storeCache: StoreCache,
   namespace: string
 ): ConvertReducersAndEffectsToActionHelpers<
   ExtractReducers<TModel>,
   ExtractEffects<TModel>
 > {
-  const storeCache = getStoreCache(storeId);
   const namespaceCache = storeCache.cacheByNamespace[namespace];
 
   const actionHelpers: ActionHelpers = {};
@@ -126,7 +122,10 @@ export function createActionHelpers<TModel extends Model>(
     ...Object.keys(namespaceCache.model.effects)
   ].forEach((key) => {
     if (actionHelpers[key] == null) {
-      actionHelpers[key] = new ActionHelperImpl(storeId, `${namespace}/${key}`);
+      actionHelpers[key] = new ActionHelperImpl(
+        storeCache,
+        `${namespace}/${key}`
+      );
     }
   });
 

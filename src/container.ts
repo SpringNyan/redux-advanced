@@ -14,7 +14,6 @@ import { ExtractState } from "./state";
 
 import { createActionHelpers } from "./action";
 import { actionTypes } from "./action";
-import { getStoreCache } from "./cache";
 import { createEffectsReduxObservableEpic } from "./effect";
 import { createEpicsReduxObservableEpic } from "./epic";
 import { createGetters } from "./selector";
@@ -45,8 +44,6 @@ export type UseContainer = <TModel extends Model>(
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   private static _nextContainerId = 1;
 
-  private readonly _storeCache: StoreCache;
-
   private readonly _containerId: number;
   private readonly _path: string;
 
@@ -63,12 +60,10 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     | undefined;
 
   constructor(
-    private readonly _storeId: number,
+    private readonly _storeCache: StoreCache,
     public readonly namespace: string,
     private readonly _model: TModel
   ) {
-    this._storeCache = getStoreCache(this._storeId);
-
     this._containerId = ContainerImpl._nextContainerId;
     ContainerImpl._nextContainerId += 1;
 
@@ -95,7 +90,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   public get getters() {
     if (this.isRegistered) {
       if (this._cachedGetters == null) {
-        this._cachedGetters = createGetters(this._storeId, this.namespace);
+        this._cachedGetters = createGetters(this._storeCache, this.namespace);
       }
 
       return this._cachedGetters;
@@ -108,7 +103,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     if (this.isRegistered) {
       if (this._cachedActions == null) {
         this._cachedActions = createActionHelpers(
-          this._storeId,
+          this._storeCache,
           this.namespace
         );
       }
@@ -148,8 +143,8 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     pendingNamespaces.push(this.namespace);
 
     const epic = combineEpics(
-      createEffectsReduxObservableEpic(this._storeId, this.namespace),
-      createEpicsReduxObservableEpic(this._storeId, this.namespace)
+      createEffectsReduxObservableEpic(this._storeCache, this.namespace),
+      createEpicsReduxObservableEpic(this._storeCache, this.namespace)
     );
 
     if (store != null) {

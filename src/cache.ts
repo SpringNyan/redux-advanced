@@ -47,51 +47,45 @@ export interface StoreCache {
   namespaceByModel: Map<Model, string>;
 }
 
-const cacheByStoreId: {
-  [storeId: number]: StoreCache;
-} = {};
+export function createStoreCache(): StoreCache {
+  const storeCache: StoreCache = {
+    store: undefined!,
+    options: undefined!,
+    dependencies: undefined!,
+    addEpic$: undefined!,
+    initialEpics: [],
 
-export function getStoreCache(storeId: number) {
-  if (cacheByStoreId[storeId] == null) {
-    cacheByStoreId[storeId] = {
-      store: undefined!,
-      options: undefined!,
-      dependencies: undefined!,
-      addEpic$: undefined!,
-      initialEpics: [],
+    getState: (...args) => storeCache.store!.getState(...args),
+    dispatch: (...args) => storeCache.store!.dispatch(...args),
+    useContainer: (model, key) => {
+      if (key == null) {
+        key = "";
+      }
 
-      getState: (...args) => cacheByStoreId[storeId].store!.getState(...args),
-      dispatch: (...args) => cacheByStoreId[storeId].store!.dispatch(...args),
-      useContainer: (model, key) => {
-        if (key == null) {
-          key = "";
-        }
+      const { cacheByNamespace, namespaceByModel } = storeCache;
 
-        const { cacheByNamespace, namespaceByModel } = cacheByStoreId[storeId];
+      if (!namespaceByModel.has(model)) {
+        throw new Error("model is not registered yet");
+      }
 
-        if (!namespaceByModel.has(model)) {
-          throw new Error("model is not registered yet");
-        }
+      const baseNamespace = namespaceByModel.get(model)!;
+      const namespace = buildNamespace(baseNamespace, key);
 
-        const baseNamespace = namespaceByModel.get(model)!;
-        const namespace = buildNamespace(baseNamespace, key);
+      const namespaceCache = cacheByNamespace[namespace];
+      if (namespaceCache == null || namespaceCache.model !== model) {
+        return new ContainerImpl(storeCache, namespace, model);
+      } else {
+        return namespaceCache.container;
+      }
+    },
 
-        const namespaceCache = cacheByNamespace[namespace];
-        if (namespaceCache == null || namespaceCache.model !== model) {
-          return new ContainerImpl(storeId, namespace, model);
-        } else {
-          return namespaceCache.container;
-        }
-      },
+    pendingNamespaces: [],
 
-      pendingNamespaces: [],
+    effectDispatchHandlerByAction: new Map(),
 
-      effectDispatchHandlerByAction: new Map(),
+    cacheByNamespace: {},
+    namespaceByModel: new Map()
+  };
 
-      cacheByNamespace: {},
-      namespaceByModel: new Map()
-    };
-  }
-
-  return cacheByStoreId[storeId];
+  return storeCache;
 }

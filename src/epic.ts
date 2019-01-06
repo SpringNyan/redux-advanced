@@ -7,11 +7,11 @@ import { merge, Observable } from "rxjs";
 import { catchError, takeUntil } from "rxjs/operators";
 
 import { ActionHelpers, AnyAction } from "./action";
+import { StoreCache } from "./cache";
 import { UseContainer } from "./container";
 import { Getters } from "./selector";
 
 import { actionTypes } from "./action";
-import { getStoreCache } from "./cache";
 
 export interface EpicContext<
   TDependencies = any,
@@ -52,10 +52,9 @@ export type Epics<
 > = Array<Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>>;
 
 export function createEpicsReduxObservableEpic(
-  storeId: number,
+  storeCache: StoreCache,
   namespace: string
 ): ReduxObservableEpic {
-  const storeCache = getStoreCache(storeId);
   const namespaceCache = storeCache.cacheByNamespace[namespace];
 
   return (rootAction$, rootState$) => {

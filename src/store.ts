@@ -7,7 +7,7 @@ import { AnyAction } from "./action";
 import { UseContainer } from "./container";
 import { Models } from "./model";
 
-import { getStoreCache } from "./cache";
+import { createStoreCache } from "./cache";
 import { registerModels } from "./model";
 import { createReduxRootReducer } from "./reducer";
 
@@ -23,7 +23,6 @@ export interface ReduxAdvancedOptions {
   ) => Observable<AnyAction>;
 }
 
-let nextStoreId = 1;
 export function createAdvancedStore<
   TDependencies,
   TModels extends Models<TDependencies>
@@ -32,20 +31,18 @@ export function createAdvancedStore<
   models: TModels,
   options?: ReduxAdvancedOptions
 ): AdvancedStore {
-  const storeId = nextStoreId;
-  nextStoreId += 1;
-
   if (options == null) {
     options = {};
   }
 
-  const storeCache = getStoreCache(storeId);
+  const storeCache = createStoreCache();
+
   storeCache.options = options;
   storeCache.dependencies = dependencies;
 
-  registerModels(storeId, "", models);
+  registerModels(storeCache, "", models);
 
-  const rootReducer: Reducer = createReduxRootReducer(storeId);
+  const rootReducer: Reducer = createReduxRootReducer(storeCache);
 
   storeCache.addEpic$ = new BehaviorSubject(
     combineEpics(...storeCache.initialEpics)

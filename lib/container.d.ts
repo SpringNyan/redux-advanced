@@ -1,4 +1,5 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
+import { StoreCache } from "./cache";
 import { ExtractEffects } from "./effect";
 import { ExtractProps, Model } from "./model";
 import { ExtractReducers } from "./reducer";
@@ -16,17 +17,16 @@ export interface Container<TModel extends Model = any> {
 }
 export declare type UseContainer = <TModel extends Model>(model: TModel, key?: string) => Container<TModel>;
 export declare class ContainerImpl<TModel extends Model> implements Container<TModel> {
-    private readonly _storeId;
+    private readonly _storeCache;
     readonly namespace: string;
     private readonly _model;
     private static _nextContainerId;
-    private readonly _storeCache;
     private readonly _containerId;
     private readonly _path;
     private _props;
     private _cachedGetters;
     private _cachedActions;
-    constructor(_storeId: number, namespace: string, _model: TModel);
+    constructor(_storeCache: StoreCache, namespace: string, _model: TModel);
     readonly isRegistered: boolean;
     readonly canRegister: boolean;
     readonly state: any;

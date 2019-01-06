@@ -1,4 +1,5 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
+import { StoreCache } from "./cache";
 import { Effects } from "./effect";
 import { Epics } from "./epic";
 import { Reducers } from "./reducer";
@@ -9,7 +10,6 @@ import {
 } from "./selector";
 import { StateFactory } from "./state";
 
-import { getStoreCache } from "./cache";
 import { createSelector } from "./selector";
 import { buildNamespace } from "./util";
 
@@ -351,12 +351,10 @@ export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
 }
 
 export function registerModel<TModel extends Model>(
-  storeId: number,
+  storeCache: StoreCache,
   namespace: string,
   model: TModel | TModel[]
 ): void {
-  const storeCache = getStoreCache(storeId);
-
   const models = Array.isArray(model) ? model : [model];
   models.forEach((_model) => {
     if (storeCache.namespaceByModel.has(_model)) {
@@ -368,23 +366,21 @@ export function registerModel<TModel extends Model>(
 }
 
 export function registerModels(
-  storeId: number,
+  storeCache: StoreCache,
   namespace: string,
   models: Models
 ): void {
-  const storeCache = getStoreCache(storeId);
-
   Object.keys(models).forEach((key) => {
     const model = models[key];
     const modelNamespace = buildNamespace(namespace, key);
 
     if (Array.isArray(model)) {
-      registerModel(storeId, modelNamespace, model);
+      registerModel(storeCache, modelNamespace, model);
     } else if (isModel(model)) {
-      registerModel(storeId, modelNamespace, model);
+      registerModel(storeCache, modelNamespace, model);
       storeCache.useContainer(model).register();
     } else {
-      registerModels(storeId, modelNamespace, model as Models);
+      registerModels(storeCache, modelNamespace, model as Models);
     }
   });
 }

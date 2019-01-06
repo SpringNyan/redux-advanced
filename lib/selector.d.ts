@@ -1,4 +1,5 @@
 import { ActionHelpers } from "./action";
+import { StoreCache } from "./cache";
 import { UseContainer } from "./container";
 import { Model } from "./model";
 export interface SelectorContext<TDependencies = any, TProps = any, TState = any, TGetters extends Getters = any, TActionHelpers extends ActionHelpers = any> {
@@ -38,4 +39,4 @@ export interface CreateSelector<TDependencies = any, TProps = any, TState = any,
     <T1, T2, T3, T4, T5, T6, T7, T8, T9, TResult>(selector1: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T1>, selector2: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T2>, selector3: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T3>, selector4: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T4>, selector5: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T5>, selector6: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T6>, selector7: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T7>, selector8: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T8>, selector9: Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, T9>, combiner: (res1: T1, res2: T2, res3: T3, res4: T4, res5: T5, res6: T6, res7: T7, res8: T8, res9: T9, context: SelectorContext<TDependencies, TProps, TState, TGetters, TActionHelpers>) => TResult): Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, TResult>;
 }
 export declare const createSelector: CreateSelector;
-export declare function createGetters<TModel extends Model>(storeId: number, namespace: string): ConvertSelectorsToGetters<ExtractSelectors<TModel>>;
+export declare function createGetters<TModel extends Model>(storeCache: StoreCache, namespace: string): ConvertSelectorsToGetters<ExtractSelectors<TModel>>;

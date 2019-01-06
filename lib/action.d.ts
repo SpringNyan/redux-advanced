@@ -1,4 +1,5 @@
 import { Dispatch } from "redux";
+import { StoreCache } from "./cache";
 import { Effect, Effects, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
@@ -32,11 +33,11 @@ export declare type ConvertPayloadsToActionHelpers<TPayloads> = {
 };
 export declare type ConvertReducersAndEffectsToActionHelpers<TReducers extends Reducers, TEffects extends Effects> = ConvertPayloadsToActionHelpers<ExtractActionPayloads<TReducers> & ExtractActionPayloads<TEffects>>;
 export declare class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
-    readonly type: string;
     private readonly _storeCache;
-    constructor(storeId: number, type: string);
+    readonly type: string;
+    constructor(_storeCache: StoreCache, type: string);
     is(action: any): action is Action<TPayload>;
     create(payload: TPayload): Action<TPayload>;
     dispatch(payload: TPayload, dispatch?: Dispatch): Promise<void>;
 }
-export declare function createActionHelpers<TModel extends Model>(storeId: number, namespace: string): ConvertReducersAndEffectsToActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>;
+export declare function createActionHelpers<TModel extends Model>(storeCache: StoreCache, namespace: string): ConvertReducersAndEffectsToActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>;

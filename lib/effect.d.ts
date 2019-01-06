@@ -2,6 +2,7 @@ import { Dispatch } from "redux";
 import { ActionsObservable, Epic as ReduxObservableEpic, StateObservable } from "redux-observable";
 import { Observable } from "rxjs";
 import { ActionHelpers, AnyAction } from "./action";
+import { StoreCache } from "./cache";
 import { UseContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
@@ -22,4 +23,4 @@ export interface Effects<TDependencies = any, TProps = any, TState = any, TGette
 }
 export declare type ExtractEffects<T extends Model> = T extends Model<any, any, any, any, any, infer TEffects> ? TEffects : never;
 export declare function toActionObservable(effectDispatch: EffectDispatch): Observable<AnyAction>;
-export declare function createEffectsReduxObservableEpic(storeId: number, namespace: string): ReduxObservableEpic;
+export declare function createEffectsReduxObservableEpic(storeCache: StoreCache, namespace: string): ReduxObservableEpic;
