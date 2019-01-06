@@ -8,12 +8,12 @@ import { merge, Observable } from "rxjs";
 import { catchError, mergeMap, takeUntil } from "rxjs/operators";
 
 import { Action, ActionHelpers, AnyAction } from "./action";
+import { UseContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
 
 import { actionTypes } from "./action";
 import { getStoreCache } from "./cache";
-import { UseContainer } from "./container";
 
 export type EffectDispatch = (dispatch: Dispatch<AnyAction>) => Promise<void>;
 

@@ -1,14 +1,8 @@
-import {
-  ActionHelpers,
-  ConvertReducersAndEffectsToActionHelpers
-} from "./action";
+import { ActionHelpers } from "./action";
 import { UseContainer } from "./container";
-import { ExtractEffects } from "./effect";
-import { ExtractDependencies, ExtractProps, Model } from "./model";
-import { ExtractReducers } from "./reducer";
+import { Model } from "./model";
 
 import { getStoreCache } from "./cache";
-import { convertNamespaceToPath } from "./util";
 
 export interface SelectorContext<
   TDependencies = any,
@@ -80,6 +74,29 @@ export interface Selectors<
     TActionHelpers
   >;
 }
+
+export type SelectorsFactory<
+  TDependencies,
+  TProps,
+  TState,
+  TGetters extends Getters,
+  TActionHelpers extends ActionHelpers,
+  TSelectors extends Selectors<
+    TDependencies,
+    TProps,
+    TState,
+    TGetters,
+    TActionHelpers
+  >
+> = (
+  createSelector: CreateSelector<
+    TDependencies,
+    TProps,
+    TState,
+    TGetters,
+    TActionHelpers
+  >
+) => TSelectors;
 
 export interface Getters {
   [name: string]: any;
@@ -637,6 +654,10 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
   } = {};
 
   const resultSelector = (context: SelectorContext, cacheId: number) => {
+    if (cacheId == null) {
+      cacheId = 0;
+    }
+
     if (cacheById[cacheId] == null) {
       cacheById[cacheId] = {
         cachedDependencies: undefined,

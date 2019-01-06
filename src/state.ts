@@ -5,7 +5,7 @@ export interface StateContext<TDependencies = any, TProps = any> {
   props: TProps;
 }
 
-export type StateFactory<TDependencies = any, TProps = any, TState = any> = (
+export type StateFactory<TDependencies, TProps, TState> = (
   context: StateContext<TDependencies, TProps>
 ) => TState;
 

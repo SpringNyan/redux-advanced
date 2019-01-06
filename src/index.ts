@@ -1,3 +1,3 @@
 export { toActionObservable } from "./effect";
-export { ModelBuilder } from "./model";
+export { createModelBuilder } from "./model";
 export { createAdvancedStore } from "./store";

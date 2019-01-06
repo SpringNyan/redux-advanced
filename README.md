@@ -1,3 +1,3 @@
 # redux-advanced
 
-Redux advanced helper
+Redux advanced store

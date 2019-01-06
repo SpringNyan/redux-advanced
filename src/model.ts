@@ -2,10 +2,15 @@ import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { Effects } from "./effect";
 import { Epics } from "./epic";
 import { Reducers } from "./reducer";
-import { ConvertSelectorsToGetters, Selectors } from "./selector";
+import {
+  ConvertSelectorsToGetters,
+  Selectors,
+  SelectorsFactory
+} from "./selector";
 import { StateFactory } from "./state";
 
 import { getStoreCache } from "./cache";
+import { createSelector } from "./selector";
 import { buildNamespace } from "./util";
 
 export interface Model<
@@ -171,12 +176,23 @@ export class ModelBuilder<
 
   public selectors<
     T extends Selectors<
+      TDependencies,
+      TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
     >
   >(
-    selectors: T
+    selectors:
+      | T
+      | SelectorsFactory<
+          TDependencies,
+          TProps,
+          TState,
+          ConvertSelectorsToGetters<TSelectors>,
+          ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>,
+          T
+        >
   ): ModelBuilder<
     TDependencies,
     TProps,
@@ -189,6 +205,10 @@ export class ModelBuilder<
       return this.clone().selectors(selectors);
     }
 
+    if (typeof selectors === "function") {
+      selectors = selectors(createSelector);
+    }
+
     this._model.selectors = {
       ...this._model.selectors,
       ...selectors
@@ -197,7 +217,7 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public reducers<T extends Reducers<TState>>(
+  public reducers<T extends Reducers<TDependencies, TProps, TState>>(
     reducers: T
   ): ModelBuilder<
     TDependencies,
@@ -221,6 +241,8 @@ export class ModelBuilder<
 
   public effects<
     T extends Effects<
+      TDependencies,
+      TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
