@@ -10,6 +10,7 @@ export declare type EffectDispatch = (dispatch: Dispatch<AnyAction>) => Promise<
 export interface EffectContext<TDependencies = any, TProps = any, TState = any, TGetters extends Getters = any, TActionHelpers extends ActionHelpers = any> {
     rootAction$: ActionsObservable<AnyAction>;
     rootState$: StateObservable<unknown>;
+    namespace: string;
     dependencies: TDependencies;
     props: TProps;
     getters: TGetters;

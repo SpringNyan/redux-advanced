@@ -18,6 +18,7 @@ export interface Models<TDependencies = any> {
 }
 export declare type ExtractDependencies<T extends Model> = T extends Model<infer TDependencies, any, any, any, any, any> ? TDependencies : never;
 export declare type ExtractProps<T extends Model> = T extends Model<any, infer TProps, any, any, any, any> ? TProps : never;
+export declare type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 export declare class ModelBuilder<TDependencies = any, TProps = any, TState = any, TSelectors extends Selectors<TDependencies, TProps> = any, TReducers extends Reducers<TDependencies, TProps> = any, TEffects extends Effects<TDependencies, TProps> = any> {
     private readonly _model;
     private _isFrozen;
