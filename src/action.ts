@@ -61,18 +61,18 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
     public readonly type: string
   ) {}
 
-  public is(action: any): action is Action<TPayload> {
+  public is = (action: any): action is Action<TPayload> => {
     return action != null && action.type === this.type;
-  }
+  };
 
-  public create(payload: TPayload): Action<TPayload> {
+  public create = (payload: TPayload): Action<TPayload> => {
     return {
       type: this.type,
       payload
     };
-  }
+  };
 
-  public dispatch(payload: TPayload, dispatch?: Dispatch): Promise<void> {
+  public dispatch = (payload: TPayload, dispatch?: Dispatch): Promise<void> => {
     const action = this.create(payload);
     if (dispatch == null) {
       dispatch = this._storeCache.dispatch;
@@ -104,7 +104,7 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
     });
 
     return promise;
-  }
+  };
 }
 
 export function createActionHelpers<TModel extends Model>(

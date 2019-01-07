@@ -115,7 +115,14 @@ container.actions.setName.dispatch("nyan");
 
 ## 更新历史
 
+- 0.1.1
+
+  - ADD: 在 EffectContext / EpicContext 中提供 namespace
+  - ADD: 导出更多类型
+  - CHANGE: ActionHelper 中的方法变更为 bound function
+
 - 0.1.0
+
   - 最初版本
 
 ## License

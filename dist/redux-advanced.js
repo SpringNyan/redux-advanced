@@ -13,42 +13,42 @@ class ActionHelperImpl {
     constructor(_storeCache, type) {
         this._storeCache = _storeCache;
         this.type = type;
-    }
-    is(action) {
-        return action != null && action.type === this.type;
-    }
-    create(payload) {
-        return {
-            type: this.type,
-            payload
+        this.is = (action) => {
+            return action != null && action.type === this.type;
         };
-    }
-    dispatch(payload, dispatch) {
-        const action = this.create(payload);
-        if (dispatch == null) {
-            dispatch = this._storeCache.dispatch;
-        }
-        const promise = new Promise((resolve, reject) => {
-            this._storeCache.effectDispatchHandlerByAction.set(action, {
-                hasEffect: false,
-                resolve: () => {
-                    resolve();
-                    this._storeCache.effectDispatchHandlerByAction.delete(action);
-                },
-                reject: (err) => {
-                    reject(err);
-                    this._storeCache.effectDispatchHandlerByAction.delete(action);
+        this.create = (payload) => {
+            return {
+                type: this.type,
+                payload
+            };
+        };
+        this.dispatch = (payload, dispatch) => {
+            const action = this.create(payload);
+            if (dispatch == null) {
+                dispatch = this._storeCache.dispatch;
+            }
+            const promise = new Promise((resolve, reject) => {
+                this._storeCache.effectDispatchHandlerByAction.set(action, {
+                    hasEffect: false,
+                    resolve: () => {
+                        resolve();
+                        this._storeCache.effectDispatchHandlerByAction.delete(action);
+                    },
+                    reject: (err) => {
+                        reject(err);
+                        this._storeCache.effectDispatchHandlerByAction.delete(action);
+                    }
+                });
+            });
+            dispatch(action);
+            Promise.resolve().then(() => {
+                const handler = this._storeCache.effectDispatchHandlerByAction.get(action);
+                if (handler != null && !handler.hasEffect) {
+                    handler.resolve();
                 }
             });
-        });
-        dispatch(action);
-        Promise.resolve().then(() => {
-            const handler = this._storeCache.effectDispatchHandlerByAction.get(action);
-            if (handler != null && !handler.hasEffect) {
-                handler.resolve();
-            }
-        });
-        return promise;
+            return promise;
+        };
     }
 }
 function createActionHelpers(storeCache, namespace) {
@@ -87,6 +87,7 @@ function createEffectsReduxObservableEpic(storeCache, namespace) {
                 const effectDispatch = effect({
                     rootAction$,
                     rootState$,
+                    namespace,
                     dependencies: storeCache.dependencies,
                     props: namespaceCache.props,
                     getters: namespaceCache.container.getters,
@@ -352,6 +353,7 @@ function createEpicsReduxObservableEpic(storeCache, namespace) {
             let output$ = epic({
                 rootAction$,
                 rootState$,
+                namespace,
                 dependencies: storeCache.dependencies,
                 props: namespaceCache.props,
                 getters: namespaceCache.container.getters,

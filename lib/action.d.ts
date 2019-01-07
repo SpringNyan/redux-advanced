@@ -36,8 +36,8 @@ export declare class ActionHelperImpl<TPayload> implements ActionHelper<TPayload
     private readonly _storeCache;
     readonly type: string;
     constructor(_storeCache: StoreCache, type: string);
-    is(action: any): action is Action<TPayload>;
-    create(payload: TPayload): Action<TPayload>;
-    dispatch(payload: TPayload, dispatch?: Dispatch): Promise<void>;
+    is: (action: any) => action is Action<TPayload>;
+    create: (payload: TPayload) => Action<TPayload>;
+    dispatch: (payload: TPayload, dispatch?: Dispatch<import("redux").AnyAction> | undefined) => Promise<void>;
 }
 export declare function createActionHelpers<TModel extends Model>(storeCache: StoreCache, namespace: string): ConvertReducersAndEffectsToActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>;

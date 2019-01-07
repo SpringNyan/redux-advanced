@@ -65,6 +65,8 @@ export type ExtractProps<T extends Model> = T extends Model<
   ? TProps
   : never;
 
+export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
+
 export class ModelBuilder<
   TDependencies = any,
   TProps = any,

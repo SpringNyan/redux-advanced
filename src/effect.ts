@@ -27,6 +27,8 @@ export interface EffectContext<
   rootAction$: ActionsObservable<AnyAction>;
   rootState$: StateObservable<unknown>;
 
+  namespace: string;
+
   dependencies: TDependencies;
   props: TProps;
   getters: TGetters;
@@ -121,6 +123,8 @@ export function createEffectsReduxObservableEpic(
               {
                 rootAction$,
                 rootState$,
+
+                namespace,
 
                 dependencies: storeCache.dependencies,
                 props: namespaceCache.props,

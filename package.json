@@ -1,7 +1,7 @@
 {
   "name": "redux-advanced",
-  "version": "0.1.0",
-  "description": "Redux advanced store",
+  "version": "0.1.1",
+  "description": "Redux advanced store with TypeScript support",
   "authors": "SpringNyan",
   "license": "MIT",
   "repository": "github:SpringNyan/redux-advanced",
