@@ -1,3 +1,5 @@
+import resolve from "rollup-plugin-node-resolve";
+
 export default {
   input: "./lib/index.js",
   output: [
@@ -10,5 +12,6 @@ export default {
       format: "esm"
     }
   ],
+  plugins: [resolve()],
   external: ["redux", "redux-observable", "rxjs", "rxjs/operators", "immer"]
 };
