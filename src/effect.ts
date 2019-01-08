@@ -7,9 +7,14 @@ import {
 import { merge, Observable } from "rxjs";
 import { catchError, mergeMap, takeUntil } from "rxjs/operators";
 
-import { Action, ActionHelpers, AnyAction } from "./action";
+import {
+  Action,
+  ActionHelpers,
+  AnyAction,
+  ConvertActionHelpersToStrictActionHelpers
+} from "./action";
 import { StoreCache } from "./cache";
-import { UseContainer } from "./container";
+import { UseStrictContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
 
@@ -32,9 +37,9 @@ export interface EffectContext<
   dependencies: TDependencies;
   props: TProps;
   getters: TGetters;
-  actions: TActionHelpers;
+  actions: ConvertActionHelpersToStrictActionHelpers<TActionHelpers>;
 
-  useContainer: UseContainer;
+  useContainer: UseStrictContainer;
 
   getState: () => TState;
 }
@@ -131,7 +136,7 @@ export function createEffectsReduxObservableEpic(
                 getters: namespaceCache.container.getters,
                 actions: namespaceCache.container.actions,
 
-                useContainer: storeCache.useContainer,
+                useContainer: storeCache.useContainer as UseStrictContainer,
 
                 getState: () => rootState$.value[namespaceCache.path]
               },

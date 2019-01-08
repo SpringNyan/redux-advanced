@@ -1,4 +1,5 @@
 node_modules
+lib
 
 test/test.js
 test/test.build.js

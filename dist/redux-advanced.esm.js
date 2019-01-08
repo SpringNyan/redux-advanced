@@ -1,14 +1,8 @@
-'use strict';
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
-
-var rxjs = require('rxjs');
-var operators = require('rxjs/operators');
-var redux = require('redux');
-var reduxObservable = require('redux-observable');
-var produce = _interopDefault(require('immer'));
+import { Observable, merge, BehaviorSubject } from 'rxjs';
+import { mergeMap, catchError, takeUntil } from 'rxjs/operators';
+import { createStore, applyMiddleware } from 'redux';
+import { combineEpics, createEpicMiddleware } from 'redux-observable';
+import produce from 'immer';
 
 var actionTypes = {
     register: "@@REGISTER",
@@ -71,7 +65,7 @@ function createActionHelpers(storeCache, namespace) {
 }
 
 function toActionObservable(effectDispatch) {
-    return new rxjs.Observable(function (subscribe) {
+    return new Observable(function (subscribe) {
         var dispatch = function (action) {
             subscribe.next(action);
             return action;
@@ -84,7 +78,7 @@ function createEffectsReduxObservableEpic(storeCache, namespace) {
     return function (rootAction$, rootState$) {
         var outputObservables = Object.keys(namespaceCache.model.effects).map(function (key) {
             var effect = namespaceCache.model.effects[key];
-            var output$ = rootAction$.ofType(namespace + "/" + key).pipe(operators.mergeMap(function (action) {
+            var output$ = rootAction$.ofType(namespace + "/" + key).pipe(mergeMap(function (action) {
                 var effectDispatchHandler = storeCache.effectDispatchHandlerByAction.get(action);
                 if (effectDispatchHandler != null) {
                     effectDispatchHandler.hasEffect = true;
@@ -116,12 +110,12 @@ function createEffectsReduxObservableEpic(storeCache, namespace) {
                 return toActionObservable(wrappedEffectDispatch);
             }));
             if (storeCache.options.epicErrorHandler != null) {
-                output$ = output$.pipe(operators.catchError(storeCache.options.epicErrorHandler));
+                output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
             }
             return output$;
         });
         var takeUntil$ = rootAction$.ofType(namespace + "/" + actionTypes.unregister);
-        return rxjs.merge.apply(void 0, outputObservables).pipe(operators.takeUntil(takeUntil$));
+        return merge.apply(void 0, outputObservables).pipe(takeUntil(takeUntil$));
     };
 }
 
@@ -383,12 +377,12 @@ function createEpicsReduxObservableEpic(storeCache, namespace) {
                 getState: function () { return rootState$.value[namespaceCache.path]; }
             });
             if (storeCache.options.epicErrorHandler != null) {
-                output$ = output$.pipe(operators.catchError(storeCache.options.epicErrorHandler));
+                output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
             }
             return output$;
         });
         var takeUntil$ = rootAction$.ofType(namespace + "/" + actionTypes.unregister);
-        return rxjs.merge.apply(void 0, outputObservables).pipe(operators.takeUntil(takeUntil$));
+        return merge.apply(void 0, outputObservables).pipe(takeUntil(takeUntil$));
     };
 }
 
@@ -466,7 +460,7 @@ var ContainerImpl = /** @class */ (function () {
             container: this
         };
         pendingNamespaces.push(this.namespace);
-        var epic = reduxObservable.combineEpics(createEffectsReduxObservableEpic(this._storeCache, this.namespace), createEpicsReduxObservableEpic(this._storeCache, this.namespace));
+        var epic = combineEpics(createEffectsReduxObservableEpic(this._storeCache, this.namespace), createEpicsReduxObservableEpic(this._storeCache, this.namespace));
         if (store != null) {
             addEpic$.next(epic);
             dispatch({
@@ -608,16 +602,16 @@ function createAdvancedStore(dependencies, models, options) {
     storeCache.dependencies = dependencies;
     registerModels(storeCache, "", models);
     var rootReducer = createReduxRootReducer(storeCache);
-    storeCache.addEpic$ = new rxjs.BehaviorSubject(reduxObservable.combineEpics.apply(void 0, storeCache.initialEpics));
+    storeCache.addEpic$ = new BehaviorSubject(combineEpics.apply(void 0, storeCache.initialEpics));
     var rootEpic = function (action$, state$, epicDependencies) {
-        return storeCache.addEpic$.pipe(operators.mergeMap(function (epic) { return epic(action$, state$, epicDependencies); }));
+        return storeCache.addEpic$.pipe(mergeMap(function (epic) { return epic(action$, state$, epicDependencies); }));
     };
     if (options.createStore != null) {
         storeCache.store = options.createStore(rootReducer, rootEpic);
     }
     else {
-        var epicMiddleware = reduxObservable.createEpicMiddleware();
-        storeCache.store = redux.createStore(rootReducer, redux.applyMiddleware(epicMiddleware));
+        var epicMiddleware = createEpicMiddleware();
+        storeCache.store = createStore(rootReducer, applyMiddleware(epicMiddleware));
         epicMiddleware.run(rootEpic);
     }
     var store = storeCache.store;
@@ -625,6 +619,4 @@ function createAdvancedStore(dependencies, models, options) {
     return store;
 }
 
-exports.toActionObservable = toActionObservable;
-exports.createModelBuilder = createModelBuilder;
-exports.createAdvancedStore = createAdvancedStore;
+export { toActionObservable, createModelBuilder, createAdvancedStore };

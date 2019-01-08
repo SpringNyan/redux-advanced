@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
-    "target": "esnext",
+    "target": "es5",
     "lib": ["esnext"],
     "module": "esnext",
     "moduleResolution": "node",
     "outDir": "lib",
     "declaration": true,
     "strict": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "importHelpers": true
   },
   "include": ["src/**/*.ts"]
 }

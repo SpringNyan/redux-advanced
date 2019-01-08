@@ -1,6 +1,9 @@
 import { combineEpics } from "redux-observable";
 
-import { ConvertReducersAndEffectsToActionHelpers } from "./action";
+import {
+  ConvertActionHelpersToStrictActionHelpers,
+  ConvertReducersAndEffectsToActionHelpers
+} from "./action";
 import { StoreCache } from "./cache";
 import { ExtractEffects } from "./effect";
 import { ExtractProps, Model } from "./model";
@@ -11,6 +14,7 @@ import {
   SelectorInternal
 } from "./selector";
 import { ExtractState } from "./state";
+import { Override } from "./util";
 
 import { createActionHelpers } from "./action";
 import { actionTypes } from "./action";
@@ -40,6 +44,23 @@ export type UseContainer = <TModel extends Model>(
   model: TModel,
   key?: string
 ) => Container<TModel>;
+
+export type StrictContainer<TModel extends Model = any> = Override<
+  Container<TModel>,
+  {
+    actions: ConvertActionHelpersToStrictActionHelpers<
+      ConvertReducersAndEffectsToActionHelpers<
+        ExtractReducers<TModel>,
+        ExtractEffects<TModel>
+      >
+    >;
+  }
+>;
+
+export type UseStrictContainer = <TModel extends Model>(
+  model: TModel,
+  key?: string
+) => StrictContainer<TModel>;
 
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   private static _nextContainerId = 1;
