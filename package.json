@@ -1,6 +1,6 @@
 {
   "name": "redux-advanced",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Redux advanced store with TypeScript support",
   "authors": "SpringNyan",
   "license": "MIT",
@@ -8,6 +8,10 @@
   "keywords": [
     "redux",
     "typescript"
+  ],
+  "files": [
+    "dist",
+    "lib"
   ],
   "main": "dist/redux-advanced.js",
   "typings": "lib/index.d.ts",
