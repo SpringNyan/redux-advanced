@@ -39,6 +39,6 @@
   "scripts": {
     "build": "tsc -p . && rollup -c",
     "test": "npm run build && tsc -p test && webpack --config test/webpack.config.js && mocha test/test.build.js",
-    "release": "git reset --hard && git clean -dfx && npm i && npm run build"
+    "release": "git reset --hard && git clean -dfx && npm i && npm run build && npm publish"
   }
 }
