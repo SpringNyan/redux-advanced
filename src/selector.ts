@@ -647,8 +647,8 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
 
   const cacheById: {
     [id: number]: {
-      cachedDependencies: any[] | undefined;
-      cachedValue: any;
+      lastParams: any[] | undefined;
+      lastResult: any;
     };
   } = {};
 
@@ -659,29 +659,28 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
 
     if (cacheById[cacheId] == null) {
       cacheById[cacheId] = {
-        cachedDependencies: undefined,
-        cachedValue: undefined
+        lastParams: undefined,
+        lastResult: undefined
       };
     }
     const cache = cacheById[cacheId];
 
     let needUpdate = false;
-    const dependencies = selectors.map((selector) => selector(context));
+
+    const params = selectors.map((selector) => selector(context));
     if (
-      cache.cachedDependencies == null ||
-      dependencies.some(
-        (dep, index) => dep !== cache.cachedDependencies![index]
-      )
+      cache.lastParams == null ||
+      params.some((param, index) => param !== cache.lastParams![index])
     ) {
       needUpdate = true;
     }
 
     if (needUpdate) {
-      cache.cachedDependencies = dependencies;
-      cache.cachedValue = combiner(...dependencies, context);
+      cache.lastParams = params;
+      cache.lastResult = combiner(...params, context);
     }
 
-    return cache.cachedValue;
+    return cache.lastResult;
   };
   resultSelector.__deleteCache = (cacheId: number) => {
     delete cacheById[cacheId];
