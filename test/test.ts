@@ -41,8 +41,17 @@ describe("redux-advanced", () => {
       })
       .effects({
         setNameAsync: ({ actions }, payload: string) => async (dispatch) => {
-          await timer(100).toPromise();
+          await timer(50).toPromise();
           await actions.setName.dispatch(payload, dispatch);
+        },
+        setAgeAsync: ({ useContainer }, payload: number) => async (
+          dispatch
+        ) => {
+          await timer(50).toPromise();
+          await useContainer(staticModel).actions.setAge.dispatch(
+            payload,
+            dispatch
+          );
         }
       })
       .freeze();
@@ -83,6 +92,13 @@ describe("redux-advanced", () => {
     await staticModelSetNamePromise;
     expect(staticModelContainer.state.name).eq("meow");
 
+    const staticModelSetAgePromise = staticModelContainer.actions.setAgeAsync.dispatch(
+      233
+    );
+    expect(staticModelContainer.state.age).eq(998);
+    await staticModelSetAgePromise;
+    expect(staticModelContainer.state.age).eq(233);
+
     const dynamicModelContainer = store.useContainer(dynamicModel);
     expect(dynamicModelContainer.isRegistered).eq(false);
     expect(dynamicModelContainer.namespace).eq("dynamicModels");
@@ -96,7 +112,7 @@ describe("redux-advanced", () => {
     });
     expect(dynamicModel1Container.isRegistered).eq(true);
     expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
-    expect(dynamicModel1Container.getters.staticSummary).eq("meow - 998");
+    expect(dynamicModel1Container.getters.staticSummary).eq("meow - 233");
 
     const dynamicModel2Container = store.useContainer(dynamicModel, "2");
     expect(dynamicModel2Container.isRegistered).eq(false);

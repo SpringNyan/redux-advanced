@@ -4,6 +4,7 @@ import { StoreCache } from "./cache";
 import { Effect, Effects, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
+import { Override } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
@@ -27,14 +28,30 @@ export interface ActionHelper<TPayload = any> {
   dispatch(payload: TPayload, dispatch?: Dispatch): Promise<void>;
 }
 
+export type StrictActionHelper<TPayload = any> = Override<
+  ActionHelper<TPayload>,
+  {
+    dispatch(payload: TPayload, dispatch: Dispatch): Promise<void>;
+  }
+>;
+
 export interface ActionHelpers {
   [name: string]: ActionHelper;
 }
 
+export type ConvertActionHelpersToStrictActionHelpers<
+  TActionHelpers extends ActionHelpers
+> = {
+  [P in keyof TActionHelpers]: StrictActionHelper<
+    ExtractActionPayload<TActionHelpers[P]>
+  >
+};
+
 export type ExtractActionPayload<
-  T extends Action | Reducer | Effect
+  T extends Action | ActionHelper | Reducer | Effect
 > = T extends
   | Action<infer TPayload>
+  | ActionHelper<infer TPayload>
   | Reducer<any, any, any, infer TPayload>
   | Effect<any, any, any, any, any, infer TPayload>
   ? TPayload

@@ -1,4 +1,9 @@
-export { Container, UseContainer } from "./container";
+export {
+  Container,
+  StrictContainer,
+  UseContainer,
+  UseStrictContainer
+} from "./container";
 export { toActionObservable } from "./effect";
 export {
   createModelBuilder,
