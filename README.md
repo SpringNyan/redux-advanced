@@ -115,6 +115,11 @@ container.actions.setName.dispatch("nyan");
 
 ## 更新历史
 
+- 0.2.0
+
+  - CHANGE: 构建 CommonJS 和 ES Module 格式的 dist
+  - CHANGE: Effect / Epic 中的 ActionHelper 的 dispatch 方法必须提供 dispatch 参数
+
 - 0.1.1
 
   - ADD: 在 EffectContext / EpicContext 中提供 namespace
