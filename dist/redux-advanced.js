@@ -345,7 +345,7 @@ function createModelBuilder() {
     return new ModelBuilder({
         defaultProps: {},
         autoRegister: false,
-        state: function () { return ({}); },
+        state: function () { return undefined; },
         selectors: {},
         reducers: {},
         effects: {},
@@ -586,14 +586,17 @@ function createReduxRootReducer(storeCache) {
                 return;
             }
             if (rootState[_namespaceCache.path] === undefined) {
-                if (initialRootState == null) {
-                    initialRootState = {};
-                }
-                initialRootState[_namespaceCache.path] = _namespaceCache.model.state({
+                var initialState = _namespaceCache.model.state({
                     dependencies: storeCache.dependencies,
                     props: _namespaceCache.props,
                     key: _namespaceCache.key
                 });
+                if (initialState !== undefined) {
+                    if (initialRootState == null) {
+                        initialRootState = {};
+                    }
+                    initialRootState[_namespaceCache.path] = initialState;
+                }
             }
         });
         storeCache.pendingNamespaces = [];

@@ -60,15 +60,19 @@ export function createReduxRootReducer(storeCache: StoreCache): ReduxReducer {
       }
 
       if (rootState[_namespaceCache.path] === undefined) {
-        if (initialRootState == null) {
-          initialRootState = {};
-        }
-
-        initialRootState[_namespaceCache.path] = _namespaceCache.model.state({
+        const initialState = _namespaceCache.model.state({
           dependencies: storeCache.dependencies,
           props: _namespaceCache.props,
           key: _namespaceCache.key
         });
+
+        if (initialState !== undefined) {
+          if (initialRootState == null) {
+            initialRootState = {};
+          }
+
+          initialRootState[_namespaceCache.path] = initialState;
+        }
       }
     });
     storeCache.pendingNamespaces = [];

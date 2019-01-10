@@ -176,7 +176,7 @@ export class ModelBuilder<
   ): ModelBuilder<
     TDependencies,
     TProps,
-    TState & T,
+    TState extends undefined ? T : TState & T,
     TSelectors,
     TReducers,
     TEffects
@@ -360,12 +360,19 @@ export function isModel(obj: any): obj is Model {
   );
 }
 
-export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
+export function createModelBuilder(): ModelBuilder<
+  {},
+  {},
+  undefined,
+  {},
+  {},
+  {}
+> {
   return new ModelBuilder({
     defaultProps: {},
     autoRegister: false,
 
-    state: () => ({}),
+    state: () => undefined,
     selectors: {},
     reducers: {},
     effects: {},
