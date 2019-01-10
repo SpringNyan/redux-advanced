@@ -153,18 +153,18 @@ var createSelector = (function () {
     }
     var selectors = args.slice(0, args.length - 1);
     var combiner = args[args.length - 1];
-    var cacheById = {};
-    var resultSelector = function (context, cacheId) {
-        if (cacheId == null) {
-            cacheId = 0;
+    var cacheByKey = {};
+    var resultSelector = function (context, cacheKey) {
+        if (cacheKey == null) {
+            cacheKey = "";
         }
-        if (cacheById[cacheId] == null) {
-            cacheById[cacheId] = {
+        if (cacheByKey[cacheKey] == null) {
+            cacheByKey[cacheKey] = {
                 lastParams: undefined,
                 lastResult: undefined
             };
         }
-        var cache = cacheById[cacheId];
+        var cache = cacheByKey[cacheKey];
         var needUpdate = false;
         var params = selectors.map(function (selector) { return selector(context); });
         if (cache.lastParams == null ||
@@ -177,8 +177,8 @@ var createSelector = (function () {
         }
         return cache.lastResult;
     };
-    resultSelector.__deleteCache = function (cacheId) {
-        delete cacheById[cacheId];
+    resultSelector.__deleteCache = function (cacheKey) {
+        delete cacheByKey[cacheKey];
     };
     return resultSelector;
 });
@@ -238,6 +238,14 @@ var ModelBuilder = /** @class */ (function () {
     };
     ModelBuilder.prototype.clone = function () {
         return new ModelBuilder(this._model);
+    };
+    ModelBuilder.prototype.autoRegister = function (value) {
+        if (value === void 0) { value = true; }
+        if (this._isFrozen) {
+            return this.clone().autoRegister(value);
+        }
+        this._model.autoRegister = value;
+        return this;
     };
     ModelBuilder.prototype.dependencies = function () {
         if (this._isFrozen) {
@@ -328,6 +336,7 @@ function isModel(obj) {
 function createModelBuilder() {
     return new ModelBuilder({
         defaultProps: {},
+        autoRegister: false,
         state: function () { return ({}); },
         selectors: {},
         reducers: {},
@@ -391,7 +400,7 @@ var ContainerImpl = /** @class */ (function () {
         this._storeCache = _storeCache;
         this.namespace = namespace;
         this._model = _model;
-        this._containerId = ContainerImpl._nextContainerId;
+        this._containerId = "" + ContainerImpl._nextContainerId;
         ContainerImpl._nextContainerId += 1;
         this._path = convertNamespaceToPath(this.namespace);
     }
@@ -412,36 +421,45 @@ var ContainerImpl = /** @class */ (function () {
     });
     Object.defineProperty(ContainerImpl.prototype, "state", {
         get: function () {
+            if (this.canRegister && this._model.autoRegister) {
+                this.register();
+            }
             if (this.isRegistered) {
                 return this._storeCache.getState()[this._path];
             }
-            return undefined;
+            throw new Error("container is not registered yet");
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ContainerImpl.prototype, "getters", {
         get: function () {
+            if (this.canRegister && this._model.autoRegister) {
+                this.register();
+            }
             if (this.isRegistered) {
                 if (this._cachedGetters == null) {
                     this._cachedGetters = createGetters(this._storeCache, this.namespace);
                 }
                 return this._cachedGetters;
             }
-            return undefined;
+            throw new Error("container is not registered yet");
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ContainerImpl.prototype, "actions", {
         get: function () {
+            if (this.canRegister && this._model.autoRegister) {
+                this.register();
+            }
             if (this.isRegistered) {
                 if (this._cachedActions == null) {
                     this._cachedActions = createActionHelpers(this._storeCache, this.namespace);
                 }
                 return this._cachedActions;
             }
-            return undefined;
+            throw new Error("container is not registered yet");
         },
         enumerable: true,
         configurable: true
@@ -451,11 +469,13 @@ var ContainerImpl = /** @class */ (function () {
         if (!this.canRegister) {
             throw new Error("namespace is already used");
         }
-        this._props = props === undefined ? this._model.defaultProps : props;
+        if (props === undefined) {
+            props = this._model.defaultProps;
+        }
         cacheByNamespace[this.namespace] = {
             path: this._path,
             model: this._model,
-            props: this._props,
+            props: props,
             containerId: this._containerId,
             container: this
         };
@@ -490,6 +510,8 @@ var ContainerImpl = /** @class */ (function () {
                 selector.__deleteCache(_this._containerId);
             }
         });
+        this._cachedActions = undefined;
+        this._cachedGetters = undefined;
     };
     ContainerImpl._nextContainerId = 1;
     return ContainerImpl;

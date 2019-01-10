@@ -52,10 +52,10 @@ export interface SelectorInternal<
       TGetters,
       TActionHelpers
     >,
-    cacheId?: number
+    cacheKey?: string
   ): TResult;
 
-  __deleteCache?(cacheId: number): void;
+  __deleteCache?(cacheKey: string): void;
 }
 
 export interface Selectors<
@@ -645,25 +645,25 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
   const selectors = args.slice(0, args.length - 1);
   const combiner = args[args.length - 1];
 
-  const cacheById: {
-    [id: number]: {
+  const cacheByKey: {
+    [key: string]: {
       lastParams: any[] | undefined;
       lastResult: any;
     };
   } = {};
 
-  const resultSelector = (context: SelectorContext, cacheId: number) => {
-    if (cacheId == null) {
-      cacheId = 0;
+  const resultSelector = (context: SelectorContext, cacheKey: string) => {
+    if (cacheKey == null) {
+      cacheKey = "";
     }
 
-    if (cacheById[cacheId] == null) {
-      cacheById[cacheId] = {
+    if (cacheByKey[cacheKey] == null) {
+      cacheByKey[cacheKey] = {
         lastParams: undefined,
         lastResult: undefined
       };
     }
-    const cache = cacheById[cacheId];
+    const cache = cacheByKey[cacheKey];
 
     let needUpdate = false;
 
@@ -682,8 +682,8 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
 
     return cache.lastResult;
   };
-  resultSelector.__deleteCache = (cacheId: number) => {
-    delete cacheById[cacheId];
+  resultSelector.__deleteCache = (cacheKey: string) => {
+    delete cacheByKey[cacheKey];
   };
 
   return resultSelector;

@@ -40,7 +40,7 @@ export interface StoreCache {
       model: Model;
       props: any;
 
-      containerId: number;
+      containerId: string;
       container: Container;
     };
   };

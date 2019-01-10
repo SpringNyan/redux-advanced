@@ -65,7 +65,7 @@ export type UseStrictContainer = <TModel extends Model>(
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   private static _nextContainerId = 1;
 
-  private readonly _containerId: number;
+  private readonly _containerId: string;
   private readonly _path: string;
 
   private _cachedGetters:
@@ -83,7 +83,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     public readonly namespace: string,
     private readonly _model: TModel
   ) {
-    this._containerId = ContainerImpl._nextContainerId;
+    this._containerId = "" + ContainerImpl._nextContainerId;
     ContainerImpl._nextContainerId += 1;
 
     this._path = convertNamespaceToPath(this.namespace);
