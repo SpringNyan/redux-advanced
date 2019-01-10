@@ -95,10 +95,11 @@ function createEffectsReduxObservableEpic(storeCache, namespace) {
                     namespace: namespace,
                     dependencies: storeCache.dependencies,
                     props: namespaceCache.props,
+                    key: namespaceCache.key,
+                    getState: function () { return rootState$.value[namespaceCache.path]; },
                     getters: namespaceCache.container.getters,
                     actions: namespaceCache.container.actions,
-                    useContainer: storeCache.useContainer,
-                    getState: function () { return rootState$.value[namespaceCache.path]; }
+                    useContainer: storeCache.useContainer
                 }, action.payload);
                 var wrappedEffectDispatch = function (dispatch) {
                     var promise = effectDispatch(dispatch);
@@ -159,18 +160,18 @@ var createSelector = (function () {
     }
     var selectors = args.slice(0, args.length - 1);
     var combiner = args[args.length - 1];
-    var cacheById = {};
-    var resultSelector = function (context, cacheId) {
-        if (cacheId == null) {
-            cacheId = 0;
+    var cacheByKey = {};
+    var resultSelector = function (context, cacheKey) {
+        if (cacheKey == null) {
+            cacheKey = "";
         }
-        if (cacheById[cacheId] == null) {
-            cacheById[cacheId] = {
+        if (cacheByKey[cacheKey] == null) {
+            cacheByKey[cacheKey] = {
                 lastParams: undefined,
                 lastResult: undefined
             };
         }
-        var cache = cacheById[cacheId];
+        var cache = cacheByKey[cacheKey];
         var needUpdate = false;
         var params = selectors.map(function (selector) { return selector(context); });
         if (cache.lastParams == null ||
@@ -183,8 +184,8 @@ var createSelector = (function () {
         }
         return cache.lastResult;
     };
-    resultSelector.__deleteCache = function (cacheId) {
-        delete cacheById[cacheId];
+    resultSelector.__deleteCache = function (cacheKey) {
+        delete cacheByKey[cacheKey];
     };
     return resultSelector;
 });
@@ -200,6 +201,7 @@ function createGetters(storeCache, namespace) {
                 return selector({
                     dependencies: storeCache.dependencies,
                     props: namespaceCache.props,
+                    key: namespaceCache.key,
                     state: state,
                     getters: getters,
                     actions: namespaceCache.container.actions,
@@ -224,11 +226,11 @@ function parseActionType(type) {
     return { namespace: namespace, key: key };
 }
 function buildNamespace(baseNamespace, key) {
+    if (key == null || key === "") {
+        return baseNamespace;
+    }
     if (baseNamespace === "") {
         return key;
-    }
-    if (key === "") {
-        return baseNamespace;
     }
     return baseNamespace + "/" + key;
 }
@@ -244,6 +246,14 @@ var ModelBuilder = /** @class */ (function () {
     };
     ModelBuilder.prototype.clone = function () {
         return new ModelBuilder(this._model);
+    };
+    ModelBuilder.prototype.autoRegister = function (value) {
+        if (value === void 0) { value = true; }
+        if (this._isFrozen) {
+            return this.clone().autoRegister(value);
+        }
+        this._model.autoRegister = value;
+        return this;
     };
     ModelBuilder.prototype.dependencies = function () {
         if (this._isFrozen) {
@@ -313,6 +323,7 @@ function functionWrapper(obj) {
 function cloneModel(model) {
     return {
         defaultProps: __assign({}, model.defaultProps),
+        autoRegister: model.autoRegister,
         state: model.state,
         selectors: __assign({}, model.selectors),
         reducers: __assign({}, model.reducers),
@@ -324,6 +335,7 @@ function isModel(obj) {
     var model = obj;
     return (model != null &&
         model.defaultProps != null &&
+        model.autoRegister != null &&
         model.state != null &&
         model.selectors != null &&
         model.reducers != null &&
@@ -334,7 +346,8 @@ function isModel(obj) {
 function createModelBuilder() {
     return new ModelBuilder({
         defaultProps: {},
-        state: function () { return ({}); },
+        autoRegister: false,
+        state: function () { return undefined; },
         selectors: {},
         reducers: {},
         effects: {},
@@ -377,10 +390,11 @@ function createEpicsReduxObservableEpic(storeCache, namespace) {
                 namespace: namespace,
                 dependencies: storeCache.dependencies,
                 props: namespaceCache.props,
+                key: namespaceCache.key,
+                getState: function () { return rootState$.value[namespaceCache.path]; },
                 getters: namespaceCache.container.getters,
                 actions: namespaceCache.container.actions,
-                useContainer: storeCache.useContainer,
-                getState: function () { return rootState$.value[namespaceCache.path]; }
+                useContainer: storeCache.useContainer
             });
             if (storeCache.options.epicErrorHandler != null) {
                 output$ = output$.pipe(operators.catchError(storeCache.options.epicErrorHandler));
@@ -393,12 +407,13 @@ function createEpicsReduxObservableEpic(storeCache, namespace) {
 }
 
 var ContainerImpl = /** @class */ (function () {
-    function ContainerImpl(_storeCache, namespace, _model) {
+    function ContainerImpl(_storeCache, _model, baseNamespace, _key) {
         this._storeCache = _storeCache;
-        this.namespace = namespace;
         this._model = _model;
-        this._containerId = ContainerImpl._nextContainerId;
+        this._key = _key;
+        this._containerId = "" + ContainerImpl._nextContainerId;
         ContainerImpl._nextContainerId += 1;
+        this.namespace = buildNamespace(baseNamespace, this._key);
         this._path = convertNamespaceToPath(this.namespace);
     }
     Object.defineProperty(ContainerImpl.prototype, "isRegistered", {
@@ -418,36 +433,45 @@ var ContainerImpl = /** @class */ (function () {
     });
     Object.defineProperty(ContainerImpl.prototype, "state", {
         get: function () {
+            if (this.canRegister && this._model.autoRegister) {
+                this.register();
+            }
             if (this.isRegistered) {
                 return this._storeCache.getState()[this._path];
             }
-            return undefined;
+            throw new Error("container is not registered yet");
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ContainerImpl.prototype, "getters", {
         get: function () {
+            if (this.canRegister && this._model.autoRegister) {
+                this.register();
+            }
             if (this.isRegistered) {
                 if (this._cachedGetters == null) {
                     this._cachedGetters = createGetters(this._storeCache, this.namespace);
                 }
                 return this._cachedGetters;
             }
-            return undefined;
+            throw new Error("container is not registered yet");
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ContainerImpl.prototype, "actions", {
         get: function () {
+            if (this.canRegister && this._model.autoRegister) {
+                this.register();
+            }
             if (this.isRegistered) {
                 if (this._cachedActions == null) {
                     this._cachedActions = createActionHelpers(this._storeCache, this.namespace);
                 }
                 return this._cachedActions;
             }
-            return undefined;
+            throw new Error("container is not registered yet");
         },
         enumerable: true,
         configurable: true
@@ -457,11 +481,14 @@ var ContainerImpl = /** @class */ (function () {
         if (!this.canRegister) {
             throw new Error("namespace is already used");
         }
-        this._props = props === undefined ? this._model.defaultProps : props;
+        if (props === undefined) {
+            props = this._model.defaultProps;
+        }
         cacheByNamespace[this.namespace] = {
+            key: this._key,
             path: this._path,
             model: this._model,
-            props: this._props,
+            props: props,
             containerId: this._containerId,
             container: this
         };
@@ -496,6 +523,8 @@ var ContainerImpl = /** @class */ (function () {
                 selector.__deleteCache(_this._containerId);
             }
         });
+        this._cachedActions = undefined;
+        this._cachedGetters = undefined;
     };
     ContainerImpl._nextContainerId = 1;
     return ContainerImpl;
@@ -525,9 +554,6 @@ function createStoreCache() {
             return (_a = storeCache.store).dispatch.apply(_a, args);
         },
         useContainer: function (model, key) {
-            if (key == null) {
-                key = "";
-            }
             var cacheByNamespace = storeCache.cacheByNamespace, namespaceByModel = storeCache.namespaceByModel;
             if (!namespaceByModel.has(model)) {
                 throw new Error("model is not registered yet");
@@ -536,7 +562,7 @@ function createStoreCache() {
             var namespace = buildNamespace(baseNamespace, key);
             var namespaceCache = cacheByNamespace[namespace];
             if (namespaceCache == null || namespaceCache.model !== model) {
-                return new ContainerImpl(storeCache, namespace, model);
+                return new ContainerImpl(storeCache, model, baseNamespace, key);
             }
             else {
                 return namespaceCache.container;
@@ -562,13 +588,17 @@ function createReduxRootReducer(storeCache) {
                 return;
             }
             if (rootState[_namespaceCache.path] === undefined) {
-                if (initialRootState == null) {
-                    initialRootState = {};
-                }
-                initialRootState[_namespaceCache.path] = _namespaceCache.model.state({
+                var initialState = _namespaceCache.model.state({
                     dependencies: storeCache.dependencies,
-                    props: _namespaceCache.props
+                    props: _namespaceCache.props,
+                    key: _namespaceCache.key
                 });
+                if (initialState !== undefined) {
+                    if (initialRootState == null) {
+                        initialRootState = {};
+                    }
+                    initialRootState[_namespaceCache.path] = initialState;
+                }
             }
         });
         storeCache.pendingNamespaces = [];
@@ -593,6 +623,7 @@ function createReduxRootReducer(storeCache) {
             reducer(draft[namespaceCache.path], action.payload, {
                 dependencies: storeCache.dependencies,
                 props: namespaceCache.props,
+                key: namespaceCache.key,
                 originalState: rootState[namespaceCache.path]
             });
         });

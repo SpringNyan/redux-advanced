@@ -22,6 +22,7 @@ export interface Model<
   TEffects extends Effects<TDependencies, TProps> = any
 > {
   defaultProps: TProps;
+  autoRegister: boolean;
 
   state: StateFactory<TDependencies, TProps, TState>;
   selectors: TSelectors;
@@ -114,6 +115,25 @@ export class ModelBuilder<
     return new ModelBuilder(this._model);
   }
 
+  public autoRegister(
+    value: boolean = true
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects
+  > {
+    if (this._isFrozen) {
+      return this.clone().autoRegister(value);
+    }
+
+    this._model.autoRegister = value;
+
+    return this as any;
+  }
+
   public dependencies<T>(): ModelBuilder<
     TDependencies & T,
     TProps,
@@ -156,7 +176,7 @@ export class ModelBuilder<
   ): ModelBuilder<
     TDependencies,
     TProps,
-    TState & T,
+    TState extends undefined ? T : TState & T,
     TSelectors,
     TReducers,
     TEffects
@@ -317,6 +337,7 @@ function functionWrapper<T, U extends any[]>(
 function cloneModel<T extends Model>(model: T): T {
   return {
     defaultProps: { ...model.defaultProps },
+    autoRegister: model.autoRegister,
 
     state: model.state,
     selectors: { ...model.selectors },
@@ -331,6 +352,7 @@ export function isModel(obj: any): obj is Model {
   return (
     model != null &&
     model.defaultProps != null &&
+    model.autoRegister != null &&
     model.state != null &&
     model.selectors != null &&
     model.reducers != null &&
@@ -340,11 +362,19 @@ export function isModel(obj: any): obj is Model {
   );
 }
 
-export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
+export function createModelBuilder(): ModelBuilder<
+  {},
+  {},
+  undefined,
+  {},
+  {},
+  {}
+> {
   return new ModelBuilder({
     defaultProps: {},
+    autoRegister: false,
 
-    state: () => ({}),
+    state: () => undefined,
     selectors: {},
     reducers: {},
     effects: {},

@@ -115,6 +115,13 @@ container.actions.setName.dispatch("nyan");
 
 ## 更新历史
 
+- 0.3.0
+
+  - CHANGE: Model 的默认 state 从 `{}` 变为 `undefined`
+  - CHANGE: 当 Container 未注册时，调用 state, actions, getters 会抛出异常
+  - ADD: Model 增加 autoRegister 属性，支持在调用 Container 属性时自动注册 Container
+  - ADD: Context 增加 key 属性，提供 Container 的 key (useContainer 的第二个参数)
+
 - 0.2.1
 
   - CHANGE: 构建 CommonJS 和 ES Module 格式的 dist
@@ -122,9 +129,9 @@ container.actions.setName.dispatch("nyan");
 
 - 0.1.1
 
+  - CHANGE: ActionHelper 中的方法变更为 bound function
   - ADD: 在 EffectContext / EpicContext 中提供 namespace
   - ADD: 导出更多类型
-  - CHANGE: ActionHelper 中的方法变更为 bound function
 
 - 0.1.0
 

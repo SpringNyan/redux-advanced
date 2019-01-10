@@ -35,12 +35,14 @@ export interface StoreCache {
 
   cacheByNamespace: {
     [namespace: string]: {
+      key: string | undefined;
+
       path: string;
 
       model: Model;
       props: any;
 
-      containerId: number;
+      containerId: string;
       container: Container;
     };
   };
@@ -58,10 +60,6 @@ export function createStoreCache(): StoreCache {
     getState: (...args) => storeCache.store!.getState(...args),
     dispatch: (...args) => storeCache.store!.dispatch(...args),
     useContainer: (model, key) => {
-      if (key == null) {
-        key = "";
-      }
-
       const { cacheByNamespace, namespaceByModel } = storeCache;
 
       if (!namespaceByModel.has(model)) {
@@ -73,7 +71,7 @@ export function createStoreCache(): StoreCache {
 
       const namespaceCache = cacheByNamespace[namespace];
       if (namespaceCache == null || namespaceCache.model !== model) {
-        return new ContainerImpl(storeCache, namespace, model);
+        return new ContainerImpl(storeCache, model, baseNamespace, key);
       } else {
         return namespaceCache.container;
       }

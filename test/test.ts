@@ -40,8 +40,11 @@ describe("redux-advanced", () => {
         }
       })
       .effects({
-        setNameAsync: ({ actions }, payload: string) => async (dispatch) => {
+        setNameAsync: ({ actions, getState }, payload: string) => async (
+          dispatch
+        ) => {
           await timer(50).toPromise();
+          getState(); // should throw error if container is unregistered
           await actions.setName.dispatch(payload, dispatch);
         },
         setAgeAsync: ({ useContainer }, payload: number) => async (
@@ -67,11 +70,14 @@ describe("redux-advanced", () => {
       })
       .build();
 
+    const autoRegisteredDynamicModel = testModelBuilder.autoRegister().build();
+
     const appDependencies: IDependencies = { appId: 233 };
 
     const store = createAdvancedStore(appDependencies, {
       staticModel,
-      dynamicModels: [dynamicModel]
+      dynamicModels: [dynamicModel],
+      autoRegisteredDynamicModel: [autoRegisteredDynamicModel]
     });
     const staticModelContainer = store.useContainer(staticModel);
     expect(staticModelContainer.namespace).eq("staticModel");
@@ -129,8 +135,16 @@ describe("redux-advanced", () => {
     );
     dynamicModel2Container.unregister();
     expect(dynamicModel2Container.isRegistered).eq(false);
-    expect(dynamicModel2Container.state).eq(undefined);
+    expect(() => dynamicModel2Container.state).throw();
     await dynamicModel2SetNamePromise;
-    expect(dynamicModel2Container.state).eq(undefined);
+    expect(() => dynamicModel2Container.state).throw();
+
+    const autoRegisteredDynamicContainer = store.useContainer(
+      autoRegisteredDynamicModel,
+      "O_O"
+    );
+    expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
+    expect(() => autoRegisteredDynamicContainer.state).not.throw();
+    expect(autoRegisteredDynamicContainer.isRegistered).eq(true);
   });
 });

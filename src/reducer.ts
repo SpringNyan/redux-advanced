@@ -14,6 +14,8 @@ export interface ReducerContext<
 > {
   dependencies: TDependencies;
   props: TProps;
+  key: string | undefined;
+
   originalState: TState;
 }
 
@@ -58,14 +60,19 @@ export function createReduxRootReducer(storeCache: StoreCache): ReduxReducer {
       }
 
       if (rootState[_namespaceCache.path] === undefined) {
-        if (initialRootState == null) {
-          initialRootState = {};
-        }
-
-        initialRootState[_namespaceCache.path] = _namespaceCache.model.state({
+        const initialState = _namespaceCache.model.state({
           dependencies: storeCache.dependencies,
-          props: _namespaceCache.props
+          props: _namespaceCache.props,
+          key: _namespaceCache.key
         });
+
+        if (initialState !== undefined) {
+          if (initialRootState == null) {
+            initialRootState = {};
+          }
+
+          initialRootState[_namespaceCache.path] = initialState;
+        }
       }
     });
     storeCache.pendingNamespaces = [];
@@ -101,6 +108,8 @@ export function createReduxRootReducer(storeCache: StoreCache): ReduxReducer {
       reducer(draft[namespaceCache.path], action.payload, {
         dependencies: storeCache.dependencies,
         props: namespaceCache.props,
+        key: namespaceCache.key,
+
         originalState: rootState[namespaceCache.path]
       });
     });

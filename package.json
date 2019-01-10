@@ -1,6 +1,6 @@
 {
   "name": "redux-advanced",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Redux advanced store with TypeScript support",
   "authors": "SpringNyan",
   "license": "MIT",
