@@ -337,6 +337,7 @@ function functionWrapper<T, U extends any[]>(
 function cloneModel<T extends Model>(model: T): T {
   return {
     defaultProps: { ...model.defaultProps },
+    autoRegister: model.autoRegister,
 
     state: model.state,
     selectors: { ...model.selectors },
@@ -351,6 +352,7 @@ export function isModel(obj: any): obj is Model {
   return (
     model != null &&
     model.defaultProps != null &&
+    model.autoRegister != null &&
     model.state != null &&
     model.selectors != null &&
     model.reducers != null &&
