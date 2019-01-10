@@ -22,6 +22,7 @@ export interface Model<
   TEffects extends Effects<TDependencies, TProps> = any
 > {
   defaultProps: TProps;
+  autoRegister: boolean;
 
   state: StateFactory<TDependencies, TProps, TState>;
   selectors: TSelectors;
@@ -112,6 +113,25 @@ export class ModelBuilder<
     TEffects
   > {
     return new ModelBuilder(this._model);
+  }
+
+  public autoRegister(
+    value: boolean = true
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects
+  > {
+    if (this._isFrozen) {
+      return this.clone().autoRegister(value);
+    }
+
+    this._model.autoRegister = value;
+
+    return this as any;
   }
 
   public dependencies<T>(): ModelBuilder<
@@ -343,6 +363,7 @@ export function isModel(obj: any): obj is Model {
 export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
   return new ModelBuilder({
     defaultProps: {},
+    autoRegister: false,
 
     state: () => ({}),
     selectors: {},

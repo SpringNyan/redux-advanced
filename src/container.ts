@@ -68,8 +68,6 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   private readonly _containerId: number;
   private readonly _path: string;
 
-  private _props!: ExtractProps<TModel>;
-
   private _cachedGetters:
     | ConvertSelectorsToGetters<ExtractSelectors<TModel>>
     | undefined;
@@ -101,14 +99,22 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   }
 
   public get state() {
+    if (this.canRegister && this._model.autoRegister) {
+      this.register();
+    }
+
     if (this.isRegistered) {
       return this._storeCache.getState()[this._path];
     }
 
-    return undefined;
+    throw new Error("container is not registered yet");
   }
 
   public get getters() {
+    if (this.canRegister && this._model.autoRegister) {
+      this.register();
+    }
+
     if (this.isRegistered) {
       if (this._cachedGetters == null) {
         this._cachedGetters = createGetters(this._storeCache, this.namespace);
@@ -117,10 +123,14 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       return this._cachedGetters;
     }
 
-    return undefined!;
+    throw new Error("container is not registered yet");
   }
 
   public get actions() {
+    if (this.canRegister && this._model.autoRegister) {
+      this.register();
+    }
+
     if (this.isRegistered) {
       if (this._cachedActions == null) {
         this._cachedActions = createActionHelpers(
@@ -132,7 +142,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       return this._cachedActions;
     }
 
-    return undefined!;
+    throw new Error("container is not registered yet");
   }
 
   public register(props?: ExtractProps<TModel>) {
@@ -149,13 +159,15 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       throw new Error("namespace is already used");
     }
 
-    this._props = props === undefined ? this._model.defaultProps : props;
+    if (props === undefined) {
+      props = this._model.defaultProps;
+    }
 
     cacheByNamespace[this.namespace] = {
       path: this._path,
 
       model: this._model,
-      props: this._props,
+      props,
 
       containerId: this._containerId,
       container: this
@@ -202,5 +214,8 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
         selector.__deleteCache(this._containerId);
       }
     });
+
+    this._cachedActions = undefined;
+    this._cachedGetters = undefined;
   }
 }
