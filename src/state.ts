@@ -3,6 +3,7 @@ import { Model } from "./model";
 export interface StateContext<TDependencies = any, TProps = any> {
   dependencies: TDependencies;
   props: TProps;
+  key: string | undefined;
 }
 
 export type StateFactory<TDependencies, TProps, TState> = (

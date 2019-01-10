@@ -21,7 +21,7 @@ import { actionTypes } from "./action";
 import { createEffectsReduxObservableEpic } from "./effect";
 import { createEpicsReduxObservableEpic } from "./epic";
 import { createGetters } from "./selector";
-import { convertNamespaceToPath } from "./util";
+import { buildNamespace, convertNamespaceToPath } from "./util";
 
 export interface Container<TModel extends Model = any> {
   namespace: string;
@@ -65,6 +65,8 @@ export type UseStrictContainer = <TModel extends Model>(
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   private static _nextContainerId = 1;
 
+  public readonly namespace: string;
+
   private readonly _containerId: string;
   private readonly _path: string;
 
@@ -80,12 +82,14 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
   constructor(
     private readonly _storeCache: StoreCache,
-    public readonly namespace: string,
-    private readonly _model: TModel
+    private readonly _model: TModel,
+    baseNamespace: string,
+    private readonly _key: string | undefined
   ) {
     this._containerId = "" + ContainerImpl._nextContainerId;
     ContainerImpl._nextContainerId += 1;
 
+    this.namespace = buildNamespace(baseNamespace, this._key);
     this._path = convertNamespaceToPath(this.namespace);
   }
 
@@ -164,6 +168,8 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     }
 
     cacheByNamespace[this.namespace] = {
+      key: this._key,
+
       path: this._path,
 
       model: this._model,

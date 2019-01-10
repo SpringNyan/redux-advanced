@@ -31,12 +31,13 @@ export interface EpicContext<
 
   dependencies: TDependencies;
   props: TProps;
+  key: string | undefined;
+
+  getState: () => TState;
   getters: TGetters;
   actions: ConvertActionHelpersToStrictActionHelpers<TActionHelpers>;
 
   useContainer: UseStrictContainer;
-
-  getState: () => TState;
 }
 
 export type Epic<
@@ -73,12 +74,13 @@ export function createEpicsReduxObservableEpic(
 
         dependencies: storeCache.dependencies,
         props: namespaceCache.props,
+        key: namespaceCache.key,
+
+        getState: () => rootState$.value[namespaceCache.path],
         getters: namespaceCache.container.getters,
         actions: namespaceCache.container.actions,
 
-        useContainer: storeCache.useContainer as UseStrictContainer,
-
-        getState: () => rootState$.value[namespaceCache.path]
+        useContainer: storeCache.useContainer as UseStrictContainer
       });
 
       if (storeCache.options.epicErrorHandler != null) {

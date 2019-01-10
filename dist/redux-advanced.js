@@ -95,10 +95,11 @@ function createEffectsReduxObservableEpic(storeCache, namespace) {
                     namespace: namespace,
                     dependencies: storeCache.dependencies,
                     props: namespaceCache.props,
+                    key: namespaceCache.key,
+                    getState: function () { return rootState$.value[namespaceCache.path]; },
                     getters: namespaceCache.container.getters,
                     actions: namespaceCache.container.actions,
-                    useContainer: storeCache.useContainer,
-                    getState: function () { return rootState$.value[namespaceCache.path]; }
+                    useContainer: storeCache.useContainer
                 }, action.payload);
                 var wrappedEffectDispatch = function (dispatch) {
                     var promise = effectDispatch(dispatch);
@@ -200,6 +201,7 @@ function createGetters(storeCache, namespace) {
                 return selector({
                     dependencies: storeCache.dependencies,
                     props: namespaceCache.props,
+                    key: namespaceCache.key,
                     state: state,
                     getters: getters,
                     actions: namespaceCache.container.actions,
@@ -224,11 +226,11 @@ function parseActionType(type) {
     return { namespace: namespace, key: key };
 }
 function buildNamespace(baseNamespace, key) {
+    if (key == null || key === "") {
+        return baseNamespace;
+    }
     if (baseNamespace === "") {
         return key;
-    }
-    if (key === "") {
-        return baseNamespace;
     }
     return baseNamespace + "/" + key;
 }
@@ -386,10 +388,11 @@ function createEpicsReduxObservableEpic(storeCache, namespace) {
                 namespace: namespace,
                 dependencies: storeCache.dependencies,
                 props: namespaceCache.props,
+                key: namespaceCache.key,
+                getState: function () { return rootState$.value[namespaceCache.path]; },
                 getters: namespaceCache.container.getters,
                 actions: namespaceCache.container.actions,
-                useContainer: storeCache.useContainer,
-                getState: function () { return rootState$.value[namespaceCache.path]; }
+                useContainer: storeCache.useContainer
             });
             if (storeCache.options.epicErrorHandler != null) {
                 output$ = output$.pipe(operators.catchError(storeCache.options.epicErrorHandler));
@@ -402,12 +405,13 @@ function createEpicsReduxObservableEpic(storeCache, namespace) {
 }
 
 var ContainerImpl = /** @class */ (function () {
-    function ContainerImpl(_storeCache, namespace, _model) {
+    function ContainerImpl(_storeCache, _model, baseNamespace, _key) {
         this._storeCache = _storeCache;
-        this.namespace = namespace;
         this._model = _model;
+        this._key = _key;
         this._containerId = "" + ContainerImpl._nextContainerId;
         ContainerImpl._nextContainerId += 1;
+        this.namespace = buildNamespace(baseNamespace, this._key);
         this._path = convertNamespaceToPath(this.namespace);
     }
     Object.defineProperty(ContainerImpl.prototype, "isRegistered", {
@@ -479,6 +483,7 @@ var ContainerImpl = /** @class */ (function () {
             props = this._model.defaultProps;
         }
         cacheByNamespace[this.namespace] = {
+            key: this._key,
             path: this._path,
             model: this._model,
             props: props,
@@ -547,9 +552,6 @@ function createStoreCache() {
             return (_a = storeCache.store).dispatch.apply(_a, args);
         },
         useContainer: function (model, key) {
-            if (key == null) {
-                key = "";
-            }
             var cacheByNamespace = storeCache.cacheByNamespace, namespaceByModel = storeCache.namespaceByModel;
             if (!namespaceByModel.has(model)) {
                 throw new Error("model is not registered yet");
@@ -558,7 +560,7 @@ function createStoreCache() {
             var namespace = buildNamespace(baseNamespace, key);
             var namespaceCache = cacheByNamespace[namespace];
             if (namespaceCache == null || namespaceCache.model !== model) {
-                return new ContainerImpl(storeCache, namespace, model);
+                return new ContainerImpl(storeCache, model, baseNamespace, key);
             }
             else {
                 return namespaceCache.container;
@@ -589,7 +591,8 @@ function createReduxRootReducer(storeCache) {
                 }
                 initialRootState[_namespaceCache.path] = _namespaceCache.model.state({
                     dependencies: storeCache.dependencies,
-                    props: _namespaceCache.props
+                    props: _namespaceCache.props,
+                    key: _namespaceCache.key
                 });
             }
         });
@@ -615,6 +618,7 @@ function createReduxRootReducer(storeCache) {
             reducer(draft[namespaceCache.path], action.payload, {
                 dependencies: storeCache.dependencies,
                 props: namespaceCache.props,
+                key: namespaceCache.key,
                 originalState: rootState[namespaceCache.path]
             });
         });

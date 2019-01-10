@@ -15,12 +15,16 @@ export function parseActionType(
   return { namespace, key };
 }
 
-export function buildNamespace(baseNamespace: string, key: string): string {
+export function buildNamespace(
+  baseNamespace: string,
+  key: string | undefined
+): string {
+  if (key == null || key === "") {
+    return baseNamespace;
+  }
+
   if (baseNamespace === "") {
     return key;
-  }
-  if (key === "") {
-    return baseNamespace;
   }
 
   return `${baseNamespace}/${key}`;
