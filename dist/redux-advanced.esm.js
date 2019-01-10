@@ -317,6 +317,7 @@ function functionWrapper(obj) {
 function cloneModel(model) {
     return {
         defaultProps: __assign({}, model.defaultProps),
+        autoRegister: model.autoRegister,
         state: model.state,
         selectors: __assign({}, model.selectors),
         reducers: __assign({}, model.reducers),
@@ -328,6 +329,7 @@ function isModel(obj) {
     var model = obj;
     return (model != null &&
         model.defaultProps != null &&
+        model.autoRegister != null &&
         model.state != null &&
         model.selectors != null &&
         model.reducers != null &&

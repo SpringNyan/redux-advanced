@@ -70,11 +70,14 @@ describe("redux-advanced", () => {
       })
       .build();
 
+    const autoRegisteredDynamicModel = testModelBuilder.autoRegister().build();
+
     const appDependencies: IDependencies = { appId: 233 };
 
     const store = createAdvancedStore(appDependencies, {
       staticModel,
-      dynamicModels: [dynamicModel]
+      dynamicModels: [dynamicModel],
+      autoRegisteredDynamicModel: [autoRegisteredDynamicModel]
     });
     const staticModelContainer = store.useContainer(staticModel);
     expect(staticModelContainer.namespace).eq("staticModel");
@@ -135,5 +138,13 @@ describe("redux-advanced", () => {
     expect(() => dynamicModel2Container.state).throw();
     await dynamicModel2SetNamePromise;
     expect(() => dynamicModel2Container.state).throw();
+
+    const autoRegisteredDynamicContainer = store.useContainer(
+      autoRegisteredDynamicModel,
+      "O_O"
+    );
+    expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
+    expect(() => autoRegisteredDynamicContainer.state).not.throw();
+    expect(autoRegisteredDynamicContainer.isRegistered).eq(true);
   });
 });
