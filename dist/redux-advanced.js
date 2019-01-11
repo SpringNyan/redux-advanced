@@ -234,6 +234,9 @@ function buildNamespace(baseNamespace, key) {
     }
     return baseNamespace + "/" + key;
 }
+function functionWrapper(obj) {
+    return typeof obj === "function" ? obj : function () { return obj; };
+}
 
 var ModelBuilder = /** @class */ (function () {
     function ModelBuilder(model) {
@@ -261,20 +264,36 @@ var ModelBuilder = /** @class */ (function () {
         }
         return this;
     };
-    ModelBuilder.prototype.props = function (defaultProps) {
+    ModelBuilder.prototype.props = function (props) {
         if (this._isFrozen) {
-            return this.clone().props(defaultProps);
+            return this.clone().props(props);
         }
-        this._model.defaultProps = __assign({}, this._model.defaultProps, defaultProps);
+        var oldPropsFn = this._model.defaultProps;
+        var newPropsFn = functionWrapper(props);
+        this._model.defaultProps = function (context) {
+            var oldProps = oldPropsFn(context);
+            var newProps = newPropsFn(context);
+            if (oldProps === undefined && newProps === undefined) {
+                return undefined;
+            }
+            return __assign({}, oldProps, newProps);
+        };
         return this;
     };
     ModelBuilder.prototype.state = function (state) {
         if (this._isFrozen) {
             return this.clone().state(state);
         }
-        var oldState = this._model.state;
-        var newState = functionWrapper(state);
-        this._model.state = function (context) { return (__assign({}, oldState(context), newState(context))); };
+        var oldStateFn = this._model.state;
+        var newStateFn = functionWrapper(state);
+        this._model.state = function (context) {
+            var oldState = oldStateFn(context);
+            var newState = newStateFn(context);
+            if (oldState === undefined && newState === undefined) {
+                return undefined;
+            }
+            return __assign({}, oldState, newState);
+        };
         return this;
     };
     ModelBuilder.prototype.selectors = function (selectors) {
@@ -311,18 +330,15 @@ var ModelBuilder = /** @class */ (function () {
     ModelBuilder.prototype.build = function (props) {
         var model = cloneModel(this._model);
         if (props !== undefined) {
-            model.defaultProps = props;
+            model.defaultProps = functionWrapper(props);
         }
         return model;
     };
     return ModelBuilder;
 }());
-function functionWrapper(obj) {
-    return typeof obj === "function" ? obj : function () { return obj; };
-}
 function cloneModel(model) {
     return {
-        defaultProps: __assign({}, model.defaultProps),
+        defaultProps: model.defaultProps,
         autoRegister: model.autoRegister,
         state: model.state,
         selectors: __assign({}, model.selectors),
@@ -341,11 +357,13 @@ function isModel(obj) {
         model.reducers != null &&
         model.effects != null &&
         model.epics != null &&
+        typeof model.defaultProps === "function" &&
+        typeof model.autoRegister === "boolean" &&
         typeof model.state === "function");
 }
 function createModelBuilder() {
     return new ModelBuilder({
-        defaultProps: {},
+        defaultProps: function () { return undefined; },
         autoRegister: false,
         state: function () { return undefined; },
         selectors: {},
@@ -477,13 +495,17 @@ var ContainerImpl = /** @class */ (function () {
         configurable: true
     });
     ContainerImpl.prototype.register = function (props) {
-        var _a = this._storeCache, cacheByNamespace = _a.cacheByNamespace, pendingNamespaces = _a.pendingNamespaces, store = _a.store, dispatch = _a.dispatch, addEpic$ = _a.addEpic$, initialEpics = _a.initialEpics;
+        var _a = this._storeCache, cacheByNamespace = _a.cacheByNamespace, pendingNamespaces = _a.pendingNamespaces, store = _a.store, dispatch = _a.dispatch, addEpic$ = _a.addEpic$, initialEpics = _a.initialEpics, dependencies = _a.dependencies;
         if (!this.canRegister) {
             throw new Error("namespace is already used");
         }
         if (props === undefined) {
             props = this._model.defaultProps;
         }
+        props = functionWrapper(props)({
+            dependencies: dependencies,
+            key: this._key
+        });
         cacheByNamespace[this.namespace] = {
             key: this._key,
             path: this._path,

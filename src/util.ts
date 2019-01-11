@@ -29,3 +29,9 @@ export function buildNamespace(
 
   return `${baseNamespace}/${key}`;
 }
+
+export function functionWrapper<T, U extends any[]>(
+  obj: T | ((...args: U) => T)
+): ((...args: U) => T) {
+  return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
+}

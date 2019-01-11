@@ -2,6 +2,7 @@ import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
 import { Effects } from "./effect";
 import { Epics } from "./epic";
+import { PropsFactory } from "./props";
 import { Reducers } from "./reducer";
 import {
   ConvertSelectorsToGetters,
@@ -11,17 +12,17 @@ import {
 import { StateFactory } from "./state";
 
 import { createSelector } from "./selector";
-import { buildNamespace } from "./util";
+import { buildNamespace, functionWrapper } from "./util";
 
 export interface Model<
   TDependencies = any,
   TProps = any,
   TState = any,
-  TSelectors extends Selectors<TDependencies, TProps> = any,
-  TReducers extends Reducers<TDependencies, TProps> = any,
-  TEffects extends Effects<TDependencies, TProps> = any
+  TSelectors extends Selectors = any,
+  TReducers extends Reducers = any,
+  TEffects extends Effects = any
 > {
-  defaultProps: TProps;
+  defaultProps: PropsFactory<TDependencies, TProps>;
   autoRegister: boolean;
 
   state: StateFactory<TDependencies, TProps, TState>;
@@ -44,37 +45,15 @@ export interface Models<TDependencies = any> {
     | Models<TDependencies>;
 }
 
-export type ExtractDependencies<T extends Model> = T extends Model<
-  infer TDependencies,
-  any,
-  any,
-  any,
-  any,
-  any
->
-  ? TDependencies
-  : never;
-
-export type ExtractProps<T extends Model> = T extends Model<
-  any,
-  infer TProps,
-  any,
-  any,
-  any,
-  any
->
-  ? TProps
-  : never;
-
 export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
 export class ModelBuilder<
   TDependencies = any,
   TProps = any,
   TState = any,
-  TSelectors extends Selectors<TDependencies, TProps> = any,
-  TReducers extends Reducers<TDependencies, TProps> = any,
-  TEffects extends Effects<TDependencies, TProps> = any
+  TSelectors extends Selectors = any,
+  TReducers extends Reducers = any,
+  TEffects extends Effects = any
 > {
   private readonly _model: Model<
     TDependencies,
@@ -135,7 +114,7 @@ export class ModelBuilder<
   }
 
   public dependencies<T>(): ModelBuilder<
-    TDependencies & T,
+    TDependencies extends undefined ? T : TDependencies & T,
     TProps,
     TState,
     TSelectors,
@@ -150,22 +129,34 @@ export class ModelBuilder<
   }
 
   public props<T>(
-    defaultProps: T
+    props: T | PropsFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
-    TProps & T,
+    TProps extends undefined ? T : TProps & T,
     TState,
     TSelectors,
     TReducers,
     TEffects
   > {
     if (this._isFrozen) {
-      return this.clone().props(defaultProps);
+      return this.clone().props(props);
     }
 
-    this._model.defaultProps = {
-      ...this._model.defaultProps,
-      ...defaultProps
+    const oldPropsFn = this._model.defaultProps;
+    const newPropsFn = functionWrapper(props);
+
+    this._model.defaultProps = (context) => {
+      const oldProps = oldPropsFn(context);
+      const newProps = newPropsFn(context);
+
+      if (oldProps === undefined && newProps === undefined) {
+        return undefined!;
+      }
+
+      return {
+        ...oldProps,
+        ...newProps
+      };
     };
 
     return this as any;
@@ -185,13 +176,22 @@ export class ModelBuilder<
       return this.clone().state(state);
     }
 
-    const oldState = this._model.state;
-    const newState = functionWrapper(state);
+    const oldStateFn = this._model.state;
+    const newStateFn = functionWrapper(state);
 
-    this._model.state = (context) => ({
-      ...oldState(context),
-      ...newState(context)
-    });
+    this._model.state = (context) => {
+      const oldState = oldStateFn(context);
+      const newState = newStateFn(context);
+
+      if (oldState === undefined && newState === undefined) {
+        return undefined!;
+      }
+
+      return {
+        ...oldState,
+        ...newState
+      };
+    };
 
     return this as any;
   }
@@ -317,26 +317,20 @@ export class ModelBuilder<
   }
 
   public build(
-    props?: TProps
+    props?: TProps | PropsFactory<TDependencies, TProps>
   ): Model<TDependencies, TProps, TState, TSelectors, TReducers, TEffects> {
     const model = cloneModel(this._model);
     if (props !== undefined) {
-      model.defaultProps = props;
+      model.defaultProps = functionWrapper(props);
     }
 
     return model;
   }
 }
 
-function functionWrapper<T, U extends any[]>(
-  obj: T | ((...args: U) => T)
-): ((...args: U) => T) {
-  return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
-}
-
 function cloneModel<T extends Model>(model: T): T {
   return {
-    defaultProps: { ...model.defaultProps },
+    defaultProps: model.defaultProps,
     autoRegister: model.autoRegister,
 
     state: model.state,
@@ -358,20 +352,22 @@ export function isModel(obj: any): obj is Model {
     model.reducers != null &&
     model.effects != null &&
     model.epics != null &&
+    typeof model.defaultProps === "function" &&
+    typeof model.autoRegister === "boolean" &&
     typeof model.state === "function"
   );
 }
 
 export function createModelBuilder(): ModelBuilder<
-  {},
-  {},
+  undefined,
+  undefined,
   undefined,
   {},
   {},
   {}
 > {
   return new ModelBuilder({
-    defaultProps: {},
+    defaultProps: () => undefined,
     autoRegister: false,
 
     state: () => undefined,

@@ -5,8 +5,10 @@ import {
   ConvertReducersAndEffectsToActionHelpers
 } from "./action";
 import { StoreCache } from "./cache";
+import { ExtractDependencies } from "./dependencies";
 import { ExtractEffects } from "./effect";
-import { ExtractProps, Model } from "./model";
+import { Model } from "./model";
+import { ExtractProps, PropsFactory } from "./props";
 import { ExtractReducers } from "./reducer";
 import {
   ConvertSelectorsToGetters,
@@ -21,7 +23,11 @@ import { actionTypes } from "./action";
 import { createEffectsReduxObservableEpic } from "./effect";
 import { createEpicsReduxObservableEpic } from "./epic";
 import { createGetters } from "./selector";
-import { buildNamespace, convertNamespaceToPath } from "./util";
+import {
+  buildNamespace,
+  convertNamespaceToPath,
+  functionWrapper
+} from "./util";
 
 export interface Container<TModel extends Model = any> {
   namespace: string;
@@ -36,7 +42,11 @@ export interface Container<TModel extends Model = any> {
     ExtractEffects<TModel>
   >;
 
-  register(props?: ExtractProps<TModel>): void;
+  register(
+    props?:
+      | ExtractProps<TModel>
+      | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
+  ): void;
   unregister(): void;
 }
 
@@ -149,14 +159,19 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     throw new Error("container is not registered yet");
   }
 
-  public register(props?: ExtractProps<TModel>) {
+  public register(
+    props?:
+      | ExtractProps<TModel>
+      | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
+  ) {
     const {
       cacheByNamespace,
       pendingNamespaces,
       store,
       dispatch,
       addEpic$,
-      initialEpics
+      initialEpics,
+      dependencies
     } = this._storeCache;
 
     if (!this.canRegister) {
@@ -166,6 +181,11 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     if (props === undefined) {
       props = this._model.defaultProps;
     }
+
+    props = functionWrapper(props)({
+      dependencies,
+      key: this._key
+    });
 
     cacheByNamespace[this.namespace] = {
       key: this._key,
