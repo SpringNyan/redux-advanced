@@ -4,11 +4,10 @@ import {
   Epic as ReduxObservableEpic,
   StateObservable
 } from "redux-observable";
-import { merge, Observable } from "rxjs";
-import { catchError, mergeMap, takeUntil } from "rxjs/operators";
+import { empty, Observable } from "rxjs";
+import { mergeMap, takeUntil } from "rxjs/operators";
 
 import {
-  Action,
   ActionHelpers,
   AnyAction,
   ConvertActionHelpersToStrictActionHelpers
@@ -19,6 +18,7 @@ import { Model } from "./model";
 import { Getters } from "./selector";
 
 import { actionTypes } from "./action";
+import { parseActionType } from "./util";
 
 export type EffectDispatch = (dispatch: Dispatch<AnyAction>) => Promise<void>;
 
@@ -105,81 +105,86 @@ export function toActionObservable(
   });
 }
 
-export function createEffectsReduxObservableEpic(
-  storeCache: StoreCache,
-  namespace: string
+export function createEffectsRootReduxObservableEpic(
+  storeCache: StoreCache
 ): ReduxObservableEpic {
-  const namespaceCache = storeCache.cacheByNamespace[namespace];
+  return (rootAction$, rootState$) =>
+    rootAction$.pipe(
+      mergeMap((action) => {
+        const actionType = "" + action.type;
+        const { namespace, key } = parseActionType(actionType);
 
-  return (rootAction$, rootState$) => {
-    const outputObservables = Object.keys(namespaceCache.model.effects).map(
-      (key) => {
-        const effect = namespaceCache.model.effects[key] as Effect;
-
-        let output$ = rootAction$.ofType(`${namespace}/${key}`).pipe(
-          mergeMap((action: Action) => {
-            const effectDispatchHandler = storeCache.effectDispatchHandlerByAction.get(
-              action
-            );
-            if (effectDispatchHandler != null) {
-              effectDispatchHandler.hasEffect = true;
-            }
-
-            const effectDispatch = effect(
-              {
-                rootAction$,
-                rootState$,
-
-                namespace,
-
-                dependencies: storeCache.dependencies,
-                props: namespaceCache.props,
-                key: namespaceCache.key,
-
-                getState: () => rootState$.value[namespaceCache.path],
-                getters: namespaceCache.container.getters,
-                actions: namespaceCache.container.actions,
-
-                useContainer: storeCache.useContainer as UseStrictContainer
-              },
-              action.payload
-            );
-
-            const wrappedEffectDispatch = (dispatch: Dispatch) => {
-              const promise = effectDispatch(dispatch);
-              promise.then(
-                () => {
-                  if (effectDispatchHandler != null) {
-                    effectDispatchHandler.resolve();
-                  }
-                },
-                (err) => {
-                  if (effectDispatchHandler != null) {
-                    effectDispatchHandler.reject(err);
-                  }
-                }
-              );
-              return promise;
-            };
-
-            return toActionObservable(wrappedEffectDispatch);
-          })
-        );
-
-        if (storeCache.options.epicErrorHandler != null) {
-          output$ = output$.pipe(
-            catchError(storeCache.options.epicErrorHandler)
-          );
+        const namespaceCache = storeCache.cacheByNamespace[namespace];
+        if (namespaceCache == null) {
+          return empty();
         }
 
+        const effect = namespaceCache.model.effects[key] as Effect;
+        if (effect == null) {
+          return empty();
+        }
+
+        const effectDispatchHandler = storeCache.effectDispatchHandlerByAction.get(
+          action
+        );
+        if (effectDispatchHandler != null) {
+          effectDispatchHandler.hasEffect = true;
+        }
+
+        const effectDispatch = effect(
+          {
+            rootAction$,
+            rootState$,
+
+            namespace,
+
+            dependencies: storeCache.dependencies,
+            props: namespaceCache.props,
+            key: namespaceCache.key,
+
+            getState: () => rootState$.value[namespaceCache.path],
+            getters: namespaceCache.container.getters,
+            actions: namespaceCache.container.actions,
+
+            useContainer: storeCache.useContainer as UseStrictContainer
+          },
+          action.payload
+        );
+
+        const wrappedEffectDispatch = (dispatch: Dispatch) => {
+          let promise = effectDispatch(dispatch);
+
+          if (storeCache.options.effectErrorHandler != null) {
+            promise = promise.catch((reason) =>
+              storeCache.options.effectErrorHandler!(reason, dispatch)
+            );
+          }
+
+          promise.then(
+            () => {
+              if (effectDispatchHandler != null) {
+                effectDispatchHandler.resolve();
+              }
+            },
+            (reason) => {
+              if (effectDispatchHandler != null) {
+                effectDispatchHandler.reject(reason);
+              }
+            }
+          );
+
+          return promise;
+        };
+
+        const takeUntil$ = rootAction$.ofType(
+          `${namespace}/${actionTypes.unregister}`
+        );
+
+        const output$ = toActionObservable(wrappedEffectDispatch).pipe(
+          takeUntil(takeUntil$)
+        );
+
         return output$;
-      }
+      })
     );
-
-    const takeUntil$ = rootAction$.ofType(
-      `${namespace}/${actionTypes.unregister}`
-    );
-
-    return merge(...outputObservables).pipe(takeUntil(takeUntil$));
-  };
 }

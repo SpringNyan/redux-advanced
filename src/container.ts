@@ -1,5 +1,3 @@
-import { combineEpics } from "redux-observable";
-
 import {
   ConvertActionHelpersToStrictActionHelpers,
   ConvertReducersAndEffectsToActionHelpers
@@ -20,7 +18,6 @@ import { Override } from "./util";
 
 import { createActionHelpers } from "./action";
 import { actionTypes } from "./action";
-import { createEffectsReduxObservableEpic } from "./effect";
 import { createEpicsReduxObservableEpic } from "./epic";
 import { createGetters } from "./selector";
 import {
@@ -201,9 +198,9 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
     pendingNamespaces.push(this.namespace);
 
-    const epic = combineEpics(
-      createEffectsReduxObservableEpic(this._storeCache, this.namespace),
-      createEpicsReduxObservableEpic(this._storeCache, this.namespace)
+    const epic = createEpicsReduxObservableEpic(
+      this._storeCache,
+      this.namespace
     );
 
     if (store != null) {

@@ -1,4 +1,4 @@
-import { applyMiddleware, createStore, Reducer, Store } from "redux";
+import { applyMiddleware, createStore, Dispatch, Reducer, Store } from "redux";
 import { combineEpics, createEpicMiddleware, Epic } from "redux-observable";
 import { BehaviorSubject, Observable } from "rxjs";
 import { mergeMap } from "rxjs/operators";
@@ -8,8 +8,9 @@ import { UseContainer } from "./container";
 import { Models } from "./model";
 
 import { createStoreCache } from "./cache";
+import { createEffectsRootReduxObservableEpic } from "./effect";
 import { registerModels } from "./model";
-import { createReduxRootReducer } from "./reducer";
+import { createRootReduxReducer } from "./reducer";
 
 export interface AdvancedStore extends Store {
   useContainer: UseContainer;
@@ -17,8 +18,9 @@ export interface AdvancedStore extends Store {
 
 export interface ReduxAdvancedOptions {
   createStore?: (rootReducer: Reducer, rootEpic: Epic) => Store;
+  effectErrorHandler?: (error: any, dispatch: Dispatch) => Promise<void>;
   epicErrorHandler?: (
-    err: any,
+    error: any,
     caught: Observable<AnyAction>
   ) => Observable<AnyAction>;
 }
@@ -42,10 +44,11 @@ export function createAdvancedStore<
 
   registerModels(storeCache, "", models);
 
-  const rootReducer: Reducer = createReduxRootReducer(storeCache);
+  const rootReducer: Reducer = createRootReduxReducer(storeCache);
+  const effectRootEpic: Epic = createEffectsRootReduxObservableEpic(storeCache);
 
   storeCache.addEpic$ = new BehaviorSubject(
-    combineEpics(...storeCache.initialEpics)
+    combineEpics(effectRootEpic, ...storeCache.initialEpics)
   );
   const rootEpic: Epic = (action$, state$, epicDependencies) =>
     storeCache.addEpic$.pipe(

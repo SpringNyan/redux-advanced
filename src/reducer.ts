@@ -45,7 +45,7 @@ export type ExtractReducers<T extends Model> = T extends Model<
   ? TReducers
   : never;
 
-export function createReduxRootReducer(storeCache: StoreCache): ReduxReducer {
+export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
   return (rootState, action) => {
     if (rootState === undefined) {
       rootState = {};

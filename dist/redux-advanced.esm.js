@@ -1,5 +1,5 @@
-import { Observable, merge, BehaviorSubject } from 'rxjs';
-import { mergeMap, catchError, takeUntil } from 'rxjs/operators';
+import { Observable, empty, merge, BehaviorSubject } from 'rxjs';
+import { mergeMap, takeUntil, catchError } from 'rxjs/operators';
 import { createStore, applyMiddleware } from 'redux';
 import { combineEpics, createEpicMiddleware } from 'redux-observable';
 import produce from 'immer';
@@ -64,6 +64,29 @@ function createActionHelpers(storeCache, namespace) {
     return actionHelpers;
 }
 
+var namespaceSplitterRegExp = new RegExp("/", "g");
+function convertNamespaceToPath(namespace) {
+    return namespace.replace(namespaceSplitterRegExp, ".");
+}
+function parseActionType(type) {
+    var lastSplitterIndex = type.lastIndexOf("/");
+    var namespace = type.substring(0, lastSplitterIndex);
+    var key = type.substring(lastSplitterIndex + 1);
+    return { namespace: namespace, key: key };
+}
+function buildNamespace(baseNamespace, key) {
+    if (key == null || key === "") {
+        return baseNamespace;
+    }
+    if (baseNamespace === "") {
+        return key;
+    }
+    return baseNamespace + "/" + key;
+}
+function functionWrapper(obj) {
+    return typeof obj === "function" ? obj : function () { return obj; };
+}
+
 function toActionObservable(effectDispatch) {
     return new Observable(function (subscribe) {
         var dispatch = function (action) {
@@ -73,50 +96,57 @@ function toActionObservable(effectDispatch) {
         effectDispatch(dispatch).then(function () { return subscribe.complete(); }, function (reason) { return subscribe.error(reason); });
     });
 }
-function createEffectsReduxObservableEpic(storeCache, namespace) {
-    var namespaceCache = storeCache.cacheByNamespace[namespace];
+function createEffectsRootReduxObservableEpic(storeCache) {
     return function (rootAction$, rootState$) {
-        var outputObservables = Object.keys(namespaceCache.model.effects).map(function (key) {
-            var effect = namespaceCache.model.effects[key];
-            var output$ = rootAction$.ofType(namespace + "/" + key).pipe(mergeMap(function (action) {
-                var effectDispatchHandler = storeCache.effectDispatchHandlerByAction.get(action);
-                if (effectDispatchHandler != null) {
-                    effectDispatchHandler.hasEffect = true;
-                }
-                var effectDispatch = effect({
-                    rootAction$: rootAction$,
-                    rootState$: rootState$,
-                    namespace: namespace,
-                    dependencies: storeCache.dependencies,
-                    props: namespaceCache.props,
-                    key: namespaceCache.key,
-                    getState: function () { return rootState$.value[namespaceCache.path]; },
-                    getters: namespaceCache.container.getters,
-                    actions: namespaceCache.container.actions,
-                    useContainer: storeCache.useContainer
-                }, action.payload);
-                var wrappedEffectDispatch = function (dispatch) {
-                    var promise = effectDispatch(dispatch);
-                    promise.then(function () {
-                        if (effectDispatchHandler != null) {
-                            effectDispatchHandler.resolve();
-                        }
-                    }, function (err) {
-                        if (effectDispatchHandler != null) {
-                            effectDispatchHandler.reject(err);
-                        }
-                    });
-                    return promise;
-                };
-                return toActionObservable(wrappedEffectDispatch);
-            }));
-            if (storeCache.options.epicErrorHandler != null) {
-                output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
+        return rootAction$.pipe(mergeMap(function (action) {
+            var actionType = "" + action.type;
+            var _a = parseActionType(actionType), namespace = _a.namespace, key = _a.key;
+            var namespaceCache = storeCache.cacheByNamespace[namespace];
+            if (namespaceCache == null) {
+                return empty();
             }
+            var effect = namespaceCache.model.effects[key];
+            if (effect == null) {
+                return empty();
+            }
+            var effectDispatchHandler = storeCache.effectDispatchHandlerByAction.get(action);
+            if (effectDispatchHandler != null) {
+                effectDispatchHandler.hasEffect = true;
+            }
+            var effectDispatch = effect({
+                rootAction$: rootAction$,
+                rootState$: rootState$,
+                namespace: namespace,
+                dependencies: storeCache.dependencies,
+                props: namespaceCache.props,
+                key: namespaceCache.key,
+                getState: function () { return rootState$.value[namespaceCache.path]; },
+                getters: namespaceCache.container.getters,
+                actions: namespaceCache.container.actions,
+                useContainer: storeCache.useContainer
+            }, action.payload);
+            var wrappedEffectDispatch = function (dispatch) {
+                var promise = effectDispatch(dispatch);
+                if (storeCache.options.effectErrorHandler != null) {
+                    promise = promise.catch(function (reason) {
+                        return storeCache.options.effectErrorHandler(reason, dispatch);
+                    });
+                }
+                promise.then(function () {
+                    if (effectDispatchHandler != null) {
+                        effectDispatchHandler.resolve();
+                    }
+                }, function (reason) {
+                    if (effectDispatchHandler != null) {
+                        effectDispatchHandler.reject(reason);
+                    }
+                });
+                return promise;
+            };
+            var takeUntil$ = rootAction$.ofType(namespace + "/" + actionTypes.unregister);
+            var output$ = toActionObservable(wrappedEffectDispatch).pipe(takeUntil(takeUntil$));
             return output$;
-        });
-        var takeUntil$ = rootAction$.ofType(namespace + "/" + actionTypes.unregister);
-        return merge.apply(void 0, outputObservables).pipe(takeUntil(takeUntil$));
+        }));
     };
 }
 
@@ -207,29 +237,6 @@ function createGetters(storeCache, namespace) {
         });
     });
     return getters;
-}
-
-var namespaceSplitterRegExp = new RegExp("/", "g");
-function convertNamespaceToPath(namespace) {
-    return namespace.replace(namespaceSplitterRegExp, ".");
-}
-function parseActionType(type) {
-    var lastSplitterIndex = type.lastIndexOf("/");
-    var namespace = type.substring(0, lastSplitterIndex);
-    var key = type.substring(lastSplitterIndex + 1);
-    return { namespace: namespace, key: key };
-}
-function buildNamespace(baseNamespace, key) {
-    if (key == null || key === "") {
-        return baseNamespace;
-    }
-    if (baseNamespace === "") {
-        return key;
-    }
-    return baseNamespace + "/" + key;
-}
-function functionWrapper(obj) {
-    return typeof obj === "function" ? obj : function () { return obj; };
 }
 
 var ModelBuilder = /** @class */ (function () {
@@ -523,7 +530,7 @@ var ContainerImpl = /** @class */ (function () {
             container: this
         };
         pendingNamespaces.push(this.namespace);
-        var epic = combineEpics(createEffectsReduxObservableEpic(this._storeCache, this.namespace), createEpicsReduxObservableEpic(this._storeCache, this.namespace));
+        var epic = createEpicsReduxObservableEpic(this._storeCache, this.namespace);
         if (store != null) {
             addEpic$.next(epic);
             dispatch({
@@ -606,7 +613,7 @@ function createStoreCache() {
     return storeCache;
 }
 
-function createReduxRootReducer(storeCache) {
+function createRootReduxReducer(storeCache) {
     return function (rootState, action) {
         if (rootState === undefined) {
             rootState = {};
@@ -668,8 +675,9 @@ function createAdvancedStore(dependencies, models, options) {
     storeCache.options = options;
     storeCache.dependencies = dependencies;
     registerModels(storeCache, "", models);
-    var rootReducer = createReduxRootReducer(storeCache);
-    storeCache.addEpic$ = new BehaviorSubject(combineEpics.apply(void 0, storeCache.initialEpics));
+    var rootReducer = createRootReduxReducer(storeCache);
+    var effectRootEpic = createEffectsRootReduxObservableEpic(storeCache);
+    storeCache.addEpic$ = new BehaviorSubject(combineEpics.apply(void 0, [effectRootEpic].concat(storeCache.initialEpics)));
     var rootEpic = function (action$, state$, epicDependencies) {
         return storeCache.addEpic$.pipe(mergeMap(function (epic) { return epic(action$, state$, epicDependencies); }));
     };
