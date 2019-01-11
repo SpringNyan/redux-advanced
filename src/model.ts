@@ -1,15 +1,17 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
-import { Effects } from "./effect";
+import { ExtractDependencies } from "./dependencies";
+import { Effects, ExtractEffects } from "./effect";
 import { Epics } from "./epic";
-import { PropsFactory } from "./props";
-import { Reducers } from "./reducer";
+import { ExtractProps, PropsFactory } from "./props";
+import { ExtractReducers, Reducers } from "./reducer";
 import {
   ConvertSelectorsToGetters,
+  ExtractSelectors,
   Selectors,
   SelectorsFactory
 } from "./selector";
-import { StateFactory } from "./state";
+import { ExtractState, StateFactory } from "./state";
 
 import { createSelector } from "./selector";
 import { buildNamespace, functionWrapper } from "./util";
@@ -94,21 +96,34 @@ export class ModelBuilder<
     return new ModelBuilder(this._model);
   }
 
-  public autoRegister(
-    value: boolean = true
+  public extend<TModel extends Model>(
+    model: TModel
   ): ModelBuilder<
-    TDependencies,
-    TProps,
-    TState,
-    TSelectors,
-    TReducers,
-    TEffects
+    TDependencies extends undefined
+      ? ExtractDependencies<TModel>
+      : TDependencies & ExtractDependencies<TModel>,
+    TProps extends undefined
+      ? ExtractProps<TModel>
+      : TProps & ExtractProps<TModel>,
+    TState extends undefined
+      ? ExtractState<TModel>
+      : TState & ExtractState<TModel>,
+    TSelectors & ExtractSelectors<TModel>,
+    TReducers & ExtractReducers<TModel>,
+    TEffects & ExtractEffects<TModel>
   > {
     if (this._isFrozen) {
-      return this.clone().autoRegister(value);
+      return this.clone().extend(model);
     }
 
-    this._model.autoRegister = value;
+    this.dependencies()
+      .props(model.defaultProps)
+      .state(model.state)
+      .selectors(model.selectors)
+      .reducers(model.reducers)
+      .effects(model.effects)
+      .epics(model.epics)
+      .autoRegister(model.autoRegister);
 
     return this as any;
   }
@@ -312,6 +327,25 @@ export class ModelBuilder<
     }
 
     this._model.epics = [...this._model.epics, ...epics];
+
+    return this as any;
+  }
+
+  public autoRegister(
+    value: boolean = true
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects
+  > {
+    if (this._isFrozen) {
+      return this.clone().autoRegister(value);
+    }
+
+    this._model.autoRegister = value;
 
     return this as any;
   }

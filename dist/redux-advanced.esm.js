@@ -244,12 +244,18 @@ var ModelBuilder = /** @class */ (function () {
     ModelBuilder.prototype.clone = function () {
         return new ModelBuilder(this._model);
     };
-    ModelBuilder.prototype.autoRegister = function (value) {
-        if (value === void 0) { value = true; }
+    ModelBuilder.prototype.extend = function (model) {
         if (this._isFrozen) {
-            return this.clone().autoRegister(value);
+            return this.clone().extend(model);
         }
-        this._model.autoRegister = value;
+        this.dependencies()
+            .props(model.defaultProps)
+            .state(model.state)
+            .selectors(model.selectors)
+            .reducers(model.reducers)
+            .effects(model.effects)
+            .epics(model.epics)
+            .autoRegister(model.autoRegister);
         return this;
     };
     ModelBuilder.prototype.dependencies = function () {
@@ -319,6 +325,14 @@ var ModelBuilder = /** @class */ (function () {
             return this.clone().epics(epics);
         }
         this._model.epics = this._model.epics.concat(epics);
+        return this;
+    };
+    ModelBuilder.prototype.autoRegister = function (value) {
+        if (value === void 0) { value = true; }
+        if (this._isFrozen) {
+            return this.clone().autoRegister(value);
+        }
+        this._model.autoRegister = value;
         return this;
     };
     ModelBuilder.prototype.build = function (props) {
