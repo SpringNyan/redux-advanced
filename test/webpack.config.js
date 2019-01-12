@@ -4,5 +4,6 @@ module.exports = {
   output: {
     path: __dirname,
     filename: "test.build.js"
-  }
+  },
+  devtool: "inline-source-map"
 };

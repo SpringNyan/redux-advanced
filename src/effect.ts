@@ -114,12 +114,12 @@ export function createEffectsRootReduxObservableEpic(
         const actionType = "" + action.type;
         const { namespace, key } = parseActionType(actionType);
 
-        const namespaceCache = storeCache.cacheByNamespace[namespace];
-        if (namespaceCache == null) {
+        const container = storeCache.containerByNamespace[namespace];
+        if (container == null) {
           return empty();
         }
 
-        const effect = namespaceCache.model.effects[key] as Effect;
+        const effect = container.model.effects[key] as Effect;
         if (effect == null) {
           return empty();
         }
@@ -139,12 +139,12 @@ export function createEffectsRootReduxObservableEpic(
             namespace,
 
             dependencies: storeCache.dependencies,
-            props: namespaceCache.props,
-            key: namespaceCache.key,
+            props: container.props,
+            key: container.key,
 
-            getState: () => rootState$.value[namespaceCache.path],
-            getters: namespaceCache.container.getters,
-            actions: namespaceCache.container.actions,
+            getState: () => container.state,
+            getters: container.getters,
+            actions: container.actions,
 
             useContainer: storeCache.useContainer as UseStrictContainer
           },

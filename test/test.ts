@@ -136,7 +136,14 @@ describe("redux-advanced", () => {
     dynamicModel2Container.unregister();
     expect(dynamicModel2Container.isRegistered).eq(false);
     expect(() => dynamicModel2Container.state).throw();
-    await dynamicModel2SetNamePromise;
+
+    try {
+      await dynamicModel2SetNamePromise;
+      throw new Error("dynamicModel2SetNamePromise should throw error");
+    } catch {
+      // expected
+    }
+
     expect(() => dynamicModel2Container.state).throw();
 
     const autoRegisteredDynamicContainer = store.useContainer(
@@ -145,6 +152,13 @@ describe("redux-advanced", () => {
     );
     expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
     expect(() => autoRegisteredDynamicContainer.state).not.throw();
+
+    expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
+    expect(() => autoRegisteredDynamicContainer.getters.summary).not.throw();
+
+    expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
+    expect(() => autoRegisteredDynamicContainer.actions.setName).not.throw();
+
     expect(autoRegisteredDynamicContainer.isRegistered).eq(true);
   });
 });

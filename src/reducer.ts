@@ -53,17 +53,17 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
 
     let initialRootState: { [namespace: string]: any } | undefined;
 
-    storeCache.pendingNamespaces.forEach((_namespace) => {
-      const _namespaceCache = storeCache.cacheByNamespace[_namespace];
-      if (_namespaceCache == null) {
+    storeCache.initStateNamespaces.forEach((_namespace) => {
+      const _container = storeCache.containerByNamespace[_namespace];
+      if (_container == null) {
         return;
       }
 
-      if (rootState[_namespaceCache.path] === undefined) {
-        const initialState = _namespaceCache.model.state({
+      if (rootState[_container.path] === undefined) {
+        const initialState = _container.model.state({
           dependencies: storeCache.dependencies,
-          props: _namespaceCache.props,
-          key: _namespaceCache.key
+          props: _container.props,
+          key: _container.key
         });
 
         if (initialState !== undefined) {
@@ -71,11 +71,11 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
             initialRootState = {};
           }
 
-          initialRootState[_namespaceCache.path] = initialState;
+          initialRootState[_container.path] = initialState;
         }
       }
     });
-    storeCache.pendingNamespaces = [];
+    storeCache.initStateNamespaces = [];
 
     if (initialRootState != null) {
       rootState = {
@@ -94,23 +94,23 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       delete rootState[convertNamespaceToPath(namespace)];
     }
 
-    const namespaceCache = storeCache.cacheByNamespace[namespace];
-    if (namespaceCache == null) {
+    const container = storeCache.containerByNamespace[namespace];
+    if (container == null) {
       return rootState;
     }
 
-    const reducer = namespaceCache.model.reducers[key] as Reducer;
+    const reducer = container.model.reducers[key] as Reducer;
     if (reducer == null) {
       return rootState;
     }
 
     return produce(rootState, (draft) => {
-      reducer(draft[namespaceCache.path], action.payload, {
+      reducer(draft[container.path], action.payload, {
         dependencies: storeCache.dependencies,
-        props: namespaceCache.props,
-        key: namespaceCache.key,
+        props: container.props,
+        key: container.key,
 
-        originalState: rootState[namespaceCache.path]
+        originalState: rootState[container.path]
       });
     });
   };

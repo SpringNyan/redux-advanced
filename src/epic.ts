@@ -13,9 +13,11 @@ import {
 } from "./action";
 import { StoreCache } from "./cache";
 import { UseStrictContainer } from "./container";
+import { Model } from "./model";
 import { Getters } from "./selector";
 
 import { actionTypes } from "./action";
+import { ContainerImpl } from "./container";
 
 export interface EpicContext<
   TDependencies = any,
@@ -60,12 +62,12 @@ export type Epics<
 
 export function createEpicsReduxObservableEpic(
   storeCache: StoreCache,
-  namespace: string
+  container: ContainerImpl<Model>
 ): ReduxObservableEpic {
-  const namespaceCache = storeCache.cacheByNamespace[namespace];
-
   return (rootAction$, rootState$) => {
-    const outputObservables = namespaceCache.model.epics.map((epic: Epic) => {
+    const { namespace } = container;
+
+    const outputObservables = container.model.epics.map((epic: Epic) => {
       let output$ = epic({
         rootAction$,
         rootState$,
@@ -73,12 +75,12 @@ export function createEpicsReduxObservableEpic(
         namespace,
 
         dependencies: storeCache.dependencies,
-        props: namespaceCache.props,
-        key: namespaceCache.key,
+        props: container.props,
+        key: container.key,
 
-        getState: () => rootState$.value[namespaceCache.path],
-        getters: namespaceCache.container.getters,
-        actions: namespaceCache.container.actions,
+        getState: () => container.state,
+        getters: container.getters,
+        actions: container.actions,
 
         useContainer: storeCache.useContainer as UseStrictContainer
       });

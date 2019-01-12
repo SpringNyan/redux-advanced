@@ -6,6 +6,8 @@ import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
 import { Override } from "./util";
 
+import { ContainerImpl } from "./container";
+
 export const actionTypes = {
   register: "@@REGISTER",
   epicEnd: "@@EPIC_END",
@@ -126,23 +128,33 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
 
 export function createActionHelpers<TModel extends Model>(
   storeCache: StoreCache,
-  namespace: string
+  container: ContainerImpl<TModel>
 ): ConvertReducersAndEffectsToActionHelpers<
   ExtractReducers<TModel>,
   ExtractEffects<TModel>
 > {
-  const namespaceCache = storeCache.cacheByNamespace[namespace];
-
   const actionHelpers: ActionHelpers = {};
   [
-    ...Object.keys(namespaceCache.model.reducers),
-    ...Object.keys(namespaceCache.model.effects)
+    ...Object.keys(container.model.reducers),
+    ...Object.keys(container.model.effects)
   ].forEach((key) => {
-    if (actionHelpers[key] == null) {
-      actionHelpers[key] = new ActionHelperImpl(
+    if (!(key in actionHelpers)) {
+      const actionHelper = new ActionHelperImpl(
         storeCache,
-        `${namespace}/${key}`
+        `${container.namespace}/${key}`
       );
+
+      Object.defineProperty(actionHelpers, key, {
+        get() {
+          if (container.canRegister && container.model.autoRegister) {
+            container.register();
+          }
+
+          return actionHelper;
+        },
+        enumerable: true,
+        configurable: true
+      });
     }
   });
 

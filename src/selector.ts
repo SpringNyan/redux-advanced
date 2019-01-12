@@ -3,6 +3,8 @@ import { StoreCache } from "./cache";
 import { UseContainer } from "./container";
 import { Model } from "./model";
 
+import { ContainerImpl } from "./container";
+
 export interface SelectorContext<
   TDependencies = any,
   TProps = any,
@@ -693,34 +695,27 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
 
 export function createGetters<TModel extends Model>(
   storeCache: StoreCache,
-  namespace: string
+  container: ContainerImpl<TModel>
 ): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
-  const namespaceCache = storeCache.cacheByNamespace[namespace];
-
   const getters: Getters = {};
-  Object.keys(namespaceCache.model.selectors).forEach((key) => {
+  Object.keys(container.model.selectors).forEach((key) => {
     Object.defineProperty(getters, key, {
       get() {
-        const selector = namespaceCache.model.selectors[
-          key
-        ] as SelectorInternal;
-
-        const rootState = storeCache.getState();
-        const state = rootState[namespaceCache.path];
+        const selector = container.model.selectors[key] as SelectorInternal;
 
         return selector(
           {
             dependencies: storeCache.dependencies,
-            props: namespaceCache.props,
-            key: namespaceCache.key,
+            props: container.props,
+            key: container.key,
 
-            state,
+            state: container.state,
             getters,
-            actions: namespaceCache.container.actions,
+            actions: container.actions,
 
             useContainer: storeCache.useContainer
           },
-          namespaceCache.containerId
+          container.id
         );
       },
       enumerable: true,
