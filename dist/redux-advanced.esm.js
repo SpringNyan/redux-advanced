@@ -9,7 +9,7 @@ var actionTypes = {
     epicEnd: "@@EPIC_END",
     unregister: "@@UNREGISTER"
 };
-var ActionHelperImpl = /** @class */ (function () {
+var ActionHelperImpl =  (function () {
     function ActionHelperImpl(_storeCache, type) {
         var _this = this;
         this._storeCache = _storeCache;
@@ -141,7 +141,6 @@ function createEffectsRootReduxObservableEpic(storeCache) {
                         return storeCache.options.effectErrorHandler(reason, dispatch);
                     });
                 }
-                // TODO: should we check effect result after takeUntil?
                 promise.then(function () {
                     if (effectDispatchHandler != null) {
                         effectDispatchHandler.resolve();
@@ -160,21 +159,6 @@ function createEffectsRootReduxObservableEpic(storeCache) {
     };
 }
 
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License. You may obtain a copy of the
-License at http://www.apache.org/licenses/LICENSE-2.0
-
-THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-MERCHANTABLITY OR NON-INFRINGEMENT.
-
-See the Apache Version 2.0 License for specific language governing permissions
-and limitations under the License.
-***************************************************************************** */
-
 var __assign = function() {
     __assign = Object.assign || function __assign(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -186,7 +170,6 @@ var __assign = function() {
     return __assign.apply(this, arguments);
 };
 
-// tslint:disable-next-line:ban-types
 var createSelector = (function () {
     var args = [];
     for (var _i = 0; _i < arguments.length; _i++) {
@@ -246,7 +229,7 @@ function createGetters(storeCache, container) {
     return getters;
 }
 
-var ModelBuilder = /** @class */ (function () {
+var ModelBuilder =  (function () {
     function ModelBuilder(model) {
         this._isFrozen = false;
         this._model = cloneModel(model);
@@ -446,7 +429,7 @@ function createEpicsReduxObservableEpic(storeCache, container) {
     };
 }
 
-var ContainerImpl = /** @class */ (function () {
+var ContainerImpl =  (function () {
     function ContainerImpl(_storeCache, model, baseNamespace, key) {
         this._storeCache = _storeCache;
         this.model = model;
