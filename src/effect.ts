@@ -160,6 +160,7 @@ export function createEffectsRootReduxObservableEpic(
             );
           }
 
+          // TODO: should we check effect result after takeUntil?
           promise.then(
             () => {
               if (effectDispatchHandler != null) {

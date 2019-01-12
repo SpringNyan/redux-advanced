@@ -147,6 +147,7 @@ function createEffectsRootReduxObservableEpic(storeCache) {
                         return storeCache.options.effectErrorHandler(reason, dispatch);
                     });
                 }
+                // TODO: should we check effect result after takeUntil?
                 promise.then(function () {
                     if (effectDispatchHandler != null) {
                         effectDispatchHandler.resolve();

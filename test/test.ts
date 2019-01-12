@@ -151,13 +151,15 @@ describe("redux-advanced", () => {
       "O_O"
     );
     expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
-    expect(() => autoRegisteredDynamicContainer.state).not.throw();
+    expect(autoRegisteredDynamicContainer.state.name).eq("");
 
     expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
-    expect(() => autoRegisteredDynamicContainer.getters.summary).not.throw();
+    expect(autoRegisteredDynamicContainer.getters.summary).eq(" - 0");
 
     expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
-    expect(() => autoRegisteredDynamicContainer.actions.setName).not.throw();
+    expect(autoRegisteredDynamicContainer.actions.setName.type).contains(
+      "setName"
+    );
 
     expect(autoRegisteredDynamicContainer.isRegistered).eq(true);
   });
