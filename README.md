@@ -115,6 +115,15 @@ container.actions.setName.dispatch("nyan");
 
 ## 更新历史
 
+- 0.4.0
+
+  - CHANGE: Model 的默认 dependencies 和 props 从 `{}` 变为 `undefined`
+  - CHANGE: Model 的 defaultProps 类型从 `TProps` 变为 `(context) => TProps`
+  - CHANGE: autoRegister 模式下，仅当访问 actions 中具体的 helper 时自动注册 model (避免在 render 期间执行副作用)
+  - CHANGE: 使用一个全局 redux-observable epic 处理所有的 Effects
+  - ADD: ModelBuilder 的 props 参数增加 `(context) => TProps` 支持
+  - ADD: Model 增加 `extend`方法，支持合并其它 model
+
 - 0.3.0
 
   - CHANGE: Model 的默认 state 从 `{}` 变为 `undefined`

@@ -1,12 +1,12 @@
-import { combineEpics } from "redux-observable";
-
 import {
   ConvertActionHelpersToStrictActionHelpers,
   ConvertReducersAndEffectsToActionHelpers
 } from "./action";
 import { StoreCache } from "./cache";
+import { ExtractDependencies } from "./dependencies";
 import { ExtractEffects } from "./effect";
-import { ExtractProps, Model } from "./model";
+import { Model } from "./model";
+import { ExtractProps, PropsFactory } from "./props";
 import { ExtractReducers } from "./reducer";
 import {
   ConvertSelectorsToGetters,
@@ -18,10 +18,13 @@ import { Override } from "./util";
 
 import { createActionHelpers } from "./action";
 import { actionTypes } from "./action";
-import { createEffectsReduxObservableEpic } from "./effect";
 import { createEpicsReduxObservableEpic } from "./epic";
 import { createGetters } from "./selector";
-import { buildNamespace, convertNamespaceToPath } from "./util";
+import {
+  buildNamespace,
+  convertNamespaceToPath,
+  functionWrapper
+} from "./util";
 
 export interface Container<TModel extends Model = any> {
   namespace: string;
@@ -36,7 +39,11 @@ export interface Container<TModel extends Model = any> {
     ExtractEffects<TModel>
   >;
 
-  register(props?: ExtractProps<TModel>): void;
+  register(
+    props?:
+      | ExtractProps<TModel>
+      | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
+  ): void;
   unregister(): void;
 }
 
@@ -63,13 +70,16 @@ export type UseStrictContainer = <TModel extends Model>(
 ) => StrictContainer<TModel>;
 
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
-  private static _nextContainerId = 1;
+  private static _nextId = 1;
+
+  public readonly id: string;
 
   public readonly namespace: string;
+  public readonly path: string;
 
-  private readonly _containerId: string;
-  private readonly _path: string;
+  public props: ExtractProps<TModel>;
 
+  private _cachedState: ExtractState<TModel> | undefined;
   private _cachedGetters:
     | ConvertSelectorsToGetters<ExtractSelectors<TModel>>
     | undefined;
@@ -82,146 +92,152 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
   constructor(
     private readonly _storeCache: StoreCache,
-    private readonly _model: TModel,
-    baseNamespace: string,
-    private readonly _key: string | undefined
+    public readonly model: TModel,
+    public readonly baseNamespace: string,
+    public readonly key: string | undefined
   ) {
-    this._containerId = "" + ContainerImpl._nextContainerId;
-    ContainerImpl._nextContainerId += 1;
+    this.id = "" + ContainerImpl._nextId;
+    ContainerImpl._nextId += 1;
 
-    this.namespace = buildNamespace(baseNamespace, this._key);
-    this._path = convertNamespaceToPath(this.namespace);
+    this.namespace = buildNamespace(this.baseNamespace, this.key);
+    this.path = convertNamespaceToPath(this.namespace);
+
+    this.props = this._createProps();
   }
 
   public get isRegistered() {
-    const cache = this._storeCache.cacheByNamespace[this.namespace];
-    return cache != null && cache.model === this._model;
+    const container = this._storeCache.containerByNamespace[this.namespace];
+    return container != null && container.model === this.model;
   }
 
   public get canRegister() {
-    return this._storeCache.cacheByNamespace[this.namespace] == null;
+    return this._storeCache.containerByNamespace[this.namespace] == null;
   }
 
   public get state() {
-    if (this.canRegister && this._model.autoRegister) {
-      this.register();
+    if (this.canRegister && this.model.autoRegister) {
+      if (this._cachedState === undefined) {
+        this._cachedState = this.model.state({
+          dependencies: this._storeCache.dependencies,
+          props: this.props,
+          key: this.key
+        });
+      }
+
+      return this._cachedState;
     }
 
     if (this.isRegistered) {
-      return this._storeCache.getState()[this._path];
+      return this._storeCache.getState()[this.path];
     }
 
     throw new Error("container is not registered yet");
   }
 
-  public get getters() {
-    if (this.canRegister && this._model.autoRegister) {
-      this.register();
+  public get getters(): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
+    if (this._cachedGetters === undefined) {
+      this._cachedGetters = createGetters(this._storeCache, this);
+    }
+
+    if (this.canRegister && this.model.autoRegister) {
+      return this._cachedGetters;
     }
 
     if (this.isRegistered) {
-      if (this._cachedGetters == null) {
-        this._cachedGetters = createGetters(this._storeCache, this.namespace);
-      }
-
       return this._cachedGetters;
     }
 
     throw new Error("container is not registered yet");
   }
 
-  public get actions() {
-    if (this.canRegister && this._model.autoRegister) {
-      this.register();
+  public get actions(): ConvertReducersAndEffectsToActionHelpers<
+    ExtractReducers<TModel>,
+    ExtractEffects<TModel>
+  > {
+    if (this._cachedActions === undefined) {
+      this._cachedActions = createActionHelpers(this._storeCache, this);
+    }
+
+    if (this.canRegister && this.model.autoRegister) {
+      return this._cachedActions;
     }
 
     if (this.isRegistered) {
-      if (this._cachedActions == null) {
-        this._cachedActions = createActionHelpers(
-          this._storeCache,
-          this.namespace
-        );
-      }
-
       return this._cachedActions;
     }
 
     throw new Error("container is not registered yet");
   }
 
-  public register(props?: ExtractProps<TModel>) {
-    const {
-      cacheByNamespace,
-      pendingNamespaces,
-      store,
-      dispatch,
-      addEpic$,
-      initialEpics
-    } = this._storeCache;
-
+  public register(
+    props?:
+      | ExtractProps<TModel>
+      | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
+  ) {
     if (!this.canRegister) {
       throw new Error("namespace is already used");
     }
 
-    if (props === undefined) {
-      props = this._model.defaultProps;
-    }
+    this._clearCache();
 
-    cacheByNamespace[this.namespace] = {
-      key: this._key,
+    this.props = this._createProps(props);
 
-      path: this._path,
+    this._storeCache.containerByNamespace[this.namespace] = this;
+    this._storeCache.initStateNamespaces.push(this.namespace);
 
-      model: this._model,
-      props,
+    const epic = createEpicsReduxObservableEpic(this._storeCache, this);
 
-      containerId: this._containerId,
-      container: this
-    };
-
-    pendingNamespaces.push(this.namespace);
-
-    const epic = combineEpics(
-      createEffectsReduxObservableEpic(this._storeCache, this.namespace),
-      createEpicsReduxObservableEpic(this._storeCache, this.namespace)
-    );
-
-    if (store != null) {
-      addEpic$.next(epic);
-
-      dispatch({
+    if (this._storeCache.store != null) {
+      this._storeCache.addEpic$.next(epic);
+      this._storeCache.dispatch({
         type: `${this.namespace}/${actionTypes.register}`
       });
     } else {
-      initialEpics.push(epic);
+      this._storeCache.initialEpics.push(epic);
     }
   }
 
   public unregister() {
-    const { cacheByNamespace, dispatch } = this._storeCache;
-
     if (!this.isRegistered) {
       throw new Error("container is not registered yet");
     }
 
-    dispatch({
+    this._storeCache.dispatch({
       type: `${this.namespace}/${actionTypes.epicEnd}`
     });
 
-    delete cacheByNamespace[this.namespace];
+    delete this._storeCache.containerByNamespace[this.namespace];
 
-    dispatch({
+    this._storeCache.dispatch({
       type: `${this.namespace}/${actionTypes.unregister}`
     });
 
-    Object.keys(this._model.selectors).forEach((key) => {
-      const selector = this._model.selectors[key] as SelectorInternal;
+    this._clearCache();
+  }
+
+  private _createProps(
+    props?:
+      | ExtractProps<TModel>
+      | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
+  ) {
+    if (props === undefined) {
+      props = this.model.defaultProps;
+    }
+
+    return functionWrapper(props)({
+      dependencies: this._storeCache.dependencies,
+      key: this.key
+    });
+  }
+
+  private _clearCache() {
+    this._cachedState = undefined;
+
+    Object.keys(this.model.selectors).forEach((key) => {
+      const selector = this.model.selectors[key] as SelectorInternal;
       if (selector.__deleteCache != null) {
-        selector.__deleteCache(this._containerId);
+        selector.__deleteCache(this.id);
       }
     });
-
-    this._cachedActions = undefined;
-    this._cachedGetters = undefined;
   }
 }

@@ -3,7 +3,7 @@ import { Epic as ReduxObservableEpic } from "redux-observable";
 import { BehaviorSubject } from "rxjs";
 
 import { AnyAction } from "./action";
-import { Container, UseContainer } from "./container";
+import { UseContainer } from "./container";
 import { Model } from "./model";
 import { ReduxAdvancedOptions } from "./store";
 
@@ -22,7 +22,7 @@ export interface StoreCache {
   dispatch: Dispatch;
   useContainer: UseContainer;
 
-  pendingNamespaces: string[];
+  initStateNamespaces: string[];
 
   effectDispatchHandlerByAction: Map<
     AnyAction,
@@ -33,18 +33,8 @@ export interface StoreCache {
     }
   >;
 
-  cacheByNamespace: {
-    [namespace: string]: {
-      key: string | undefined;
-
-      path: string;
-
-      model: Model;
-      props: any;
-
-      containerId: string;
-      container: Container;
-    };
+  containerByNamespace: {
+    [namespace: string]: ContainerImpl<Model>;
   };
   namespaceByModel: Map<Model, string>;
 }
@@ -54,34 +44,33 @@ export function createStoreCache(): StoreCache {
     store: undefined!,
     options: undefined!,
     dependencies: undefined!,
+
     addEpic$: undefined!,
     initialEpics: [],
 
     getState: (...args) => storeCache.store!.getState(...args),
     dispatch: (...args) => storeCache.store!.dispatch(...args),
     useContainer: (model, key) => {
-      const { cacheByNamespace, namespaceByModel } = storeCache;
-
-      if (!namespaceByModel.has(model)) {
+      if (!storeCache.namespaceByModel.has(model)) {
         throw new Error("model is not registered yet");
       }
 
-      const baseNamespace = namespaceByModel.get(model)!;
+      const baseNamespace = storeCache.namespaceByModel.get(model)!;
       const namespace = buildNamespace(baseNamespace, key);
 
-      const namespaceCache = cacheByNamespace[namespace];
-      if (namespaceCache == null || namespaceCache.model !== model) {
+      const container = storeCache.containerByNamespace[namespace];
+      if (container == null || container.model !== model) {
         return new ContainerImpl(storeCache, model, baseNamespace, key);
       } else {
-        return namespaceCache.container;
+        return container;
       }
     },
 
-    pendingNamespaces: [],
+    initStateNamespaces: [],
 
     effectDispatchHandlerByAction: new Map(),
 
-    cacheByNamespace: {},
+    containerByNamespace: {},
     namespaceByModel: new Map()
   };
 
