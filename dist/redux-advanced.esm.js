@@ -435,6 +435,7 @@ var ContainerImpl =  (function () {
         this.model = model;
         this.baseNamespace = baseNamespace;
         this.key = key;
+        this._defaultState = ContainerImpl._nothing;
         this.id = "" + ContainerImpl._nextId;
         ContainerImpl._nextId += 1;
         this.namespace = buildNamespace(this.baseNamespace, this.key);
@@ -459,14 +460,14 @@ var ContainerImpl =  (function () {
     Object.defineProperty(ContainerImpl.prototype, "state", {
         get: function () {
             if (this.canRegister && this.model.autoRegister) {
-                if (this._cachedState === undefined) {
-                    this._cachedState = this.model.state({
+                if (this._defaultState === ContainerImpl._nothing) {
+                    this._defaultState = this.model.state({
                         dependencies: this._storeCache.dependencies,
                         props: this.props,
                         key: this.key
                     });
                 }
-                return this._cachedState;
+                return this._defaultState;
             }
             if (this.isRegistered) {
                 return this._storeCache.getState()[this.path];
@@ -551,7 +552,7 @@ var ContainerImpl =  (function () {
     };
     ContainerImpl.prototype._clearCache = function () {
         var _this = this;
-        this._cachedState = undefined;
+        this._defaultState = ContainerImpl._nothing;
         Object.keys(this.model.selectors).forEach(function (key) {
             var selector = _this.model.selectors[key];
             if (selector.__deleteCache != null) {
@@ -559,6 +560,7 @@ var ContainerImpl =  (function () {
             }
         });
     };
+    ContainerImpl._nothing = {};
     ContainerImpl._nextId = 1;
     return ContainerImpl;
 }());

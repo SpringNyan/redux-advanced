@@ -70,6 +70,8 @@ export type UseStrictContainer = <TModel extends Model>(
 ) => StrictContainer<TModel>;
 
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
+  private static readonly _nothing = {};
+
   private static _nextId = 1;
 
   public readonly id: string;
@@ -79,7 +81,8 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
   public props: ExtractProps<TModel>;
 
-  private _cachedState: ExtractState<TModel> | undefined;
+  private _defaultState: ExtractState<TModel> | {} = ContainerImpl._nothing;
+
   private _cachedGetters:
     | ConvertSelectorsToGetters<ExtractSelectors<TModel>>
     | undefined;
@@ -116,15 +119,15 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
   public get state() {
     if (this.canRegister && this.model.autoRegister) {
-      if (this._cachedState === undefined) {
-        this._cachedState = this.model.state({
+      if (this._defaultState === ContainerImpl._nothing) {
+        this._defaultState = this.model.state({
           dependencies: this._storeCache.dependencies,
           props: this.props,
           key: this.key
         });
       }
 
-      return this._cachedState;
+      return this._defaultState;
     }
 
     if (this.isRegistered) {
@@ -231,7 +234,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   }
 
   private _clearCache() {
-    this._cachedState = undefined;
+    this._defaultState = ContainerImpl._nothing;
 
     Object.keys(this.model.selectors).forEach((key) => {
       const selector = this.model.selectors[key] as SelectorInternal;

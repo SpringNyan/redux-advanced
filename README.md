@@ -115,6 +115,10 @@ container.actions.setName.dispatch("nyan");
 
 ## 更新历史
 
+- 0.4.1
+
+  - FIX: 修复当 Container 的 default state 为 `undefined` 时会在每次访问时重新创建
+
 - 0.4.0
 
   - CHANGE: Model 的默认 dependencies 和 props 从 `{}` 变为 `undefined`
