@@ -154,13 +154,6 @@ export function createEffectsRootReduxObservableEpic(
         const wrappedEffectDispatch = (dispatch: Dispatch) => {
           let promise = effectDispatch(dispatch);
 
-          if (storeCache.options.effectErrorHandler != null) {
-            promise = promise.catch((reason) =>
-              storeCache.options.effectErrorHandler!(reason, dispatch)
-            );
-          }
-
-          // TODO: should we check effect result after takeUntil?
           promise.then(
             () => {
               if (effectDispatchHandler != null) {
@@ -173,6 +166,12 @@ export function createEffectsRootReduxObservableEpic(
               }
             }
           );
+
+          if (storeCache.options.effectErrorHandler != null) {
+            promise = promise.catch((reason) =>
+              storeCache.options.effectErrorHandler!(reason, dispatch)
+            );
+          }
 
           return promise;
         };

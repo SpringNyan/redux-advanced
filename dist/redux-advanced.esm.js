@@ -136,11 +136,6 @@ function createEffectsRootReduxObservableEpic(storeCache) {
             }, action.payload);
             var wrappedEffectDispatch = function (dispatch) {
                 var promise = effectDispatch(dispatch);
-                if (storeCache.options.effectErrorHandler != null) {
-                    promise = promise.catch(function (reason) {
-                        return storeCache.options.effectErrorHandler(reason, dispatch);
-                    });
-                }
                 promise.then(function () {
                     if (effectDispatchHandler != null) {
                         effectDispatchHandler.resolve();
@@ -150,6 +145,11 @@ function createEffectsRootReduxObservableEpic(storeCache) {
                         effectDispatchHandler.reject(reason);
                     }
                 });
+                if (storeCache.options.effectErrorHandler != null) {
+                    promise = promise.catch(function (reason) {
+                        return storeCache.options.effectErrorHandler(reason, dispatch);
+                    });
+                }
                 return promise;
             };
             var takeUntil$ = rootAction$.ofType(namespace + "/" + actionTypes.unregister);
