@@ -670,7 +670,7 @@ function createRootReduxReducer(storeCache) {
     };
 }
 
-function createAdvancedStore(dependencies, models, options) {
+function createReduxAdvancedStore(dependencies, models, options) {
     if (options == null) {
         options = {};
     }
@@ -699,4 +699,4 @@ function createAdvancedStore(dependencies, models, options) {
 
 exports.toActionObservable = toActionObservable;
 exports.createModelBuilder = createModelBuilder;
-exports.createAdvancedStore = createAdvancedStore;
+exports.createReduxAdvancedStore = createReduxAdvancedStore;

@@ -115,6 +115,11 @@ container.actions.setName.dispatch("nyan");
 
 ## 更新历史
 
+- 0.5.0
+
+  - CHANGE: 重命名 `createAdvancedStore` -> `createReduxAdvancedStore`
+  - ADD: 导出 `ReduxAdvancedStore` 类型
+
 - 0.4.2
 
   - CHANGE: `dispatch` 返回的 Promise 无视 effectErrorHandler

@@ -12,7 +12,7 @@ import { createEffectsRootReduxObservableEpic } from "./effect";
 import { registerModels } from "./model";
 import { createRootReduxReducer } from "./reducer";
 
-export interface AdvancedStore extends Store {
+export interface ReduxAdvancedStore extends Store {
   useContainer: UseContainer;
 }
 
@@ -25,14 +25,14 @@ export interface ReduxAdvancedOptions {
   ) => Observable<AnyAction>;
 }
 
-export function createAdvancedStore<
+export function createReduxAdvancedStore<
   TDependencies,
   TModels extends Models<TDependencies>
 >(
   dependencies: TDependencies,
   models: TModels,
   options?: ReduxAdvancedOptions
-): AdvancedStore {
+): ReduxAdvancedStore {
   if (options == null) {
     options = {};
   }
@@ -68,7 +68,7 @@ export function createAdvancedStore<
     epicMiddleware.run(rootEpic);
   }
 
-  const store = storeCache.store as AdvancedStore;
+  const store = storeCache.store as ReduxAdvancedStore;
   store.useContainer = storeCache.useContainer;
 
   return store;

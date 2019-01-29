@@ -9,4 +9,4 @@ export { toActionObservable } from "./effect";
 export { createModelBuilder, ExtractModel, Model } from "./model";
 export { ExtractProps } from "./props";
 export { ExtractState } from "./state";
-export { AdvancedStore, createAdvancedStore } from "./store";
+export { createReduxAdvancedStore, ReduxAdvancedStore } from "./store";

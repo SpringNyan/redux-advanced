@@ -2,7 +2,7 @@ import { expect } from "chai";
 
 import { timer } from "rxjs";
 
-import { createAdvancedStore, createModelBuilder } from "../lib";
+import { createModelBuilder, createReduxAdvancedStore } from "../lib";
 
 interface IDependencies {
   appId: number;
@@ -74,7 +74,7 @@ describe("redux-advanced", () => {
 
     const appDependencies: IDependencies = { appId: 233 };
 
-    const store = createAdvancedStore(appDependencies, {
+    const store = createReduxAdvancedStore(appDependencies, {
       staticModel,
       dynamicModels: [dynamicModel],
       autoRegisteredDynamicModel: [autoRegisteredDynamicModel]
