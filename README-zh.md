@@ -95,10 +95,10 @@ const model = defaultModelBuilder
   .build({ id: 998 });
 ```
 
-3. 通过`createAdvancedStore`创建 Store。
+3. 通过`createReduxAdvancedStore`创建 Store。
 
 ```typescript
-const store = createAdvancedStore(dependencies, {
+const store = createReduxAdvancedStore(dependencies, {
   model
 });
 ```
