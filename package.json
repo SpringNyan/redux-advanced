@@ -1,7 +1,7 @@
 {
   "name": "redux-advanced",
   "version": "0.5.0",
-  "description": "Redux advanced store with TypeScript support",
+  "description": "A state management library based on Redux",
   "authors": "SpringNyan",
   "license": "MIT",
   "repository": "github:SpringNyan/redux-advanced",
