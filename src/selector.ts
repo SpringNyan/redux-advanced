@@ -669,14 +669,17 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
     }
     const cache = cacheByKey[cacheKey];
 
-    let needUpdate = false;
+    let needUpdate = cache.lastParams == null;
 
-    const params = selectors.map((selector) => selector(context));
-    if (
-      cache.lastParams == null ||
-      params.some((param, index) => param !== cache.lastParams![index])
-    ) {
-      needUpdate = true;
+    const params: any[] = [];
+    // tslint:disable-next-line:prefer-for-of
+    for (let i = 0; i < selectors.length; ++i) {
+      const selector = selectors[i];
+      params.push(selector(context));
+
+      if (!needUpdate && params[i] !== cache.lastParams![i]) {
+        needUpdate = true;
+      }
     }
 
     if (needUpdate) {

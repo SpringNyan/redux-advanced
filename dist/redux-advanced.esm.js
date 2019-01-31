@@ -189,11 +189,14 @@ var createSelector = (function () {
             };
         }
         var cache = cacheByKey[cacheKey];
-        var needUpdate = false;
-        var params = selectors.map(function (selector) { return selector(context); });
-        if (cache.lastParams == null ||
-            params.some(function (param, index) { return param !== cache.lastParams[index]; })) {
-            needUpdate = true;
+        var needUpdate = cache.lastParams == null;
+        var params = [];
+        for (var i = 0; i < selectors.length; ++i) {
+            var selector = selectors[i];
+            params.push(selector(context));
+            if (!needUpdate && params[i] !== cache.lastParams[i]) {
+                needUpdate = true;
+            }
         }
         if (needUpdate) {
             cache.lastParams = params;
@@ -664,7 +667,7 @@ function createRootReduxReducer(storeCache) {
     };
 }
 
-function createAdvancedStore(dependencies, models, options) {
+function createReduxAdvancedStore(dependencies, models, options) {
     if (options == null) {
         options = {};
     }
@@ -691,4 +694,4 @@ function createAdvancedStore(dependencies, models, options) {
     return store;
 }
 
-export { toActionObservable, createModelBuilder, createAdvancedStore };
+export { toActionObservable, createModelBuilder, createReduxAdvancedStore };
