@@ -119,6 +119,7 @@ container.actions.setName.dispatch("nyan");
 
   - CHANGE: 重命名 `createAdvancedStore` -> `createReduxAdvancedStore`
   - ADD: 导出 `ReduxAdvancedStore` 类型
+  - PERF: 优化 `createSelector` 的性能
 
 - 0.4.2
 
