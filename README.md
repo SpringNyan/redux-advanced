@@ -10,11 +10,11 @@
 
 - Full TypeScript support (need TypeScript 3.2+)
 - Support modify state directly in reducer (based on immer)
-- Support async actions by effect/epic (based on redux-observable and rxjs)
+- Support async actions by effect/epic (based on redux-observable and RxJS)
 - Support derived state by selector/getter
 - Support model, it can be registered/unregistered dynamically
 - Model has interoperability with other models
-- Easy to integrate with other Redux libraries
+- Easy to integrate with other Redux related libraries
 
 ## Installation
 
@@ -42,7 +42,7 @@ const defaultModelBuilder = createModelBuilder()
   .freeze(); // freeze this ModelBuilder
 ```
 
-2. Create model by `ModelBuilder`
+2. Create model by `defaultModelBuilder`
 
 ```typescript
 const model = defaultModelBuilder

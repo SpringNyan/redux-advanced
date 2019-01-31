@@ -8,7 +8,7 @@
 
 - 完善的 TypeScript 支持 (需要 TypeScript 3.2+)
 - 支持在 reducer 中以 mutate 方式修改 state (依赖于 immer)
-- 支持通过 effect/epic 进行异步处理 (依赖于 redux-observable 及 rxjs)
+- 支持通过 effect/epic 进行异步处理 (依赖于 redux-observable 及 RxJS)
 - 支持通过 selector/getter 派生状态
 - 支持 model 以及对其动态注册卸载 (可模拟多 store)
 - 提供 model 间互操作能力
@@ -40,7 +40,7 @@ const defaultModelBuilder = createModelBuilder()
   .freeze(); // 冻结此ModelBuilder
 ```
 
-2. 通过`ModelBuilder`创建 model
+2. 通过`defaultModelBuilder`创建 model
 
 ```typescript
 const model = defaultModelBuilder
