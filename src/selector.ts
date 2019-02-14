@@ -649,25 +649,23 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
   const selectors = args.slice(0, args.length - 1);
   const combiner = args[args.length - 1];
 
-  const cacheByKey: {
-    [key: string]: {
-      lastParams: any[] | undefined;
-      lastResult: any;
-    };
-  } = {};
+  const cacheByKey: Map<
+    string,
+    { lastParams: any[] | undefined; lastResult: any }
+  > = new Map();
 
   const resultSelector = (context: SelectorContext, cacheKey: string) => {
     if (cacheKey == null) {
       cacheKey = "";
     }
 
-    if (cacheByKey[cacheKey] == null) {
-      cacheByKey[cacheKey] = {
+    if (!cacheByKey.has(cacheKey)) {
+      cacheByKey.set(cacheKey, {
         lastParams: undefined,
         lastResult: undefined
-      };
+      });
     }
-    const cache = cacheByKey[cacheKey];
+    const cache = cacheByKey.get(cacheKey)!;
 
     let needUpdate = cache.lastParams == null;
 
@@ -690,7 +688,7 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
     return cache.lastResult;
   };
   resultSelector.__deleteCache = (cacheKey: string) => {
-    delete cacheByKey[cacheKey];
+    cacheByKey.delete(cacheKey);
   };
 
   return resultSelector;

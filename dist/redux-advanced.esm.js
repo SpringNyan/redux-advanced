@@ -110,7 +110,7 @@ function createEffectsRootReduxObservableEpic(storeCache) {
         return rootAction$.pipe(mergeMap(function (action) {
             var actionType = "" + action.type;
             var _a = parseActionType(actionType), namespace = _a.namespace, key = _a.key;
-            var container = storeCache.containerByNamespace[namespace];
+            var container = storeCache.containerByNamespace.get(namespace);
             if (container == null) {
                 return empty();
             }
@@ -177,18 +177,18 @@ var createSelector = (function () {
     }
     var selectors = args.slice(0, args.length - 1);
     var combiner = args[args.length - 1];
-    var cacheByKey = {};
+    var cacheByKey = new Map();
     var resultSelector = function (context, cacheKey) {
         if (cacheKey == null) {
             cacheKey = "";
         }
-        if (cacheByKey[cacheKey] == null) {
-            cacheByKey[cacheKey] = {
+        if (!cacheByKey.has(cacheKey)) {
+            cacheByKey.set(cacheKey, {
                 lastParams: undefined,
                 lastResult: undefined
-            };
+            });
         }
-        var cache = cacheByKey[cacheKey];
+        var cache = cacheByKey.get(cacheKey);
         var needUpdate = cache.lastParams == null;
         var params = [];
         for (var i = 0; i < selectors.length; ++i) {
@@ -205,7 +205,7 @@ var createSelector = (function () {
         return cache.lastResult;
     };
     resultSelector.__deleteCache = function (cacheKey) {
-        delete cacheByKey[cacheKey];
+        cacheByKey.delete(cacheKey);
     };
     return resultSelector;
 });
@@ -383,10 +383,13 @@ function createModelBuilder() {
 function registerModel(storeCache, namespace, model) {
     var models = Array.isArray(model) ? model : [model];
     models.forEach(function (_model) {
-        if (storeCache.namespaceByModel.has(_model)) {
+        if (storeCache.cacheByModel.has(_model)) {
             throw new Error("model is already registered");
         }
-        storeCache.namespaceByModel.set(_model, namespace);
+        storeCache.cacheByModel.set(_model, {
+            baseNamespace: namespace,
+            containerByKey: new Map()
+        });
     });
 }
 function registerModels(storeCache, namespace, models) {
@@ -447,7 +450,7 @@ var ContainerImpl =  (function () {
     }
     Object.defineProperty(ContainerImpl.prototype, "isRegistered", {
         get: function () {
-            var container = this._storeCache.containerByNamespace[this.namespace];
+            var container = this._storeCache.containerByNamespace.get(this.namespace);
             return container != null && container.model === this.model;
         },
         enumerable: true,
@@ -455,7 +458,7 @@ var ContainerImpl =  (function () {
     });
     Object.defineProperty(ContainerImpl.prototype, "canRegister", {
         get: function () {
-            return this._storeCache.containerByNamespace[this.namespace] == null;
+            return !this._storeCache.containerByNamespace.has(this.namespace);
         },
         enumerable: true,
         configurable: true
@@ -516,9 +519,11 @@ var ContainerImpl =  (function () {
         if (!this.canRegister) {
             throw new Error("namespace is already used");
         }
-        this._clearCache();
+        this._storeCache.cacheByModel
+            .get(this.model)
+            .containerByKey.set(this.key, this);
         this.props = this._createProps(props);
-        this._storeCache.containerByNamespace[this.namespace] = this;
+        this._storeCache.containerByNamespace.set(this.namespace, this);
         this._storeCache.initStateNamespaces.push(this.namespace);
         var epic = createEpicsReduxObservableEpic(this._storeCache, this);
         if (this._storeCache.store != null) {
@@ -532,16 +537,15 @@ var ContainerImpl =  (function () {
         }
     };
     ContainerImpl.prototype.unregister = function () {
-        if (!this.isRegistered) {
-            throw new Error("container is not registered yet");
+        if (this.isRegistered) {
+            this._storeCache.dispatch({
+                type: this.namespace + "/" + actionTypes.epicEnd
+            });
+            this._storeCache.containerByNamespace.delete(this.namespace);
+            this._storeCache.dispatch({
+                type: this.namespace + "/" + actionTypes.unregister
+            });
         }
-        this._storeCache.dispatch({
-            type: this.namespace + "/" + actionTypes.epicEnd
-        });
-        delete this._storeCache.containerByNamespace[this.namespace];
-        this._storeCache.dispatch({
-            type: this.namespace + "/" + actionTypes.unregister
-        });
         this._clearCache();
     };
     ContainerImpl.prototype._createProps = function (props) {
@@ -562,6 +566,9 @@ var ContainerImpl =  (function () {
                 selector.__deleteCache(_this.id);
             }
         });
+        this._storeCache.cacheByModel
+            .get(this.model)
+            .containerByKey.delete(this.key);
     };
     ContainerImpl._nothing = {};
     ContainerImpl._nextId = 1;
@@ -592,23 +599,23 @@ function createStoreCache() {
             return (_a = storeCache.store).dispatch.apply(_a, args);
         },
         useContainer: function (model, key) {
-            if (!storeCache.namespaceByModel.has(model)) {
+            if (!storeCache.cacheByModel.has(model)) {
                 throw new Error("model is not registered yet");
             }
-            var baseNamespace = storeCache.namespaceByModel.get(model);
-            var namespace = buildNamespace(baseNamespace, key);
-            var container = storeCache.containerByNamespace[namespace];
-            if (container == null || container.model !== model) {
-                return new ContainerImpl(storeCache, model, baseNamespace, key);
+            if (key == null) {
+                key = "";
             }
-            else {
-                return container;
+            var _a = storeCache.cacheByModel.get(model), baseNamespace = _a.baseNamespace, containerByKey = _a.containerByKey;
+            if (!containerByKey.has(key)) {
+                var container = new ContainerImpl(storeCache, model, baseNamespace, key);
+                containerByKey.set(key, container);
             }
+            return containerByKey.get(key);
         },
         initStateNamespaces: [],
         effectDispatchHandlerByAction: new Map(),
-        containerByNamespace: {},
-        namespaceByModel: new Map()
+        containerByNamespace: new Map(),
+        cacheByModel: new Map()
     };
     return storeCache;
 }
@@ -620,7 +627,7 @@ function createRootReduxReducer(storeCache) {
         }
         var initialRootState;
         storeCache.initStateNamespaces.forEach(function (_namespace) {
-            var _container = storeCache.containerByNamespace[_namespace];
+            var _container = storeCache.containerByNamespace.get(_namespace);
             if (_container == null) {
                 return;
             }
@@ -648,7 +655,7 @@ function createRootReduxReducer(storeCache) {
             rootState = __assign({}, rootState);
             delete rootState[convertNamespaceToPath(namespace)];
         }
-        var container = storeCache.containerByNamespace[namespace];
+        var container = storeCache.containerByNamespace.get(namespace);
         if (container == null) {
             return rootState;
         }
