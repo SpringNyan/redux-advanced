@@ -14,7 +14,7 @@ export interface ReducerContext<
 > {
   dependencies: TDependencies;
   props: TProps;
-  key: string | undefined;
+  key: string;
 
   originalState: TState;
 }
@@ -54,7 +54,7 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
     let initialRootState: { [namespace: string]: any } | undefined;
 
     storeCache.initStateNamespaces.forEach((_namespace) => {
-      const _container = storeCache.containerByNamespace[_namespace];
+      const _container = storeCache.containerByNamespace.get(_namespace);
       if (_container == null) {
         return;
       }
@@ -94,7 +94,7 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       delete rootState[convertNamespaceToPath(namespace)];
     }
 
-    const container = storeCache.containerByNamespace[namespace];
+    const container = storeCache.containerByNamespace.get(namespace);
     if (container == null) {
       return rootState;
     }

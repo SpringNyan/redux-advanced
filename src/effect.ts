@@ -36,7 +36,7 @@ export interface EffectContext<
 
   dependencies: TDependencies;
   props: TProps;
-  key: string | undefined;
+  key: string;
 
   getState: () => TState;
   getters: TGetters;
@@ -114,7 +114,7 @@ export function createEffectsRootReduxObservableEpic(
         const actionType = "" + action.type;
         const { namespace, key } = parseActionType(actionType);
 
-        const container = storeCache.containerByNamespace[namespace];
+        const container = storeCache.containerByNamespace.get(namespace);
         if (container == null) {
           return empty();
         }

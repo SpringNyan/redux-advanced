@@ -115,6 +115,13 @@ container.actions.setName.dispatch("nyan");
 
 ## 更新历史
 
+- 0.6.0
+
+  - CHANGE: 如果调用 `useContainer` 时未提供 key, context key 将会为 `""`
+  - CHANGE: `useContainer` 将会缓存生成的 container
+  - CHANGE: `container.unregister` 不会在 container 未注册时抛出错误
+  - ADD: `container.unregister` 会删除 `useContainer` 中对应 container 的缓存
+
 - 0.5.0
 
   - CHANGE: 重命名 `createAdvancedStore` -> `createReduxAdvancedStore`

@@ -33,7 +33,7 @@ export interface EpicContext<
 
   dependencies: TDependencies;
   props: TProps;
-  key: string | undefined;
+  key: string;
 
   getState: () => TState;
   getters: TGetters;

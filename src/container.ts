@@ -97,7 +97,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     private readonly _storeCache: StoreCache,
     public readonly model: TModel,
     public readonly baseNamespace: string,
-    public readonly key: string | undefined
+    public readonly key: string
   ) {
     this.id = "" + ContainerImpl._nextId;
     ContainerImpl._nextId += 1;
@@ -109,12 +109,12 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   }
 
   public get isRegistered() {
-    const container = this._storeCache.containerByNamespace[this.namespace];
+    const container = this._storeCache.containerByNamespace.get(this.namespace);
     return container != null && container.model === this.model;
   }
 
   public get canRegister() {
-    return this._storeCache.containerByNamespace[this.namespace] == null;
+    return !this._storeCache.containerByNamespace.has(this.namespace);
   }
 
   public get state() {
@@ -181,11 +181,13 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       throw new Error("namespace is already used");
     }
 
-    this._clearCache();
+    this._storeCache.cacheByModel
+      .get(this.model)!
+      .containerByKey.set(this.key, this);
 
     this.props = this._createProps(props);
 
-    this._storeCache.containerByNamespace[this.namespace] = this;
+    this._storeCache.containerByNamespace.set(this.namespace, this);
     this._storeCache.initStateNamespaces.push(this.namespace);
 
     const epic = createEpicsReduxObservableEpic(this._storeCache, this);
@@ -201,19 +203,17 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   }
 
   public unregister() {
-    if (!this.isRegistered) {
-      throw new Error("container is not registered yet");
+    if (this.isRegistered) {
+      this._storeCache.dispatch({
+        type: `${this.namespace}/${actionTypes.epicEnd}`
+      });
+
+      this._storeCache.containerByNamespace.delete(this.namespace);
+
+      this._storeCache.dispatch({
+        type: `${this.namespace}/${actionTypes.unregister}`
+      });
     }
-
-    this._storeCache.dispatch({
-      type: `${this.namespace}/${actionTypes.epicEnd}`
-    });
-
-    delete this._storeCache.containerByNamespace[this.namespace];
-
-    this._storeCache.dispatch({
-      type: `${this.namespace}/${actionTypes.unregister}`
-    });
 
     this._clearCache();
   }
@@ -242,5 +242,9 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
         selector.__deleteCache(this.id);
       }
     });
+
+    this._storeCache.cacheByModel
+      .get(this.model)!
+      .containerByKey.delete(this.key);
   }
 }

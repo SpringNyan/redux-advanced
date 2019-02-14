@@ -8,7 +8,6 @@ import { Model } from "./model";
 import { ReduxAdvancedOptions } from "./store";
 
 import { ContainerImpl } from "./container";
-import { buildNamespace } from "./util";
 
 export interface StoreCache {
   store: Store;
@@ -33,10 +32,15 @@ export interface StoreCache {
     }
   >;
 
-  containerByNamespace: {
-    [namespace: string]: ContainerImpl<Model>;
-  };
-  namespaceByModel: Map<Model, string>;
+  containerByNamespace: Map<string, ContainerImpl<Model>>;
+
+  cacheByModel: Map<
+    Model,
+    {
+      baseNamespace: string;
+      containerByKey: Map<string, ContainerImpl<Model>>;
+    }
+  >;
 }
 
 export function createStoreCache(): StoreCache {
@@ -51,27 +55,38 @@ export function createStoreCache(): StoreCache {
     getState: (...args) => storeCache.store!.getState(...args),
     dispatch: (...args) => storeCache.store!.dispatch(...args),
     useContainer: (model, key) => {
-      if (!storeCache.namespaceByModel.has(model)) {
+      if (!storeCache.cacheByModel.has(model)) {
         throw new Error("model is not registered yet");
       }
 
-      const baseNamespace = storeCache.namespaceByModel.get(model)!;
-      const namespace = buildNamespace(baseNamespace, key);
-
-      const container = storeCache.containerByNamespace[namespace];
-      if (container == null || container.model !== model) {
-        return new ContainerImpl(storeCache, model, baseNamespace, key);
-      } else {
-        return container;
+      if (key == null) {
+        key = "";
       }
+
+      const { baseNamespace, containerByKey } = storeCache.cacheByModel.get(
+        model
+      )!;
+
+      if (!containerByKey.has(key)) {
+        const container = new ContainerImpl(
+          storeCache,
+          model,
+          baseNamespace,
+          key
+        );
+        containerByKey.set(key, container);
+      }
+
+      return containerByKey.get(key)!;
     },
 
     initStateNamespaces: [],
 
     effectDispatchHandlerByAction: new Map(),
 
-    containerByNamespace: {},
-    namespaceByModel: new Map()
+    containerByNamespace: new Map(),
+
+    cacheByModel: new Map()
   };
 
   return storeCache;
