@@ -117,6 +117,13 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.6.0
+
+  - CHANGE: context key will be `""` if key is not provided in `useContainer`
+  - CHANGE: `useContainer` will cache generated container
+  - CHANGE: `container.unregister` won't throw error if container is not registered
+  - ADD: `container.unregister` will delete container cache in `useContainer`
+
 - 0.5.0
 
   - Initial beta version
