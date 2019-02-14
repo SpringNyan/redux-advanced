@@ -36,7 +36,7 @@ export interface EffectContext<
 
   dependencies: TDependencies;
   props: TProps;
-  key: string | undefined;
+  key: string;
 
   getState: () => TState;
   getters: TGetters;

@@ -14,7 +14,7 @@ export interface ReducerContext<
 > {
   dependencies: TDependencies;
   props: TProps;
-  key: string | undefined;
+  key: string;
 
   originalState: TState;
 }

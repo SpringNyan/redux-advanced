@@ -97,7 +97,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     private readonly _storeCache: StoreCache,
     public readonly model: TModel,
     public readonly baseNamespace: string,
-    public readonly key: string | undefined
+    public readonly key: string
   ) {
     this.id = "" + ContainerImpl._nextId;
     ContainerImpl._nextId += 1;
@@ -183,7 +183,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
     this._storeCache.cacheByModel
       .get(this.model)!
-      .containerByKey.set(this.key!, this);
+      .containerByKey.set(this.key, this);
 
     this.props = this._createProps(props);
 
@@ -245,6 +245,6 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
     this._storeCache.cacheByModel
       .get(this.model)!
-      .containerByKey.delete(this.key!);
+      .containerByKey.delete(this.key);
   }
 }

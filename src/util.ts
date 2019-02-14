@@ -15,10 +15,7 @@ export function parseActionType(
   return { namespace, key };
 }
 
-export function buildNamespace(
-  baseNamespace: string,
-  key: string | undefined
-): string {
+export function buildNamespace(baseNamespace: string, key: string): string {
   if (key == null || key === "") {
     return baseNamespace;
   }
@@ -32,6 +29,6 @@ export function buildNamespace(
 
 export function functionWrapper<T, U extends any[]>(
   obj: T | ((...args: U) => T)
-): ((...args: U) => T) {
+): (...args: U) => T {
   return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
 }

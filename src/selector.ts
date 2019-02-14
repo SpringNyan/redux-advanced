@@ -14,7 +14,7 @@ export interface SelectorContext<
 > {
   dependencies: TDependencies;
   props: TProps;
-  key: string | undefined;
+  key: string;
 
   state: TState;
   getters: TGetters;

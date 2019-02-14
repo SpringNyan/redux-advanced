@@ -2,7 +2,7 @@ import { Model } from "./model";
 
 export interface PropsContext<TDependencies = any> {
   dependencies: TDependencies;
-  key: string | undefined;
+  key: string;
 }
 
 export type PropsFactory<TDependencies, TProps> = (
