@@ -1,6 +1,6 @@
 {
   "name": "redux-advanced",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "A state management library based on Redux",
   "authors": "SpringNyan",
   "license": "MIT",
