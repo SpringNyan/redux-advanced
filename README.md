@@ -117,6 +117,11 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.7.0
+
+  - CHANGE: container's properties won't throw error if container is not registered but can register
+  - FIX: fix potential memory leak issue for container
+
 - 0.6.0
 
   - CHANGE: context key will be `""` if key is not provided in `useContainer`

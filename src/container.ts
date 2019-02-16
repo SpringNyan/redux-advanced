@@ -16,14 +16,14 @@ import {
 import { ExtractState } from "./state";
 import { Override } from "./util";
 
-import { createActionHelpers } from "./action";
-import { actionTypes } from "./action";
+import { actionTypes, createActionHelpers } from "./action";
 import { createEpicsReduxObservableEpic } from "./epic";
 import { createGetters } from "./selector";
 import {
   buildNamespace,
   convertNamespaceToPath,
-  functionWrapper
+  functionWrapper,
+  nil
 } from "./util";
 
 export interface Container<TModel extends Model = any> {
@@ -70,42 +70,39 @@ export type UseStrictContainer = <TModel extends Model>(
 ) => StrictContainer<TModel>;
 
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
-  private static readonly _nothing = {};
-
-  private static _nextId = 1;
-
   public readonly id: string;
 
   public readonly namespace: string;
   public readonly path: string;
 
-  public props: ExtractProps<TModel>;
-
-  private _defaultState: ExtractState<TModel> | {} = ContainerImpl._nothing;
-
-  private _cachedGetters:
-    | ConvertSelectorsToGetters<ExtractSelectors<TModel>>
-    | undefined;
-  private _cachedActions:
-    | ConvertReducersAndEffectsToActionHelpers<
-        ExtractReducers<TModel>,
-        ExtractEffects<TModel>
-      >
-    | undefined;
-
   constructor(
     private readonly _storeCache: StoreCache,
     public readonly model: TModel,
-    public readonly baseNamespace: string,
     public readonly key: string
   ) {
-    this.id = "" + ContainerImpl._nextId;
-    ContainerImpl._nextId += 1;
+    const modelContext = this._storeCache.contextByModel.get(this.model)!;
+    const baseNamespace = modelContext.baseNamespace;
 
-    this.namespace = buildNamespace(this.baseNamespace, this.key);
+    this.id = modelContext.cacheIdByKey.get(this.key)!;
+
+    this.namespace = buildNamespace(baseNamespace, this.key);
     this.path = convertNamespaceToPath(this.namespace);
+  }
 
-    this.props = this._createProps();
+  private get _cache() {
+    let cache = this._storeCache.cacheById.get(this.id);
+    if (cache == null) {
+      cache = {
+        props: this._createProps(),
+
+        cachedState: nil,
+        cachedGetters: undefined,
+        cachedActions: undefined
+      };
+      this._storeCache.cacheById.set(this.id, cache);
+    }
+
+    return cache;
   }
 
   public get isRegistered() {
@@ -117,59 +114,60 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     return !this._storeCache.containerByNamespace.has(this.namespace);
   }
 
+  public get props() {
+    return this._cache.props;
+  }
+
   public get state() {
-    if (this.canRegister && this.model.autoRegister) {
-      if (this._defaultState === ContainerImpl._nothing) {
-        this._defaultState = this.model.state({
-          dependencies: this._storeCache.dependencies,
-          props: this.props,
-          key: this.key
-        });
-      }
-
-      return this._defaultState;
-    }
-
     if (this.isRegistered) {
       return this._storeCache.getState()[this.path];
     }
 
-    throw new Error("container is not registered yet");
+    if (this.canRegister) {
+      const cache = this._cache;
+      if (cache.cachedState === nil) {
+        cache.cachedState = this.model.state({
+          dependencies: this._storeCache.dependencies,
+          props: cache.props,
+          key: this.key
+        });
+      }
+
+      return cache.cachedState;
+    }
+
+    throw new Error("namespace is already registered by other model");
   }
 
   public get getters(): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
-    if (this._cachedGetters === undefined) {
-      this._cachedGetters = createGetters(this._storeCache, this);
+    if (this.isRegistered || this.canRegister) {
+      const cache = this._cache;
+
+      if (cache.cachedGetters === undefined) {
+        cache.cachedGetters = createGetters(this._storeCache, this);
+      }
+
+      return cache.cachedGetters;
     }
 
-    if (this.canRegister && this.model.autoRegister) {
-      return this._cachedGetters;
-    }
-
-    if (this.isRegistered) {
-      return this._cachedGetters;
-    }
-
-    throw new Error("container is not registered yet");
+    throw new Error("namespace is already registered by other model");
   }
 
   public get actions(): ConvertReducersAndEffectsToActionHelpers<
     ExtractReducers<TModel>,
     ExtractEffects<TModel>
   > {
-    if (this._cachedActions === undefined) {
-      this._cachedActions = createActionHelpers(this._storeCache, this);
+    if (this.isRegistered || this.canRegister) {
+      const cache = this._cache;
+
+      if (cache.cachedActions === undefined) {
+        cache.cachedActions = createActionHelpers(this._storeCache, this);
+      }
+
+      return cache.cachedActions;
     }
 
-    if (this.canRegister && this.model.autoRegister) {
-      return this._cachedActions;
-    }
-
-    if (this.isRegistered) {
-      return this._cachedActions;
-    }
-
-    throw new Error("container is not registered yet");
+    throw new Error("namespace is already registered by other model");
   }
 
   public register(
@@ -178,14 +176,13 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
   ) {
     if (!this.canRegister) {
-      throw new Error("namespace is already used");
+      throw new Error("namespace is already registered");
     }
 
-    this._storeCache.cacheByModel
-      .get(this.model)!
-      .containerByKey.set(this.key, this);
+    this._storeCache.containerById.set(this.id, this);
 
-    this.props = this._createProps(props);
+    const cache = this._cache;
+    cache.props = this._createProps(props);
 
     this._storeCache.containerByNamespace.set(this.namespace, this);
     this._storeCache.initStateNamespaces.push(this.namespace);
@@ -234,8 +231,6 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   }
 
   private _clearCache() {
-    this._defaultState = ContainerImpl._nothing;
-
     Object.keys(this.model.selectors).forEach((key) => {
       const selector = this.model.selectors[key] as SelectorInternal;
       if (selector.__deleteCache != null) {
@@ -243,8 +238,35 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       }
     });
 
-    this._storeCache.cacheByModel
-      .get(this.model)!
-      .containerByKey.delete(this.key);
+    this._storeCache.containerById.delete(this.id);
+    this._storeCache.cacheById.delete(this.id);
   }
+}
+
+export function createUseContainer(storeCache: StoreCache): UseContainer {
+  return (model, key) => {
+    const modelContext = storeCache.contextByModel.get(model);
+    if (modelContext == null) {
+      throw new Error("model is not registered yet");
+    }
+
+    if (key == null) {
+      key = "";
+    }
+
+    let cacheId = modelContext.cacheIdByKey.get(key);
+    if (cacheId == null) {
+      cacheId = "" + storeCache.nextCacheId;
+      storeCache.nextCacheId += 1;
+      modelContext.cacheIdByKey.set(key, cacheId);
+    }
+
+    let container = storeCache.containerById.get(cacheId);
+    if (container == null) {
+      container = new ContainerImpl(storeCache, model, key);
+      storeCache.containerById.set(cacheId, container);
+    }
+
+    return container;
+  };
 }

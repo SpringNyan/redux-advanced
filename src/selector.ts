@@ -659,13 +659,14 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
       cacheKey = "";
     }
 
-    if (!cacheByKey.has(cacheKey)) {
-      cacheByKey.set(cacheKey, {
+    let cache = cacheByKey.get(cacheKey);
+    if (cache == null) {
+      cache = {
         lastParams: undefined,
         lastResult: undefined
-      });
+      };
+      cacheByKey.set(cacheKey, cache);
     }
-    const cache = cacheByKey.get(cacheKey)!;
 
     let needUpdate = cache.lastParams == null;
 
