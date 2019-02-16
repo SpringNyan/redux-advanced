@@ -75,20 +75,34 @@ export type ConvertReducersAndEffectsToActionHelpers<
 >;
 
 export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
+  public readonly type: string;
+
   constructor(
     private readonly _storeCache: StoreCache,
-    public readonly type: string
-  ) {}
+    private readonly _container: ContainerImpl<Model>,
+    private readonly _actionName: string
+  ) {
+    this.type = `${this._container.namespace}/${this._actionName}`;
+  }
 
   public is = (action: any): action is Action<TPayload> => {
     return action != null && action.type === this.type;
   };
 
   public create = (payload: TPayload): Action<TPayload> => {
-    return {
+    const action = {
       type: this.type,
       payload
     };
+
+    if (this._container.model.autoRegister) {
+      this._storeCache.autoRegisterContextByAction.set(action, {
+        model: this._container.model,
+        key: this._container.key
+      });
+    }
+
+    return action;
   };
 
   public dispatch = (payload: TPayload, dispatch?: Dispatch): Promise<void> => {
@@ -138,23 +152,8 @@ export function createActionHelpers<TModel extends Model>(
     ...Object.keys(container.model.reducers),
     ...Object.keys(container.model.effects)
   ].forEach((key) => {
-    if (!(key in actionHelpers)) {
-      const actionHelper = new ActionHelperImpl(
-        storeCache,
-        `${container.namespace}/${key}`
-      );
-
-      Object.defineProperty(actionHelpers, key, {
-        get() {
-          if (container.canRegister && container.model.autoRegister) {
-            container.register();
-          }
-
-          return actionHelper;
-        },
-        enumerable: true,
-        configurable: true
-      });
+    if (actionHelpers[key] == null) {
+      actionHelpers[key] = new ActionHelperImpl(storeCache, container, key);
     }
   });
 

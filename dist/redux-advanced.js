@@ -16,18 +16,26 @@ var actionTypes = {
     unregister: "@@UNREGISTER"
 };
 var ActionHelperImpl =  (function () {
-    function ActionHelperImpl(_storeCache, type) {
+    function ActionHelperImpl(_storeCache, _container, _actionName) {
         var _this = this;
         this._storeCache = _storeCache;
-        this.type = type;
+        this._container = _container;
+        this._actionName = _actionName;
         this.is = function (action) {
             return action != null && action.type === _this.type;
         };
         this.create = function (payload) {
-            return {
+            var action = {
                 type: _this.type,
                 payload: payload
             };
+            if (_this._container.model.autoRegister) {
+                _this._storeCache.autoRegisterContextByAction.set(action, {
+                    model: _this._container.model,
+                    key: _this._container.key
+                });
+            }
+            return action;
         };
         this.dispatch = function (payload, dispatch) {
             var action = _this.create(payload);
@@ -56,24 +64,15 @@ var ActionHelperImpl =  (function () {
             });
             return promise;
         };
+        this.type = this._container.namespace + "/" + this._actionName;
     }
     return ActionHelperImpl;
 }());
 function createActionHelpers(storeCache, container) {
     var actionHelpers = {};
     Object.keys(container.model.reducers).concat(Object.keys(container.model.effects)).forEach(function (key) {
-        if (!(key in actionHelpers)) {
-            var actionHelper_1 = new ActionHelperImpl(storeCache, container.namespace + "/" + key);
-            Object.defineProperty(actionHelpers, key, {
-                get: function () {
-                    if (container.canRegister && container.model.autoRegister) {
-                        container.register();
-                    }
-                    return actionHelper_1;
-                },
-                enumerable: true,
-                configurable: true
-            });
+        if (actionHelpers[key] == null) {
+            actionHelpers[key] = new ActionHelperImpl(storeCache, container, key);
         }
     });
     return actionHelpers;
@@ -725,12 +724,22 @@ function createReduxAdvancedStore(dependencies, models, options) {
     var rootEpic = function (action$, state$, epicDependencies) {
         return storeCache.addEpic$.pipe(operators.mergeMap(function (epic) { return epic(action$, state$, epicDependencies); }));
     };
+    var reduxAdvancedMiddleware = function () { return function (next) { return function (action) {
+        var context = storeCache.autoRegisterContextByAction.get(action);
+        if (context != null) {
+            var container = storeCache.useContainer(context.model, context.key);
+            if (container.canRegister) {
+                container.register();
+            }
+        }
+        return next(action);
+    }; }; };
     if (options.createStore != null) {
-        storeCache.store = options.createStore(rootReducer, rootEpic);
+        storeCache.store = options.createStore(rootReducer, rootEpic, reduxAdvancedMiddleware);
     }
     else {
         var epicMiddleware = reduxObservable.createEpicMiddleware();
-        storeCache.store = redux.createStore(rootReducer, redux.applyMiddleware(epicMiddleware));
+        storeCache.store = redux.createStore(rootReducer, redux.applyMiddleware(reduxAdvancedMiddleware, epicMiddleware));
         epicMiddleware.run(rootEpic);
     }
     var store = storeCache.store;

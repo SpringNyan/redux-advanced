@@ -149,10 +149,9 @@ describe("redux-advanced", () => {
     expect(autoRegisteredDynamicContainer.getters.summary).eq(" - 0");
 
     expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
-    expect(autoRegisteredDynamicContainer.actions.setName.type).contains(
-      "setName"
-    );
+    autoRegisteredDynamicContainer.actions.setName.dispatch("^_^");
 
     expect(autoRegisteredDynamicContainer.isRegistered).eq(true);
+    expect(autoRegisteredDynamicContainer.state.name).eq("^_^");
   });
 });

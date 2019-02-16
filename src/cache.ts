@@ -37,7 +37,13 @@ export interface StoreCache {
       reject: (err: unknown) => void;
     }
   >;
-  autoRegisterContextByAction: WeakMap<AnyAction, {}>;
+  autoRegisterContextByAction: WeakMap<
+    AnyAction,
+    {
+      model: Model;
+      key: string;
+    }
+  >;
 
   nextCacheId: number;
   cacheById: Map<
