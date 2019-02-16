@@ -419,13 +419,13 @@ export function registerModel<TModel extends Model>(
 ): void {
   const models = Array.isArray(model) ? model : [model];
   models.forEach((_model) => {
-    if (storeCache.cacheByModel.has(_model)) {
+    if (storeCache.contextByModel.has(_model)) {
       throw new Error("model is already registered");
     }
 
-    storeCache.cacheByModel.set(_model, {
+    storeCache.contextByModel.set(_model, {
       baseNamespace: namespace,
-      containerByKey: new Map()
+      cacheIdByKey: new Map()
     });
   });
 }

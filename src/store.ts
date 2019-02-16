@@ -1,4 +1,11 @@
-import { applyMiddleware, createStore, Dispatch, Reducer, Store } from "redux";
+import {
+  applyMiddleware,
+  createStore,
+  Dispatch,
+  Middleware,
+  Reducer,
+  Store
+} from "redux";
 import { combineEpics, createEpicMiddleware, Epic } from "redux-observable";
 import { BehaviorSubject, Observable } from "rxjs";
 import { mergeMap } from "rxjs/operators";
@@ -17,7 +24,11 @@ export interface ReduxAdvancedStore extends Store {
 }
 
 export interface ReduxAdvancedOptions {
-  createStore?: (rootReducer: Reducer, rootEpic: Epic) => Store;
+  createStore?: (
+    rootReducer: Reducer,
+    rootEpic: Epic,
+    reduxAdvancedMiddleware: Middleware
+  ) => Store;
   effectErrorHandler?: (error: any, dispatch: Dispatch) => Promise<void>;
   epicErrorHandler?: (
     error: any,
@@ -55,14 +66,30 @@ export function createReduxAdvancedStore<
       mergeMap((epic) => epic(action$, state$, epicDependencies))
     );
 
+  const reduxAdvancedMiddleware: Middleware = () => (next) => (action) => {
+    const context = storeCache.autoRegisterContextByAction.get(action);
+    if (context != null) {
+      const container = storeCache.useContainer(context.model, context.key);
+      if (container.canRegister) {
+        container.register();
+      }
+    }
+
+    return next(action);
+  };
+
   if (options.createStore != null) {
-    storeCache.store = options.createStore(rootReducer, rootEpic);
+    storeCache.store = options.createStore(
+      rootReducer,
+      rootEpic,
+      reduxAdvancedMiddleware
+    );
   } else {
     const epicMiddleware = createEpicMiddleware();
 
     storeCache.store = createStore(
       rootReducer,
-      applyMiddleware(epicMiddleware)
+      applyMiddleware(reduxAdvancedMiddleware, epicMiddleware)
     );
 
     epicMiddleware.run(rootEpic);

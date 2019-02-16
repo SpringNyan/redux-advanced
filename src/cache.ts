@@ -2,12 +2,18 @@ import { Dispatch, Store } from "redux";
 import { Epic as ReduxObservableEpic } from "redux-observable";
 import { BehaviorSubject } from "rxjs";
 
-import { AnyAction } from "./action";
+import { AnyAction, ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { UseContainer } from "./container";
+import { ExtractEffects } from "./effect";
 import { Model } from "./model";
+import { ExtractProps } from "./props";
+import { ExtractReducers } from "./reducer";
+import { ConvertSelectorsToGetters, ExtractSelectors } from "./selector";
+import { ExtractState } from "./state";
 import { ReduxAdvancedOptions } from "./store";
 
-import { ContainerImpl } from "./container";
+import { ContainerImpl, createUseContainer } from "./container";
+import { nil } from "./util";
 
 export interface StoreCache {
   store: Store;
@@ -31,14 +37,41 @@ export interface StoreCache {
       reject: (err: unknown) => void;
     }
   >;
+  autoRegisterContextByAction: WeakMap<
+    AnyAction,
+    {
+      model: Model;
+      key: string;
+    }
+  >;
 
+  nextCacheId: number;
+  cacheById: Map<
+    string,
+    {
+      props: ExtractProps<Model> | undefined;
+
+      cachedState: ExtractState<Model> | typeof nil;
+      cachedGetters:
+        | ConvertSelectorsToGetters<ExtractSelectors<Model>>
+        | undefined;
+      cachedActions:
+        | ConvertReducersAndEffectsToActionHelpers<
+            ExtractReducers<Model>,
+            ExtractEffects<Model>
+          >
+        | undefined;
+    }
+  >;
+
+  containerById: Map<string, ContainerImpl<Model>>;
   containerByNamespace: Map<string, ContainerImpl<Model>>;
 
-  cacheByModel: Map<
+  contextByModel: Map<
     Model,
     {
       baseNamespace: string;
-      containerByKey: Map<string, ContainerImpl<Model>>;
+      cacheIdByKey: Map<string, string>;
     }
   >;
 }
@@ -54,40 +87,23 @@ export function createStoreCache(): StoreCache {
 
     getState: (...args) => storeCache.store!.getState(...args),
     dispatch: (...args) => storeCache.store!.dispatch(...args),
-    useContainer: (model, key) => {
-      if (!storeCache.cacheByModel.has(model)) {
-        throw new Error("model is not registered yet");
-      }
-
-      if (key == null) {
-        key = "";
-      }
-
-      const { baseNamespace, containerByKey } = storeCache.cacheByModel.get(
-        model
-      )!;
-
-      if (!containerByKey.has(key)) {
-        const container = new ContainerImpl(
-          storeCache,
-          model,
-          baseNamespace,
-          key
-        );
-        containerByKey.set(key, container);
-      }
-
-      return containerByKey.get(key)!;
-    },
+    useContainer: undefined!,
 
     initStateNamespaces: [],
 
     effectDispatchHandlerByAction: new Map(),
+    autoRegisterContextByAction: new WeakMap(),
 
+    nextCacheId: 1,
+    cacheById: new Map(),
+
+    containerById: new Map(),
     containerByNamespace: new Map(),
 
-    cacheByModel: new Map()
+    contextByModel: new Map()
   };
+
+  storeCache.useContainer = createUseContainer(storeCache);
 
   return storeCache;
 }
