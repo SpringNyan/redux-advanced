@@ -1,7 +1,7 @@
 import { Dispatch } from "redux";
 
 import { StoreCache } from "./cache";
-import { Effect, Effects, ExtractEffects } from "./effect";
+import { Effect, Effects, ExtractEffectResult, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
 import { Override } from "./util";
@@ -23,17 +23,17 @@ export interface Action<TPayload = any> {
   payload: TPayload;
 }
 
-export interface ActionHelper<TPayload = any> {
+export interface ActionHelper<TPayload = any, TResult = any> {
   type: string;
   is(action: any): action is Action<TPayload>;
   create(payload: TPayload): Action<TPayload>;
-  dispatch(payload: TPayload, dispatch?: Dispatch): Promise<void>;
+  dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult>;
 }
 
-export type StrictActionHelper<TPayload = any> = Override<
+export type StrictActionHelper<TPayload = any, TResult = any> = Override<
   ActionHelper<TPayload>,
   {
-    dispatch(payload: TPayload, dispatch: Dispatch): Promise<void>;
+    dispatch(payload: TPayload, dispatch: Dispatch): Promise<TResult>;
   }
 >;
 
@@ -59,22 +59,35 @@ export type ExtractActionPayload<
   ? TPayload
   : never;
 
-export type ExtractActionPayloads<T extends Reducers | Effects> = {
-  [P in keyof T]: ExtractActionPayload<T[P]>
+export type ExtractActionHelperPayloadResultPairs<
+  TReducers extends Reducers,
+  TEffects extends Effects
+> = {
+  [P in keyof TReducers | keyof TEffects]: {
+    payload: P extends keyof TReducers & keyof TEffects
+      ? ExtractActionPayload<TReducers[P]> & ExtractActionPayload<TEffects[P]>
+      : P extends keyof TReducers
+      ? ExtractActionPayload<TReducers[P]>
+      : P extends keyof TEffects
+      ? ExtractActionPayload<TEffects[P]>
+      : never;
+    result: P extends keyof TEffects ? ExtractEffectResult<TEffects[P]> : void;
+  }
 };
 
-export type ConvertPayloadsToActionHelpers<TPayloads> = {
-  [P in keyof TPayloads]: ActionHelper<TPayloads[P]>
-};
+export type ConvertPayloadResultPairsToActionHelpers<
+  T extends { [key: string]: { payload: unknown; result: unknown } }
+> = { [P in keyof T]: ActionHelper<T[P]["payload"], T[P]["result"]> };
 
 export type ConvertReducersAndEffectsToActionHelpers<
   TReducers extends Reducers,
   TEffects extends Effects
-> = ConvertPayloadsToActionHelpers<
-  ExtractActionPayloads<TReducers> & ExtractActionPayloads<TEffects>
+> = ConvertPayloadResultPairsToActionHelpers<
+  ExtractActionHelperPayloadResultPairs<TReducers, TEffects>
 >;
 
-export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
+export class ActionHelperImpl<TPayload, TResult>
+  implements ActionHelper<TPayload, TResult> {
   public readonly type: string;
 
   constructor(
@@ -105,17 +118,20 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
     return action;
   };
 
-  public dispatch = (payload: TPayload, dispatch?: Dispatch): Promise<void> => {
+  public dispatch = (
+    payload: TPayload,
+    dispatch?: Dispatch
+  ): Promise<TResult> => {
     const action = this.create(payload);
     if (dispatch == null) {
       dispatch = this._storeCache.dispatch;
     }
 
-    const promise = new Promise<void>((resolve, reject) => {
+    const promise = new Promise<TResult>((resolve, reject) => {
       this._storeCache.effectDispatchHandlerByAction.set(action, {
         hasEffect: false,
-        resolve: () => {
-          resolve();
+        resolve: (value) => {
+          resolve(value);
           this._storeCache.effectDispatchHandlerByAction.delete(action);
         },
         reject: (err) => {
@@ -132,7 +148,7 @@ export class ActionHelperImpl<TPayload> implements ActionHelper<TPayload> {
         action
       );
       if (handler != null && !handler.hasEffect) {
-        handler.resolve();
+        handler.resolve(undefined);
       }
     });
 

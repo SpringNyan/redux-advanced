@@ -55,6 +55,7 @@ describe("redux-advanced", () => {
             payload,
             dispatch
           );
+          return "" + payload;
         }
       })
       .freeze();
@@ -95,14 +96,16 @@ describe("redux-advanced", () => {
       "meow"
     );
     expect(staticModelContainer.state.name).eq("nyan");
-    await staticModelSetNamePromise;
+    const staticModelSetNameResult = await staticModelSetNamePromise;
+    expect(staticModelSetNameResult).eq(undefined);
     expect(staticModelContainer.state.name).eq("meow");
 
     const staticModelSetAgePromise = staticModelContainer.actions.setAgeAsync.dispatch(
       233
     );
     expect(staticModelContainer.state.age).eq(998);
-    await staticModelSetAgePromise;
+    const staticModelSetAgeResult = await staticModelSetAgePromise;
+    expect(staticModelSetAgeResult).eq("233");
     expect(staticModelContainer.state.age).eq(233);
 
     const dynamicModelContainer = store.useContainer(dynamicModel);

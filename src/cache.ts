@@ -33,7 +33,7 @@ export interface StoreCache {
     AnyAction,
     {
       hasEffect: boolean;
-      resolve: () => void;
+      resolve: (value: any) => void;
       reject: (err: unknown) => void;
     }
   >;
