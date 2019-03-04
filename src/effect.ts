@@ -20,7 +20,9 @@ import { Getters } from "./selector";
 import { actionTypes } from "./action";
 import { parseActionType } from "./util";
 
-export type EffectDispatch = (dispatch: Dispatch<AnyAction>) => Promise<void>;
+export type EffectDispatch<TResult = any> = (
+  dispatch: Dispatch<AnyAction>
+) => Promise<TResult>;
 
 export interface EffectContext<
   TDependencies = any,
@@ -51,7 +53,8 @@ export type Effect<
   TState = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
-  TPayload = any
+  TPayload = any,
+  TResult = any
 > = (
   context: EffectContext<
     TDependencies,
@@ -61,7 +64,7 @@ export type Effect<
     TActionHelpers
   >,
   payload: TPayload
-) => EffectDispatch;
+) => EffectDispatch<TResult>;
 
 export interface Effects<
   TDependencies = any,
@@ -88,6 +91,18 @@ export type ExtractEffects<T extends Model> = T extends Model<
   infer TEffects
 >
   ? TEffects
+  : never;
+
+export type ExtractEffectResult<T extends Effect> = T extends Effect<
+  any,
+  any,
+  any,
+  any,
+  any,
+  any,
+  infer TResult
+>
+  ? TResult
   : never;
 
 export function toActionObservable(
@@ -155,9 +170,9 @@ export function createEffectsRootReduxObservableEpic(
           let promise = effectDispatch(dispatch);
 
           promise.then(
-            () => {
+            (value) => {
               if (effectDispatchHandler != null) {
-                effectDispatchHandler.resolve();
+                effectDispatchHandler.resolve(value);
               }
             },
             (reason) => {

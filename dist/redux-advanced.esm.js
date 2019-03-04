@@ -39,8 +39,8 @@ var ActionHelperImpl =  (function () {
             var promise = new Promise(function (resolve, reject) {
                 _this._storeCache.effectDispatchHandlerByAction.set(action, {
                     hasEffect: false,
-                    resolve: function () {
-                        resolve();
+                    resolve: function (value) {
+                        resolve(value);
                         _this._storeCache.effectDispatchHandlerByAction.delete(action);
                     },
                     reject: function (err) {
@@ -53,7 +53,7 @@ var ActionHelperImpl =  (function () {
             Promise.resolve().then(function () {
                 var handler = _this._storeCache.effectDispatchHandlerByAction.get(action);
                 if (handler != null && !handler.hasEffect) {
-                    handler.resolve();
+                    handler.resolve(undefined);
                 }
             });
             return promise;
@@ -136,9 +136,9 @@ function createEffectsRootReduxObservableEpic(storeCache) {
             }, action.payload);
             var wrappedEffectDispatch = function (dispatch) {
                 var promise = effectDispatch(dispatch);
-                promise.then(function () {
+                promise.then(function (value) {
                     if (effectDispatchHandler != null) {
-                        effectDispatchHandler.resolve();
+                        effectDispatchHandler.resolve(value);
                     }
                 }, function (reason) {
                     if (effectDispatchHandler != null) {
