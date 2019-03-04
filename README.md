@@ -117,6 +117,11 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.8.0
+
+  - ADD: support effect result
+  - ADD: expose more interfaces
+
 - 0.7.0
 
   - CHANGE: container's properties won't throw error if container is not registered but can register
