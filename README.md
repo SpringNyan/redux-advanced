@@ -117,6 +117,11 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.8.1
+
+  - FIX: fix dispatch result type for strict action helper
+  - FIX: fix find definitions issue in vscode for action helper
+
 - 0.8.0
 
   - ADD: support effect result
