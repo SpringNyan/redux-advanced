@@ -45,7 +45,8 @@ export type ConvertActionHelpersToStrictActionHelpers<
   TActionHelpers extends ActionHelpers
 > = {
   [P in keyof TActionHelpers]: StrictActionHelper<
-    ExtractActionPayload<TActionHelpers[P]>
+    ExtractActionPayload<TActionHelpers[P]>,
+    ExtractActionHelperResult<TActionHelpers[P]>
   >
 };
 
@@ -58,6 +59,10 @@ export type ExtractActionPayload<
   | Effect<any, any, any, any, any, infer TPayload>
   ? TPayload
   : never;
+
+export type ExtractActionHelperResult<
+  T extends ActionHelper
+> = T extends ActionHelper<any, infer TResult> ? TResult : never;
 
 export type ExtractActionHelperPayloadResultPairs<
   TReducers extends Reducers,
