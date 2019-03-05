@@ -40,6 +40,13 @@ describe("redux-advanced", () => {
         }
       })
       .effects({
+        setName: ({ actions, getState }, payload: string) => async (
+          dispatch
+        ) => {
+          return payload;
+        }
+      })
+      .effects({
         setNameAsync: ({ actions, getState }, payload: string) => async (
           dispatch
         ) => {
