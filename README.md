@@ -105,10 +105,10 @@ const store = createReduxAdvancedStore(dependencies, {
 });
 ```
 
-4. Get container by `store.useContainer`, then get state or dispatch actions
+4. Get container by `store.getContainer`, then get state or dispatch actions
 
 ```typescript
-const container = store.useContainer(model);
+const container = store.getContainer(model);
 
 console.log(container.state.name);
 console.log(container.getters.info);
@@ -116,6 +116,10 @@ container.actions.setName.dispatch("nyan");
 ```
 
 ## Changelogs
+
+- 0.9.0-alpha.1
+
+  - CHANGE: rename useContainer to getContainer
 
 - 0.8.1
 
