@@ -3,7 +3,7 @@ import { Epic as ReduxObservableEpic } from "redux-observable";
 import { BehaviorSubject } from "rxjs";
 
 import { AnyAction, ConvertReducersAndEffectsToActionHelpers } from "./action";
-import { UseContainer } from "./container";
+import { GetContainer } from "./container";
 import { ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractProps } from "./props";
@@ -12,7 +12,7 @@ import { ConvertSelectorsToGetters, ExtractSelectors } from "./selector";
 import { ExtractState } from "./state";
 import { ReduxAdvancedOptions } from "./store";
 
-import { ContainerImpl, createUseContainer } from "./container";
+import { ContainerImpl, createGetContainer } from "./container";
 import { nil } from "./util";
 
 export interface StoreCache {
@@ -25,7 +25,7 @@ export interface StoreCache {
 
   getState: () => any;
   dispatch: Dispatch;
-  useContainer: UseContainer;
+  getContainer: GetContainer;
 
   initStateNamespaces: string[];
 
@@ -87,7 +87,7 @@ export function createStoreCache(): StoreCache {
 
     getState: (...args) => storeCache.store!.getState(...args),
     dispatch: (...args) => storeCache.store!.dispatch(...args),
-    useContainer: undefined!,
+    getContainer: undefined!,
 
     initStateNamespaces: [],
 
@@ -103,7 +103,7 @@ export function createStoreCache(): StoreCache {
     contextByModel: new Map()
   };
 
-  storeCache.useContainer = createUseContainer(storeCache);
+  storeCache.getContainer = createGetContainer(storeCache);
 
   return storeCache;
 }

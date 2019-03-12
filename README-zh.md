@@ -103,10 +103,10 @@ const store = createReduxAdvancedStore(dependencies, {
 });
 ```
 
-4. 通过`store.useContainer`获得 model 对应的 container，进行操作
+4. 通过`store.getContainer`获得 model 对应的 container，进行操作
 
 ```typescript
-const container = store.useContainer(model);
+const container = store.getContainer(model);
 
 console.log(container.state.name);
 console.log(container.getters.info);

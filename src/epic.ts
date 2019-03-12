@@ -12,7 +12,7 @@ import {
   ConvertActionHelpersToStrictActionHelpers
 } from "./action";
 import { StoreCache } from "./cache";
-import { UseStrictContainer } from "./container";
+import { GetStrictContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
 
@@ -39,7 +39,7 @@ export interface EpicContext<
   getters: TGetters;
   actions: ConvertActionHelpersToStrictActionHelpers<TActionHelpers>;
 
-  useContainer: UseStrictContainer;
+  getContainer: GetStrictContainer;
 }
 
 export type Epic<
@@ -82,7 +82,7 @@ export function createEpicsReduxObservableEpic(
         getters: container.getters,
         actions: container.actions,
 
-        useContainer: storeCache.useContainer as UseStrictContainer
+        getContainer: storeCache.getContainer as GetStrictContainer
       });
 
       if (storeCache.options.epicErrorHandler != null) {

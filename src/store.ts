@@ -11,7 +11,7 @@ import { BehaviorSubject, Observable } from "rxjs";
 import { mergeMap } from "rxjs/operators";
 
 import { AnyAction } from "./action";
-import { UseContainer } from "./container";
+import { GetContainer } from "./container";
 import { Models } from "./model";
 
 import { createStoreCache } from "./cache";
@@ -20,7 +20,7 @@ import { registerModels } from "./model";
 import { createRootReduxReducer } from "./reducer";
 
 export interface ReduxAdvancedStore extends Store {
-  useContainer: UseContainer;
+  getContainer: GetContainer;
 }
 
 export interface ReduxAdvancedOptions {
@@ -69,7 +69,7 @@ export function createReduxAdvancedStore<
   const reduxAdvancedMiddleware: Middleware = () => (next) => (action) => {
     const context = storeCache.autoRegisterContextByAction.get(action);
     if (context != null) {
-      const container = storeCache.useContainer(context.model, context.key);
+      const container = storeCache.getContainer(context.model, context.key);
       if (container.canRegister) {
         container.register();
       }
@@ -96,7 +96,7 @@ export function createReduxAdvancedStore<
   }
 
   const store = storeCache.store as ReduxAdvancedStore;
-  store.useContainer = storeCache.useContainer;
+  store.getContainer = storeCache.getContainer;
 
   return store;
 }

@@ -2,8 +2,8 @@ export { Action, ActionHelper, AnyAction, StrictActionHelper } from "./action";
 export {
   Container,
   StrictContainer,
-  UseContainer,
-  UseStrictContainer
+  GetContainer,
+  GetStrictContainer
 } from "./container";
 export { ExtractDependencies } from "./dependencies";
 export { toActionObservable } from "./effect";

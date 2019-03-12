@@ -47,7 +47,7 @@ export interface Container<TModel extends Model = any> {
   unregister(): void;
 }
 
-export type UseContainer = <TModel extends Model>(
+export type GetContainer = <TModel extends Model>(
   model: TModel,
   key?: string
 ) => Container<TModel>;
@@ -64,7 +64,7 @@ export type StrictContainer<TModel extends Model = any> = Override<
   }
 >;
 
-export type UseStrictContainer = <TModel extends Model>(
+export type GetStrictContainer = <TModel extends Model>(
   model: TModel,
   key?: string
 ) => StrictContainer<TModel>;
@@ -243,7 +243,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   }
 }
 
-export function createUseContainer(storeCache: StoreCache): UseContainer {
+export function createGetContainer(storeCache: StoreCache): GetContainer {
   return (model, key) => {
     const modelContext = storeCache.contextByModel.get(model);
     if (modelContext == null) {

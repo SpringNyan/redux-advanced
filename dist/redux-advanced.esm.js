@@ -132,7 +132,7 @@ function createEffectsRootReduxObservableEpic(storeCache) {
                 getState: function () { return container.state; },
                 getters: container.getters,
                 actions: container.actions,
-                useContainer: storeCache.useContainer
+                getContainer: storeCache.getContainer
             }, action.payload);
             var wrappedEffectDispatch = function (dispatch) {
                 var promise = effectDispatch(dispatch);
@@ -223,7 +223,7 @@ function createGetters(storeCache, container) {
                     state: container.state,
                     getters: getters,
                     actions: container.actions,
-                    useContainer: storeCache.useContainer
+                    getContainer: storeCache.getContainer
                 }, container.id);
             },
             enumerable: true,
@@ -402,7 +402,7 @@ function registerModels(storeCache, namespace, models) {
         }
         else if (isModel(model)) {
             registerModel(storeCache, modelNamespace, model);
-            storeCache.useContainer(model).register();
+            storeCache.getContainer(model).register();
         }
         else {
             registerModels(storeCache, modelNamespace, model);
@@ -424,7 +424,7 @@ function createEpicsReduxObservableEpic(storeCache, container) {
                 getState: function () { return container.state; },
                 getters: container.getters,
                 actions: container.actions,
-                useContainer: storeCache.useContainer
+                getContainer: storeCache.getContainer
             });
             if (storeCache.options.epicErrorHandler != null) {
                 output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
@@ -589,7 +589,7 @@ var ContainerImpl =  (function () {
     };
     return ContainerImpl;
 }());
-function createUseContainer(storeCache) {
+function createGetContainer(storeCache) {
     return function (model, key) {
         var modelContext = storeCache.contextByModel.get(model);
         if (modelContext == null) {
@@ -636,7 +636,7 @@ function createStoreCache() {
             var _a;
             return (_a = storeCache.store).dispatch.apply(_a, args);
         },
-        useContainer: undefined,
+        getContainer: undefined,
         initStateNamespaces: [],
         effectDispatchHandlerByAction: new Map(),
         autoRegisterContextByAction: new WeakMap(),
@@ -646,7 +646,7 @@ function createStoreCache() {
         containerByNamespace: new Map(),
         contextByModel: new Map()
     };
-    storeCache.useContainer = createUseContainer(storeCache);
+    storeCache.getContainer = createGetContainer(storeCache);
     return storeCache;
 }
 
@@ -721,7 +721,7 @@ function createReduxAdvancedStore(dependencies, models, options) {
     var reduxAdvancedMiddleware = function () { return function (next) { return function (action) {
         var context = storeCache.autoRegisterContextByAction.get(action);
         if (context != null) {
-            var container = storeCache.useContainer(context.model, context.key);
+            var container = storeCache.getContainer(context.model, context.key);
             if (container.canRegister) {
                 container.register();
             }
@@ -737,7 +737,7 @@ function createReduxAdvancedStore(dependencies, models, options) {
         epicMiddleware.run(rootEpic);
     }
     var store = storeCache.store;
-    store.useContainer = storeCache.useContainer;
+    store.getContainer = storeCache.getContainer;
     return store;
 }
 
