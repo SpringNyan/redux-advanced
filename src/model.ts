@@ -443,7 +443,7 @@ export function registerModels(
       registerModel(storeCache, modelNamespace, model);
     } else if (isModel(model)) {
       registerModel(storeCache, modelNamespace, model);
-      storeCache.useContainer(model).register();
+      storeCache.getContainer(model).register();
     } else {
       registerModels(storeCache, modelNamespace, model as Models);
     }

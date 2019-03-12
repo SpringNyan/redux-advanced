@@ -1,6 +1,6 @@
 import { ActionHelpers } from "./action";
 import { StoreCache } from "./cache";
-import { UseContainer } from "./container";
+import { GetContainer } from "./container";
 import { Model } from "./model";
 
 import { ContainerImpl } from "./container";
@@ -20,7 +20,7 @@ export interface SelectorContext<
   getters: TGetters;
   actions: TActionHelpers;
 
-  useContainer: UseContainer;
+  getContainer: GetContainer;
 }
 
 export type Selector<
@@ -715,7 +715,7 @@ export function createGetters<TModel extends Model>(
             getters,
             actions: container.actions,
 
-            useContainer: storeCache.useContainer
+            getContainer: storeCache.getContainer
           },
           container.id
         );
