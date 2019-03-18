@@ -6,13 +6,9 @@ import {
 import { merge, Observable } from "rxjs";
 import { catchError, takeUntil } from "rxjs/operators";
 
-import {
-  ActionHelpers,
-  AnyAction,
-  ConvertActionHelpersToStrictActionHelpers
-} from "./action";
+import { ActionHelpers, AnyAction } from "./action";
 import { StoreCache } from "./cache";
-import { GetStrictContainer } from "./container";
+import { GetContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
 
@@ -37,9 +33,9 @@ export interface EpicContext<
 
   getState: () => TState;
   getters: TGetters;
-  actions: ConvertActionHelpersToStrictActionHelpers<TActionHelpers>;
+  actions: TActionHelpers;
 
-  getContainer: GetStrictContainer;
+  getContainer: GetContainer;
 }
 
 export type Epic<
@@ -82,7 +78,7 @@ export function createEpicsReduxObservableEpic(
         getters: container.getters,
         actions: container.actions,
 
-        getContainer: storeCache.getContainer as GetStrictContainer
+        getContainer: storeCache.getContainer
       });
 
       if (storeCache.options.epicErrorHandler != null) {

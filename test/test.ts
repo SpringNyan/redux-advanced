@@ -40,28 +40,19 @@ describe("redux-advanced", () => {
         }
       })
       .effects({
-        setName: ({ actions, getState }, payload: string) => async (
-          dispatch
-        ) => {
+        setName: async ({ actions, getState }, payload: string) => {
           return payload;
         }
       })
       .effects({
-        setNameAsync: ({ actions, getState }, payload: string) => async (
-          dispatch
-        ) => {
+        setNameAsync: async ({ actions, getState }, payload: string) => {
           await timer(50).toPromise();
           getState(); // should throw error if container is unregistered
-          await actions.setName.dispatch(payload, dispatch);
+          await actions.setName.dispatch(payload);
         },
-        setAgeAsync: ({ getContainer }, payload: number) => async (
-          dispatch
-        ) => {
+        setAgeAsync: async ({ getContainer }, payload: number) => {
           await timer(50).toPromise();
-          await getContainer(staticModel).actions.setAge.dispatch(
-            payload,
-            dispatch
-          );
+          await getContainer(staticModel).actions.setAge.dispatch(payload);
           return "" + payload;
         }
       })
@@ -145,7 +136,12 @@ describe("redux-advanced", () => {
     );
     dynamicModel2Container.unregister();
     expect(dynamicModel2Container.isRegistered).eq(false);
-    await dynamicModel2SetNamePromise;
+    try {
+      await dynamicModel2SetNamePromise;
+      throw new Error("effect should throw error");
+    } catch {
+      // expected
+    }
     expect(dynamicModel2Container.state.name).eq(""); // setName is not applied after unregister
 
     const autoRegisteredDynamicContainer = store.getContainer(

@@ -1,5 +1,3 @@
-export type Override<T1, T2> = Pick<T1, Exclude<keyof T1, keyof T2>> & T2;
-
 export const nil = {} as symbol;
 
 const namespaceSplitterRegExp = new RegExp("/", "g");

@@ -15,7 +15,7 @@ import { GetContainer } from "./container";
 import { Models } from "./model";
 
 import { createStoreCache } from "./cache";
-import { createEffectsRootReduxObservableEpic } from "./effect";
+import { createMiddleware } from "./middleware";
 import { registerModels } from "./model";
 import { createRootReduxReducer } from "./reducer";
 
@@ -29,7 +29,7 @@ export interface ReduxAdvancedOptions {
     rootEpic: Epic,
     reduxAdvancedMiddleware: Middleware
   ) => Store;
-  effectErrorHandler?: (error: any, dispatch: Dispatch) => Promise<void>;
+  effectErrorHandler?: (error: any) => Promise<void>;
   epicErrorHandler?: (
     error: any,
     caught: Observable<AnyAction>
@@ -56,27 +56,16 @@ export function createReduxAdvancedStore<
   registerModels(storeCache, "", models);
 
   const rootReducer: Reducer = createRootReduxReducer(storeCache);
-  const effectRootEpic: Epic = createEffectsRootReduxObservableEpic(storeCache);
 
   storeCache.addEpic$ = new BehaviorSubject(
-    combineEpics(effectRootEpic, ...storeCache.initialEpics)
+    combineEpics(...storeCache.initialEpics)
   );
   const rootEpic: Epic = (action$, state$, epicDependencies) =>
     storeCache.addEpic$.pipe(
       mergeMap((epic) => epic(action$, state$, epicDependencies))
     );
 
-  const reduxAdvancedMiddleware: Middleware = () => (next) => (action) => {
-    const context = storeCache.autoRegisterContextByAction.get(action);
-    if (context != null) {
-      const container = storeCache.getContainer(context.model, context.key);
-      if (container.canRegister) {
-        container.register();
-      }
-    }
-
-    return next(action);
-  };
+  const reduxAdvancedMiddleware = createMiddleware(storeCache);
 
   if (options.createStore != null) {
     storeCache.store = options.createStore(

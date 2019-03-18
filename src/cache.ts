@@ -29,19 +29,16 @@ export interface StoreCache {
 
   initStateNamespaces: string[];
 
-  effectDispatchHandlerByAction: Map<
-    AnyAction,
-    {
-      hasEffect: boolean;
-      resolve: (value: any) => void;
-      reject: (err: unknown) => void;
-    }
-  >;
-  autoRegisterContextByAction: WeakMap<
+  contextByAction: WeakMap<
     AnyAction,
     {
       model: Model;
       key: string;
+
+      effectDeferred?: {
+        resolve: (value: any) => void;
+        reject: (err: unknown) => void;
+      };
     }
   >;
 
@@ -91,8 +88,7 @@ export function createStoreCache(): StoreCache {
 
     initStateNamespaces: [],
 
-    effectDispatchHandlerByAction: new Map(),
-    autoRegisterContextByAction: new WeakMap(),
+    contextByAction: new WeakMap(),
 
     nextCacheId: 1,
     cacheById: new Map(),

@@ -1,12 +1,6 @@
-export { Action, ActionHelper, AnyAction, StrictActionHelper } from "./action";
-export {
-  Container,
-  StrictContainer,
-  GetContainer,
-  GetStrictContainer
-} from "./container";
+export { Action, ActionHelper, AnyAction } from "./action";
+export { Container, GetContainer } from "./container";
 export { ExtractDependencies } from "./dependencies";
-export { toActionObservable } from "./effect";
 export { createModelBuilder, ExtractModel, Model } from "./model";
 export { ExtractProps } from "./props";
 export { ExtractState } from "./state";
