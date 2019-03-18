@@ -4,7 +4,6 @@ import { StoreCache } from "./cache";
 import { Effect, Effects, ExtractEffectResult, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
-import { Override } from "./util";
 
 import { ContainerImpl } from "./container";
 
@@ -30,25 +29,9 @@ export interface ActionHelper<TPayload = any, TResult = any> {
   dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult>;
 }
 
-export type StrictActionHelper<TPayload = any, TResult = any> = Override<
-  ActionHelper<TPayload>,
-  {
-    dispatch(payload: TPayload, dispatch: Dispatch): Promise<TResult>;
-  }
->;
-
 export interface ActionHelpers {
   [name: string]: ActionHelper;
 }
-
-export type ConvertActionHelpersToStrictActionHelpers<
-  TActionHelpers extends ActionHelpers
-> = {
-  [P in keyof TActionHelpers]: StrictActionHelper<
-    ExtractActionPayload<TActionHelpers[P]>,
-    ExtractActionHelperResult<TActionHelpers[P]>
-  >
-};
 
 export type ExtractActionPayload<
   T extends Action | ActionHelper | Reducer | Effect
@@ -120,12 +103,10 @@ export class ActionHelperImpl<TPayload, TResult>
       payload
     };
 
-    if (this._container.model.autoRegister) {
-      this._storeCache.autoRegisterContextByAction.set(action, {
-        model: this._container.model,
-        key: this._container.key
-      });
-    }
+    this._storeCache.contextByAction.set(action, {
+      model: this._container.model,
+      key: this._container.key
+    });
 
     return action;
   };
@@ -140,29 +121,20 @@ export class ActionHelperImpl<TPayload, TResult>
     }
 
     const promise = new Promise<TResult>((resolve, reject) => {
-      this._storeCache.effectDispatchHandlerByAction.set(action, {
-        hasEffect: false,
-        resolve: (value) => {
-          resolve(value);
-          this._storeCache.effectDispatchHandlerByAction.delete(action);
-        },
-        reject: (err) => {
-          reject(err);
-          this._storeCache.effectDispatchHandlerByAction.delete(action);
-        }
-      });
+      const context = this._storeCache.contextByAction.get(action);
+      if (context != null) {
+        context.effectDeferred = {
+          resolve: (value) => {
+            resolve(value);
+          },
+          reject: (err) => {
+            reject(err);
+          }
+        };
+      }
     });
 
     dispatch(action);
-
-    Promise.resolve().then(() => {
-      const handler = this._storeCache.effectDispatchHandlerByAction.get(
-        action
-      );
-      if (handler != null && !handler.hasEffect) {
-        handler.resolve(undefined);
-      }
-    });
 
     return promise;
   };

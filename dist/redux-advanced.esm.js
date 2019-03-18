@@ -1,163 +1,8 @@
-import { Observable, empty, merge, BehaviorSubject } from 'rxjs';
-import { mergeMap, takeUntil, catchError } from 'rxjs/operators';
 import { createStore, applyMiddleware } from 'redux';
 import { combineEpics, createEpicMiddleware } from 'redux-observable';
+import { merge, BehaviorSubject } from 'rxjs';
+import { catchError, takeUntil, mergeMap } from 'rxjs/operators';
 import produce from 'immer';
-
-var actionTypes = {
-    register: "@@REGISTER",
-    epicEnd: "@@EPIC_END",
-    unregister: "@@UNREGISTER"
-};
-var ActionHelperImpl =  (function () {
-    function ActionHelperImpl(_storeCache, _container, _actionName) {
-        var _this = this;
-        this._storeCache = _storeCache;
-        this._container = _container;
-        this._actionName = _actionName;
-        this.is = function (action) {
-            return action != null && action.type === _this.type;
-        };
-        this.create = function (payload) {
-            var action = {
-                type: _this.type,
-                payload: payload
-            };
-            if (_this._container.model.autoRegister) {
-                _this._storeCache.autoRegisterContextByAction.set(action, {
-                    model: _this._container.model,
-                    key: _this._container.key
-                });
-            }
-            return action;
-        };
-        this.dispatch = function (payload, dispatch) {
-            var action = _this.create(payload);
-            if (dispatch == null) {
-                dispatch = _this._storeCache.dispatch;
-            }
-            var promise = new Promise(function (resolve, reject) {
-                _this._storeCache.effectDispatchHandlerByAction.set(action, {
-                    hasEffect: false,
-                    resolve: function (value) {
-                        resolve(value);
-                        _this._storeCache.effectDispatchHandlerByAction.delete(action);
-                    },
-                    reject: function (err) {
-                        reject(err);
-                        _this._storeCache.effectDispatchHandlerByAction.delete(action);
-                    }
-                });
-            });
-            dispatch(action);
-            Promise.resolve().then(function () {
-                var handler = _this._storeCache.effectDispatchHandlerByAction.get(action);
-                if (handler != null && !handler.hasEffect) {
-                    handler.resolve(undefined);
-                }
-            });
-            return promise;
-        };
-        this.type = this._container.namespace + "/" + this._actionName;
-    }
-    return ActionHelperImpl;
-}());
-function createActionHelpers(storeCache, container) {
-    var actionHelpers = {};
-    Object.keys(container.model.reducers).concat(Object.keys(container.model.effects)).forEach(function (key) {
-        if (actionHelpers[key] == null) {
-            actionHelpers[key] = new ActionHelperImpl(storeCache, container, key);
-        }
-    });
-    return actionHelpers;
-}
-
-var nil = {};
-var namespaceSplitterRegExp = new RegExp("/", "g");
-function convertNamespaceToPath(namespace) {
-    return namespace.replace(namespaceSplitterRegExp, ".");
-}
-function parseActionType(type) {
-    var lastSplitterIndex = type.lastIndexOf("/");
-    var namespace = type.substring(0, lastSplitterIndex);
-    var key = type.substring(lastSplitterIndex + 1);
-    return { namespace: namespace, key: key };
-}
-function buildNamespace(baseNamespace, key) {
-    if (key == null || key === "") {
-        return baseNamespace;
-    }
-    if (baseNamespace === "") {
-        return key;
-    }
-    return baseNamespace + "/" + key;
-}
-function functionWrapper(obj) {
-    return typeof obj === "function" ? obj : function () { return obj; };
-}
-
-function toActionObservable(effectDispatch) {
-    return new Observable(function (subscribe) {
-        var dispatch = function (action) {
-            subscribe.next(action);
-            return action;
-        };
-        effectDispatch(dispatch).then(function () { return subscribe.complete(); }, function (reason) { return subscribe.error(reason); });
-    });
-}
-function createEffectsRootReduxObservableEpic(storeCache) {
-    return function (rootAction$, rootState$) {
-        return rootAction$.pipe(mergeMap(function (action) {
-            var actionType = "" + action.type;
-            var _a = parseActionType(actionType), namespace = _a.namespace, key = _a.key;
-            var container = storeCache.containerByNamespace.get(namespace);
-            if (container == null) {
-                return empty();
-            }
-            var effect = container.model.effects[key];
-            if (effect == null) {
-                return empty();
-            }
-            var effectDispatchHandler = storeCache.effectDispatchHandlerByAction.get(action);
-            if (effectDispatchHandler != null) {
-                effectDispatchHandler.hasEffect = true;
-            }
-            var effectDispatch = effect({
-                rootAction$: rootAction$,
-                rootState$: rootState$,
-                namespace: namespace,
-                dependencies: storeCache.dependencies,
-                props: container.props,
-                key: container.key,
-                getState: function () { return container.state; },
-                getters: container.getters,
-                actions: container.actions,
-                getContainer: storeCache.getContainer
-            }, action.payload);
-            var wrappedEffectDispatch = function (dispatch) {
-                var promise = effectDispatch(dispatch);
-                promise.then(function (value) {
-                    if (effectDispatchHandler != null) {
-                        effectDispatchHandler.resolve(value);
-                    }
-                }, function (reason) {
-                    if (effectDispatchHandler != null) {
-                        effectDispatchHandler.reject(reason);
-                    }
-                });
-                if (storeCache.options.effectErrorHandler != null) {
-                    promise = promise.catch(function (reason) {
-                        return storeCache.options.effectErrorHandler(reason, dispatch);
-                    });
-                }
-                return promise;
-            };
-            var takeUntil$ = rootAction$.ofType(namespace + "/" + actionTypes.unregister);
-            var output$ = toActionObservable(wrappedEffectDispatch).pipe(takeUntil(takeUntil$));
-            return output$;
-        }));
-    };
-}
 
 var __assign = function() {
     __assign = Object.assign || function __assign(t) {
@@ -231,6 +76,30 @@ function createGetters(storeCache, container) {
         });
     });
     return getters;
+}
+
+var nil = {};
+var namespaceSplitterRegExp = new RegExp("/", "g");
+function convertNamespaceToPath(namespace) {
+    return namespace.replace(namespaceSplitterRegExp, ".");
+}
+function parseActionType(type) {
+    var lastSplitterIndex = type.lastIndexOf("/");
+    var namespace = type.substring(0, lastSplitterIndex);
+    var key = type.substring(lastSplitterIndex + 1);
+    return { namespace: namespace, key: key };
+}
+function buildNamespace(baseNamespace, key) {
+    if (key == null || key === "") {
+        return baseNamespace;
+    }
+    if (baseNamespace === "") {
+        return key;
+    }
+    return baseNamespace + "/" + key;
+}
+function functionWrapper(obj) {
+    return typeof obj === "function" ? obj : function () { return obj; };
 }
 
 var ModelBuilder =  (function () {
@@ -408,6 +277,66 @@ function registerModels(storeCache, namespace, models) {
             registerModels(storeCache, modelNamespace, model);
         }
     });
+}
+
+var actionTypes = {
+    register: "@@REGISTER",
+    epicEnd: "@@EPIC_END",
+    unregister: "@@UNREGISTER"
+};
+var ActionHelperImpl =  (function () {
+    function ActionHelperImpl(_storeCache, _container, _actionName) {
+        var _this = this;
+        this._storeCache = _storeCache;
+        this._container = _container;
+        this._actionName = _actionName;
+        this.is = function (action) {
+            return action != null && action.type === _this.type;
+        };
+        this.create = function (payload) {
+            var action = {
+                type: _this.type,
+                payload: payload
+            };
+            _this._storeCache.contextByAction.set(action, {
+                model: _this._container.model,
+                key: _this._container.key
+            });
+            return action;
+        };
+        this.dispatch = function (payload, dispatch) {
+            var action = _this.create(payload);
+            if (dispatch == null) {
+                dispatch = _this._storeCache.dispatch;
+            }
+            var promise = new Promise(function (resolve, reject) {
+                var context = _this._storeCache.contextByAction.get(action);
+                if (context != null) {
+                    context.effectDeferred = {
+                        resolve: function (value) {
+                            resolve(value);
+                        },
+                        reject: function (err) {
+                            reject(err);
+                        }
+                    };
+                }
+            });
+            dispatch(action);
+            return promise;
+        };
+        this.type = this._container.namespace + "/" + this._actionName;
+    }
+    return ActionHelperImpl;
+}());
+function createActionHelpers(storeCache, container) {
+    var actionHelpers = {};
+    Object.keys(container.model.reducers).concat(Object.keys(container.model.effects)).forEach(function (key) {
+        if (actionHelpers[key] == null) {
+            actionHelpers[key] = new ActionHelperImpl(storeCache, container, key);
+        }
+    });
+    return actionHelpers;
 }
 
 function createEpicsReduxObservableEpic(storeCache, container) {
@@ -638,8 +567,7 @@ function createStoreCache() {
         },
         getContainer: undefined,
         initStateNamespaces: [],
-        effectDispatchHandlerByAction: new Map(),
-        autoRegisterContextByAction: new WeakMap(),
+        contextByAction: new WeakMap(),
         nextCacheId: 1,
         cacheById: new Map(),
         containerById: new Map(),
@@ -648,6 +576,55 @@ function createStoreCache() {
     };
     storeCache.getContainer = createGetContainer(storeCache);
     return storeCache;
+}
+
+function createMiddleware(storeCache) {
+    return function () { return function (next) { return function (action) {
+        var context = storeCache.contextByAction.get(action);
+        if (context != null && context.model.autoRegister) {
+            var container = storeCache.getContainer(context.model, context.key);
+            if (container.canRegister) {
+                container.register();
+            }
+        }
+        var result = next(action);
+        if (context != null && context.effectDeferred != null) {
+            var _a = parseActionType("" + action.type), namespace = _a.namespace, key = _a.key;
+            var container_1 = storeCache.getContainer(context.model, context.key);
+            if (container_1.isRegistered) {
+                var effect = container_1.model.effects[key];
+                if (effect != null) {
+                    var promise = effect({
+                        namespace: namespace,
+                        dependencies: storeCache.dependencies,
+                        props: container_1.props,
+                        key: container_1.key,
+                        getState: function () { return container_1.state; },
+                        getters: container_1.getters,
+                        actions: container_1.actions,
+                        getContainer: storeCache.getContainer
+                    }, action.payload);
+                    promise.then(function (value) {
+                        context.effectDeferred.resolve(value);
+                    }, function (reason) {
+                        context.effectDeferred.reject(reason);
+                    });
+                    if (storeCache.options.effectErrorHandler != null) {
+                        promise.catch(function (reason) {
+                            return storeCache.options.effectErrorHandler(reason);
+                        });
+                    }
+                }
+                else {
+                    context.effectDeferred.resolve(undefined);
+                }
+            }
+            else {
+                context.effectDeferred.reject(new Error("model is not registered yet"));
+            }
+        }
+        return result;
+    }; }; };
 }
 
 function createRootReduxReducer(storeCache) {
@@ -713,21 +690,11 @@ function createReduxAdvancedStore(dependencies, models, options) {
     storeCache.dependencies = dependencies;
     registerModels(storeCache, "", models);
     var rootReducer = createRootReduxReducer(storeCache);
-    var effectRootEpic = createEffectsRootReduxObservableEpic(storeCache);
-    storeCache.addEpic$ = new BehaviorSubject(combineEpics.apply(void 0, [effectRootEpic].concat(storeCache.initialEpics)));
+    storeCache.addEpic$ = new BehaviorSubject(combineEpics.apply(void 0, storeCache.initialEpics));
     var rootEpic = function (action$, state$, epicDependencies) {
         return storeCache.addEpic$.pipe(mergeMap(function (epic) { return epic(action$, state$, epicDependencies); }));
     };
-    var reduxAdvancedMiddleware = function () { return function (next) { return function (action) {
-        var context = storeCache.autoRegisterContextByAction.get(action);
-        if (context != null) {
-            var container = storeCache.getContainer(context.model, context.key);
-            if (container.canRegister) {
-                container.register();
-            }
-        }
-        return next(action);
-    }; }; };
+    var reduxAdvancedMiddleware = createMiddleware(storeCache);
     if (options.createStore != null) {
         storeCache.store = options.createStore(rootReducer, rootEpic, reduxAdvancedMiddleware);
     }
@@ -741,4 +708,4 @@ function createReduxAdvancedStore(dependencies, models, options) {
     return store;
 }
 
-export { toActionObservable, createModelBuilder, createReduxAdvancedStore };
+export { createModelBuilder, createReduxAdvancedStore };

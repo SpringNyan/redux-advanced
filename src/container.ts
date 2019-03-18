@@ -1,7 +1,4 @@
-import {
-  ConvertActionHelpersToStrictActionHelpers,
-  ConvertReducersAndEffectsToActionHelpers
-} from "./action";
+import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
 import { ExtractDependencies } from "./dependencies";
 import { ExtractEffects } from "./effect";
@@ -14,7 +11,6 @@ import {
   SelectorInternal
 } from "./selector";
 import { ExtractState } from "./state";
-import { Override } from "./util";
 
 import { actionTypes, createActionHelpers } from "./action";
 import { createEpicsReduxObservableEpic } from "./epic";
@@ -51,23 +47,6 @@ export type GetContainer = <TModel extends Model>(
   model: TModel,
   key?: string
 ) => Container<TModel>;
-
-export type StrictContainer<TModel extends Model = any> = Override<
-  Container<TModel>,
-  {
-    actions: ConvertActionHelpersToStrictActionHelpers<
-      ConvertReducersAndEffectsToActionHelpers<
-        ExtractReducers<TModel>,
-        ExtractEffects<TModel>
-      >
-    >;
-  }
->;
-
-export type GetStrictContainer = <TModel extends Model>(
-  model: TModel,
-  key?: string
-) => StrictContainer<TModel>;
 
 export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   public readonly id: string;
