@@ -69,7 +69,7 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
         }
       } else {
         context.effectDeferred!.reject(
-          new Error("model is not registered yet")
+          new Error("container is not registered yet")
         );
       }
     }

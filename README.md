@@ -117,6 +117,12 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.9.0-alpha.2
+
+  - CHANGE: change effect signature to `(context, payload) => Promise<TResult>`
+  - CHANGE: effect will be rejected if container is not registered
+  - REMOVE: remove `toActionObservable`, `StrictActionHelper`, `StrictContainer`, `GetStrictContainer`
+
 - 0.9.0-alpha.1
 
   - CHANGE: rename useContainer to getContainer
