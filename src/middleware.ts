@@ -68,9 +68,7 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
           context.effectDeferred!.resolve(undefined);
         }
       } else {
-        context.effectDeferred!.reject(
-          new Error("container is not registered yet")
-        );
+        context.effectDeferred!.resolve(undefined);
       }
     }
 

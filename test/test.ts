@@ -136,12 +136,7 @@ describe("redux-advanced", () => {
     );
     dynamicModel2Container.unregister();
     expect(dynamicModel2Container.isRegistered).eq(false);
-    try {
-      await dynamicModel2SetNamePromise;
-      throw new Error("effect should throw error");
-    } catch {
-      // expected
-    }
+    await dynamicModel2SetNamePromise;
     expect(dynamicModel2Container.state.name).eq(""); // setName is not applied after unregister
 
     const autoRegisteredDynamicContainer = store.getContainer(
