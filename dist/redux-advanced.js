@@ -626,7 +626,7 @@ function createMiddleware(storeCache) {
                 }
             }
             else {
-                context.effectDeferred.reject(new Error("container is not registered yet"));
+                context.effectDeferred.resolve(undefined);
             }
         }
         return result;
