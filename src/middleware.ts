@@ -1,5 +1,7 @@
 import { Middleware } from "redux";
+import { Subject } from "rxjs";
 
+import { AnyAction } from "./action";
 import { StoreCache } from "./cache";
 import { Effect } from "./effect";
 import { Model } from "./model";
@@ -8,6 +10,8 @@ import { ContainerImpl } from "./container";
 import { parseActionType } from "./util";
 
 export function createMiddleware(storeCache: StoreCache): Middleware {
+  const rootAction$ = new Subject<AnyAction>();
+
   return () => (next) => (action) => {
     const context = storeCache.contextByAction.get(action);
 
@@ -20,6 +24,9 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
     }
 
     const result = next(action);
+
+    // TODO: use result?
+    rootAction$.next(action);
 
     // handle effect
     if (context != null && context.effectDeferred != null) {
@@ -35,6 +42,8 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
         if (effect != null) {
           const promise = effect(
             {
+              rootAction$,
+
               namespace,
 
               dependencies: storeCache.dependencies,
