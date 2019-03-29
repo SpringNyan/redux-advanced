@@ -556,19 +556,19 @@ function createStoreCache() {
         addEpic$: undefined,
         initialEpics: [],
         getState: function () {
+            var _a;
             var args = [];
             for (var _i = 0; _i < arguments.length; _i++) {
                 args[_i] = arguments[_i];
             }
-            var _a;
             return (_a = storeCache.store).getState.apply(_a, args);
         },
         dispatch: function () {
+            var _a;
             var args = [];
             for (var _i = 0; _i < arguments.length; _i++) {
                 args[_i] = arguments[_i];
             }
-            var _a;
             return (_a = storeCache.store).dispatch.apply(_a, args);
         },
         getContainer: undefined,
@@ -585,6 +585,7 @@ function createStoreCache() {
 }
 
 function createMiddleware(storeCache) {
+    var rootAction$ = new rxjs.Subject();
     return function () { return function (next) { return function (action) {
         var context = storeCache.contextByAction.get(action);
         if (context != null && context.model.autoRegister) {
@@ -594,6 +595,7 @@ function createMiddleware(storeCache) {
             }
         }
         var result = next(action);
+        rootAction$.next(action);
         if (context != null && context.effectDeferred != null) {
             var _a = parseActionType("" + action.type), namespace = _a.namespace, key = _a.key;
             var container_1 = storeCache.getContainer(context.model, context.key);
@@ -601,6 +603,7 @@ function createMiddleware(storeCache) {
                 var effect = container_1.model.effects[key];
                 if (effect != null) {
                     var promise = effect({
+                        rootAction$: rootAction$,
                         namespace: namespace,
                         dependencies: storeCache.dependencies,
                         props: container_1.props,

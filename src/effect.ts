@@ -1,4 +1,6 @@
-import { ActionHelpers } from "./action";
+import { Observable } from "rxjs";
+
+import { ActionHelpers, AnyAction } from "./action";
 import { GetContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
@@ -10,6 +12,8 @@ export interface EffectContext<
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
+  rootAction$: Observable<AnyAction>;
+
   namespace: string;
 
   dependencies: TDependencies;

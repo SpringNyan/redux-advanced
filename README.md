@@ -117,6 +117,10 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.9.0-alpha.4
+
+  - ADD: support rootAction$ in effect
+
 - 0.9.0-alpha.3
 
   - REVERT: revert "effect will be rejected if container is not registered"
