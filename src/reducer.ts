@@ -8,9 +8,9 @@ import { actionTypes } from "./action";
 import { convertNamespaceToPath, parseActionType } from "./util";
 
 export interface ReducerContext<
-  TDependencies = any,
-  TProps = any,
-  TState = any
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any
 > {
   dependencies: TDependencies;
   props: TProps;
@@ -20,9 +20,9 @@ export interface ReducerContext<
 }
 
 export type Reducer<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TPayload = any
 > = (
   state: TState,
@@ -30,7 +30,11 @@ export type Reducer<
   context: ReducerContext<TDependencies, TProps, TState>
 ) => void;
 
-export interface Reducers<TDependencies = any, TProps = any, TState = any> {
+export interface Reducers<
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any
+> {
   [name: string]: Reducer<TDependencies, TProps, TState>;
 }
 
