@@ -79,7 +79,7 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
         }
       }
     });
-    storeCache.initStateNamespaces = [];
+    storeCache.initStateNamespaces.length = 0;
 
     if (initialRootState != null) {
       rootState = {
