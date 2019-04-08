@@ -117,9 +117,16 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.9.0
+
+  - CHANGE: remove `props` from effect, epic, selector
+  - CHANGE: make dependencies, props, state types extend `object`
+  - ADD: export `actionTypes`
+  - ADD: support `rootState$` in effect
+
 - 0.9.0-alpha.4
 
-  - ADD: support rootAction$ in effect
+  - ADD: support `rootAction$` in effect
 
 - 0.9.0-alpha.3
 
