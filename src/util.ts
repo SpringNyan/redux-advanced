@@ -7,12 +7,12 @@ export function convertNamespaceToPath(namespace: string): string {
 
 export function parseActionType(
   type: string
-): { namespace: string; key: string } {
+): { namespace: string; actionName: string } {
   const lastSplitterIndex = type.lastIndexOf("/");
   const namespace = type.substring(0, lastSplitterIndex);
-  const key = type.substring(lastSplitterIndex + 1);
+  const actionName = type.substring(lastSplitterIndex + 1);
 
-  return { namespace, key };
+  return { namespace, actionName };
 }
 
 export function buildNamespace(baseNamespace: string, key: string): string {

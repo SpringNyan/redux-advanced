@@ -35,7 +35,7 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
 
     // handle effect
     if (context != null && context.effectDeferred != null) {
-      const { namespace, key } = parseActionType(action.type);
+      const { namespace, actionName } = parseActionType(action.type);
 
       const container = storeCache.getContainer(
         context.model,
@@ -43,7 +43,7 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
       ) as ContainerImpl<Model>;
 
       if (container.isRegistered) {
-        const effect = container.model.effects[key] as Effect;
+        const effect = container.model.effects[actionName] as Effect;
         if (effect != null) {
           const promise = effect(
             {

@@ -84,9 +84,9 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       };
     }
 
-    const { namespace, key } = parseActionType(action.type);
+    const { namespace, actionName } = parseActionType(action.type);
 
-    if (key === actionTypes.unregister) {
+    if (actionName === actionTypes.unregister) {
       rootState = {
         ...rootState
       };
@@ -98,7 +98,7 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       return rootState;
     }
 
-    const reducer = container.model.reducers[key] as Reducer;
+    const reducer = container.model.reducers[actionName] as Reducer;
     if (reducer == null) {
       return rootState;
     }
