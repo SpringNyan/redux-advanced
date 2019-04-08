@@ -25,10 +25,8 @@ export interface EpicContext<
   rootAction$: ActionsObservable<AnyAction>;
   rootState$: StateObservable<unknown>;
 
-  namespace: string;
-
   dependencies: TDependencies;
-  props: TProps;
+  namespace: string;
   key: string;
 
   getState: () => TState;
@@ -68,10 +66,8 @@ export function createEpicsReduxObservableEpic(
         rootAction$,
         rootState$,
 
-        namespace,
-
         dependencies: storeCache.dependencies,
-        props: container.props,
+        namespace,
         key: container.key,
 
         getState: () => container.state,

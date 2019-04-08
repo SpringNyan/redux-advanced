@@ -13,7 +13,7 @@ export interface SelectorContext<
   TActionHelpers extends ActionHelpers = any
 > {
   dependencies: TDependencies;
-  props: TProps;
+  namespace: string;
   key: string;
 
   state: TState;
@@ -708,7 +708,7 @@ export function createGetters<TModel extends Model>(
         return selector(
           {
             dependencies: storeCache.dependencies,
-            props: container.props,
+            namespace: container.namespace,
             key: container.key,
 
             state: container.state,

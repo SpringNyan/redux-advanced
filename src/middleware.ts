@@ -1,5 +1,6 @@
 import { Middleware } from "redux";
 import { Subject } from "rxjs";
+import { distinctUntilChanged } from "rxjs/operators";
 
 import { AnyAction } from "./action";
 import { StoreCache } from "./cache";
@@ -10,9 +11,13 @@ import { ContainerImpl } from "./container";
 import { parseActionType } from "./util";
 
 export function createMiddleware(storeCache: StoreCache): Middleware {
-  const rootAction$ = new Subject<AnyAction>();
+  const rootActionSubject = new Subject<AnyAction>();
+  const rootAction$ = rootActionSubject;
 
-  return () => (next) => (action) => {
+  const rootStateSubject = new Subject<unknown>();
+  const rootState$ = rootStateSubject.pipe(distinctUntilChanged());
+
+  return (store) => (next) => (action) => {
     const context = storeCache.contextByAction.get(action);
 
     // handle auto register model
@@ -25,8 +30,8 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
 
     const result = next(action);
 
-    // TODO: use result?
-    rootAction$.next(action);
+    rootStateSubject.next(store.getState());
+    rootActionSubject.next(action);
 
     // handle effect
     if (context != null && context.effectDeferred != null) {
@@ -43,11 +48,10 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
           const promise = effect(
             {
               rootAction$,
-
-              namespace,
+              rootState$,
 
               dependencies: storeCache.dependencies,
-              props: container.props,
+              namespace,
               key: container.key,
 
               getState: () => container.state,

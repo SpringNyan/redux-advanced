@@ -13,11 +13,10 @@ export interface EffectContext<
   TActionHelpers extends ActionHelpers = any
 > {
   rootAction$: Observable<AnyAction>;
-
-  namespace: string;
+  rootState$: Observable<unknown>;
 
   dependencies: TDependencies;
-  props: TProps;
+  namespace: string;
   key: string;
 
   getState: () => TState;
