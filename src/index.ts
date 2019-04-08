@@ -1,4 +1,4 @@
-export { Action, ActionHelper, AnyAction } from "./action";
+export { Action, ActionHelper, actionTypes, AnyAction } from "./action";
 export { Container, GetContainer } from "./container";
 export { ExtractDependencies } from "./dependencies";
 export { createModelBuilder, ExtractModel, Model } from "./model";
