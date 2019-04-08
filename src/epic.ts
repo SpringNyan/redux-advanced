@@ -59,15 +59,13 @@ export function createEpicsReduxObservableEpic(
   container: ContainerImpl<Model>
 ): ReduxObservableEpic {
   return (rootAction$, rootState$) => {
-    const { namespace } = container;
-
     const outputObservables = container.model.epics.map((epic: Epic) => {
       let output$ = epic({
         rootAction$,
         rootState$,
 
         dependencies: storeCache.dependencies,
-        namespace,
+        namespace: container.namespace,
         key: container.key,
 
         getState: () => container.state,
@@ -85,7 +83,7 @@ export function createEpicsReduxObservableEpic(
     });
 
     const takeUntil$ = rootAction$.ofType(
-      `${namespace}/${actionTypes.unregister}`
+      `${container.namespace}/${actionTypes.unregister}`
     );
 
     return merge(...outputObservables).pipe(takeUntil(takeUntil$));
