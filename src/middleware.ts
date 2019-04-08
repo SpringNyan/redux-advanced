@@ -35,7 +35,7 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
 
     // handle effect
     if (context != null && context.effectDeferred != null) {
-      const { namespace, key } = parseActionType("" + action.type);
+      const { namespace, key } = parseActionType(action.type);
 
       const container = storeCache.getContainer(
         context.model,
