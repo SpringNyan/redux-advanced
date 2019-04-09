@@ -10,6 +10,119 @@ var rxjs = require('rxjs');
 var operators = require('rxjs/operators');
 var produce = _interopDefault(require('immer'));
 
+var nil = {};
+var namespaceSplitterRegExp = new RegExp("/", "g");
+function convertNamespaceToPath(namespace) {
+    return namespace.replace(namespaceSplitterRegExp, ".");
+}
+function parseActionType(type) {
+    var lastSplitterIndex = type.lastIndexOf("/");
+    var namespace = type.substring(0, lastSplitterIndex);
+    var actionName = type.substring(lastSplitterIndex + 1);
+    return { namespace: namespace, actionName: actionName };
+}
+function buildNamespace(baseNamespace, key) {
+    if (key == null || key === "") {
+        return baseNamespace;
+    }
+    if (baseNamespace === "") {
+        return key;
+    }
+    return baseNamespace + "/" + key;
+}
+function functionWrapper(obj) {
+    return typeof obj === "function" ? obj : function () { return obj; };
+}
+var PatchedPromise =  (function () {
+    function PatchedPromise(executor) {
+        this.rejectionHandled = false;
+        this._promise = new Promise(executor);
+    }
+    PatchedPromise.prototype.then = function (onfulfilled, onrejected) {
+        return this._promise.then(onfulfilled, this._patchOnRejected(onrejected));
+    };
+    PatchedPromise.prototype.catch = function (onrejected) {
+        return this._promise.catch(this._patchOnRejected(onrejected));
+    };
+    PatchedPromise.prototype.finally = function (onfinally) {
+        return this._promise.finally(onfinally);
+    };
+    PatchedPromise.prototype._patchOnRejected = function (onrejected) {
+        var _this = this;
+        return onrejected != null
+            ? function (reason) {
+                _this.rejectionHandled = true;
+                return onrejected(reason);
+            }
+            : onrejected;
+    };
+    return PatchedPromise;
+}());
+
+var actionTypes = {
+    register: "@@REGISTER",
+    epicEnd: "@@EPIC_END",
+    unregister: "@@UNREGISTER"
+};
+var ActionHelperImpl =  (function () {
+    function ActionHelperImpl(_storeCache, _container, _actionName) {
+        var _this = this;
+        this._storeCache = _storeCache;
+        this._container = _container;
+        this._actionName = _actionName;
+        this.is = function (action) {
+            return action != null && action.type === _this.type;
+        };
+        this.create = function (payload) {
+            var action = {
+                type: _this.type,
+                payload: payload
+            };
+            _this._storeCache.contextByAction.set(action, {
+                model: _this._container.model,
+                key: _this._container.key
+            });
+            return action;
+        };
+        this.dispatch = function (payload, dispatch) {
+            var action = _this.create(payload);
+            if (dispatch == null) {
+                dispatch = _this._storeCache.dispatch;
+            }
+            var promise = new PatchedPromise(function (resolve, reject) {
+                var context = _this._storeCache.contextByAction.get(action);
+                if (context != null) {
+                    context.effectDeferred = {
+                        resolve: resolve,
+                        reject: function (reason) {
+                            setTimeout(function () {
+                                if (!promise.rejectionHandled &&
+                                    _this._storeCache.options.effectErrorHandler != null) {
+                                    _this._storeCache.options.effectErrorHandler(reason);
+                                }
+                            }, 0);
+                            return reject(reason);
+                        }
+                    };
+                }
+            });
+            dispatch(action);
+            return promise;
+        };
+        this.type = this._container.namespace + "/" + this._actionName;
+    }
+    return ActionHelperImpl;
+}());
+function createActionHelpers(storeCache, container) {
+    var actionHelpers = {};
+    Object.keys(container.model.reducers).concat(Object.keys(container.model.effects)).forEach(function (key) {
+        if (actionHelpers[key] == null) {
+            actionHelpers[key] = new ActionHelperImpl(storeCache, container, key);
+        }
+    });
+    return actionHelpers;
+}
+
 var __assign = function() {
     __assign = Object.assign || function __assign(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -69,7 +182,7 @@ function createGetters(storeCache, container) {
                 var selector = container.model.selectors[key];
                 return selector({
                     dependencies: storeCache.dependencies,
-                    props: container.props,
+                    namespace: container.namespace,
                     key: container.key,
                     state: container.state,
                     getters: getters,
@@ -82,30 +195,6 @@ function createGetters(storeCache, container) {
         });
     });
     return getters;
-}
-
-var nil = {};
-var namespaceSplitterRegExp = new RegExp("/", "g");
-function convertNamespaceToPath(namespace) {
-    return namespace.replace(namespaceSplitterRegExp, ".");
-}
-function parseActionType(type) {
-    var lastSplitterIndex = type.lastIndexOf("/");
-    var namespace = type.substring(0, lastSplitterIndex);
-    var key = type.substring(lastSplitterIndex + 1);
-    return { namespace: namespace, key: key };
-}
-function buildNamespace(baseNamespace, key) {
-    if (key == null || key === "") {
-        return baseNamespace;
-    }
-    if (baseNamespace === "") {
-        return key;
-    }
-    return baseNamespace + "/" + key;
-}
-function functionWrapper(obj) {
-    return typeof obj === "function" ? obj : function () { return obj; };
 }
 
 var ModelBuilder =  (function () {
@@ -156,6 +245,21 @@ var ModelBuilder =  (function () {
         };
         return this;
     };
+    ModelBuilder.prototype.overrideProps = function (override) {
+        if (this._isFrozen) {
+            return this.clone().overrideProps(override);
+        }
+        var oldPropsFn = this._model.defaultProps;
+        this._model.defaultProps = function (context) {
+            var oldProps = oldPropsFn(context);
+            var newProps = functionWrapper(override(oldProps))(context);
+            if (oldProps === undefined && newProps === undefined) {
+                return undefined;
+            }
+            return __assign({}, oldProps, newProps);
+        };
+        return this;
+    };
     ModelBuilder.prototype.state = function (state) {
         if (this._isFrozen) {
             return this.clone().state(state);
@@ -165,6 +269,21 @@ var ModelBuilder =  (function () {
         this._model.state = function (context) {
             var oldState = oldStateFn(context);
             var newState = newStateFn(context);
+            if (oldState === undefined && newState === undefined) {
+                return undefined;
+            }
+            return __assign({}, oldState, newState);
+        };
+        return this;
+    };
+    ModelBuilder.prototype.overrideState = function (override) {
+        if (this._isFrozen) {
+            return this.clone().overrideState(override);
+        }
+        var oldStateFn = this._model.state;
+        this._model.state = function (context) {
+            var oldState = oldStateFn(context);
+            var newState = functionWrapper(override(oldState))(context);
             if (oldState === undefined && newState === undefined) {
                 return undefined;
             }
@@ -182,6 +301,17 @@ var ModelBuilder =  (function () {
         this._model.selectors = __assign({}, this._model.selectors, selectors);
         return this;
     };
+    ModelBuilder.prototype.overrideSelectors = function (override) {
+        if (this._isFrozen) {
+            return this.clone().overrideSelectors(override);
+        }
+        var selectors = override(this._model.selectors);
+        if (typeof selectors === "function") {
+            selectors = selectors(createSelector);
+        }
+        this._model.selectors = __assign({}, this._model.selectors, selectors);
+        return this;
+    };
     ModelBuilder.prototype.reducers = function (reducers) {
         if (this._isFrozen) {
             return this.clone().reducers(reducers);
@@ -189,11 +319,25 @@ var ModelBuilder =  (function () {
         this._model.reducers = __assign({}, this._model.reducers, reducers);
         return this;
     };
+    ModelBuilder.prototype.overrideReducers = function (override) {
+        if (this._isFrozen) {
+            return this.clone().overrideReducers(override);
+        }
+        this._model.reducers = __assign({}, this._model.reducers, override(this._model.reducers));
+        return this;
+    };
     ModelBuilder.prototype.effects = function (effects) {
         if (this._isFrozen) {
             return this.clone().effects(effects);
         }
         this._model.effects = __assign({}, this._model.effects, effects);
+        return this;
+    };
+    ModelBuilder.prototype.overrideEffects = function (override) {
+        if (this._isFrozen) {
+            return this.clone().overrideEffects(override);
+        }
+        this._model.effects = __assign({}, this._model.effects, override(this._model.effects));
         return this;
     };
     ModelBuilder.prototype.epics = function (epics) {
@@ -247,9 +391,9 @@ function isModel(obj) {
 }
 function createModelBuilder() {
     return new ModelBuilder({
-        defaultProps: function () { return undefined; },
+        defaultProps: function () { return ({}); },
         autoRegister: false,
-        state: function () { return undefined; },
+        state: function () { return ({}); },
         selectors: {},
         reducers: {},
         effects: {},
@@ -285,76 +429,14 @@ function registerModels(storeCache, namespace, models) {
     });
 }
 
-var actionTypes = {
-    register: "@@REGISTER",
-    epicEnd: "@@EPIC_END",
-    unregister: "@@UNREGISTER"
-};
-var ActionHelperImpl =  (function () {
-    function ActionHelperImpl(_storeCache, _container, _actionName) {
-        var _this = this;
-        this._storeCache = _storeCache;
-        this._container = _container;
-        this._actionName = _actionName;
-        this.is = function (action) {
-            return action != null && action.type === _this.type;
-        };
-        this.create = function (payload) {
-            var action = {
-                type: _this.type,
-                payload: payload
-            };
-            _this._storeCache.contextByAction.set(action, {
-                model: _this._container.model,
-                key: _this._container.key
-            });
-            return action;
-        };
-        this.dispatch = function (payload, dispatch) {
-            var action = _this.create(payload);
-            if (dispatch == null) {
-                dispatch = _this._storeCache.dispatch;
-            }
-            var promise = new Promise(function (resolve, reject) {
-                var context = _this._storeCache.contextByAction.get(action);
-                if (context != null) {
-                    context.effectDeferred = {
-                        resolve: function (value) {
-                            resolve(value);
-                        },
-                        reject: function (err) {
-                            reject(err);
-                        }
-                    };
-                }
-            });
-            dispatch(action);
-            return promise;
-        };
-        this.type = this._container.namespace + "/" + this._actionName;
-    }
-    return ActionHelperImpl;
-}());
-function createActionHelpers(storeCache, container) {
-    var actionHelpers = {};
-    Object.keys(container.model.reducers).concat(Object.keys(container.model.effects)).forEach(function (key) {
-        if (actionHelpers[key] == null) {
-            actionHelpers[key] = new ActionHelperImpl(storeCache, container, key);
-        }
-    });
-    return actionHelpers;
-}
-
 function createEpicsReduxObservableEpic(storeCache, container) {
     return function (rootAction$, rootState$) {
-        var namespace = container.namespace;
         var outputObservables = container.model.epics.map(function (epic) {
             var output$ = epic({
                 rootAction$: rootAction$,
                 rootState$: rootState$,
-                namespace: namespace,
                 dependencies: storeCache.dependencies,
-                props: container.props,
+                namespace: container.namespace,
                 key: container.key,
                 getState: function () { return container.state; },
                 getters: container.getters,
@@ -366,7 +448,7 @@ function createEpicsReduxObservableEpic(storeCache, container) {
             }
             return output$;
         });
-        var takeUntil$ = rootAction$.ofType(namespace + "/" + actionTypes.unregister);
+        var takeUntil$ = rootAction$.ofType(container.namespace + "/" + actionTypes.unregister);
         return rxjs.merge.apply(void 0, outputObservables).pipe(operators.takeUntil(takeUntil$));
     };
 }
@@ -585,8 +667,11 @@ function createStoreCache() {
 }
 
 function createMiddleware(storeCache) {
-    var rootAction$ = new rxjs.Subject();
-    return function () { return function (next) { return function (action) {
+    var rootActionSubject = new rxjs.Subject();
+    var rootAction$ = rootActionSubject;
+    var rootStateSubject = new rxjs.Subject();
+    var rootState$ = rootStateSubject.pipe(operators.distinctUntilChanged());
+    return function (store) { return function (next) { return function (action) {
         var context = storeCache.contextByAction.get(action);
         if (context != null && context.model.autoRegister) {
             var container = storeCache.getContainer(context.model, context.key);
@@ -595,18 +680,19 @@ function createMiddleware(storeCache) {
             }
         }
         var result = next(action);
-        rootAction$.next(action);
+        rootStateSubject.next(store.getState());
+        rootActionSubject.next(action);
         if (context != null && context.effectDeferred != null) {
-            var _a = parseActionType("" + action.type), namespace = _a.namespace, key = _a.key;
+            var _a = parseActionType(action.type), namespace = _a.namespace, actionName = _a.actionName;
             var container_1 = storeCache.getContainer(context.model, context.key);
             if (container_1.isRegistered) {
-                var effect = container_1.model.effects[key];
+                var effect = container_1.model.effects[actionName];
                 if (effect != null) {
                     var promise = effect({
                         rootAction$: rootAction$,
-                        namespace: namespace,
+                        rootState$: rootState$,
                         dependencies: storeCache.dependencies,
-                        props: container_1.props,
+                        namespace: namespace,
                         key: container_1.key,
                         getState: function () { return container_1.state; },
                         getters: container_1.getters,
@@ -618,11 +704,6 @@ function createMiddleware(storeCache) {
                     }, function (reason) {
                         context.effectDeferred.reject(reason);
                     });
-                    if (storeCache.options.effectErrorHandler != null) {
-                        promise.catch(function (reason) {
-                            return storeCache.options.effectErrorHandler(reason);
-                        });
-                    }
                 }
                 else {
                     context.effectDeferred.resolve(undefined);
@@ -661,13 +742,12 @@ function createRootReduxReducer(storeCache) {
                 }
             }
         });
-        storeCache.initStateNamespaces = [];
+        storeCache.initStateNamespaces.length = 0;
         if (initialRootState != null) {
             rootState = __assign({}, rootState, initialRootState);
         }
-        var actionType = "" + action.type;
-        var _a = parseActionType(actionType), namespace = _a.namespace, key = _a.key;
-        if (key === actionTypes.unregister) {
+        var _a = parseActionType(action.type), namespace = _a.namespace, actionName = _a.actionName;
+        if (actionName === actionTypes.unregister) {
             rootState = __assign({}, rootState);
             delete rootState[convertNamespaceToPath(namespace)];
         }
@@ -675,7 +755,7 @@ function createRootReduxReducer(storeCache) {
         if (container == null) {
             return rootState;
         }
-        var reducer = container.model.reducers[key];
+        var reducer = container.model.reducers[actionName];
         if (reducer == null) {
             return rootState;
         }
@@ -717,5 +797,6 @@ function createReduxAdvancedStore(dependencies, models, options) {
     return store;
 }
 
+exports.actionTypes = actionTypes;
 exports.createModelBuilder = createModelBuilder;
 exports.createReduxAdvancedStore = createReduxAdvancedStore;
