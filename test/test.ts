@@ -42,6 +42,12 @@ describe("redux-advanced", () => {
       .effects({
         setName: async ({ actions, getState }, payload: string) => {
           return payload;
+        },
+        innerThrow: async () => {
+          throw new Error();
+        },
+        overrideSetInfo: async ({ actions, getState }) => {
+          await actions.setName.dispatch("haha");
         }
       })
       .effects({
@@ -54,8 +60,17 @@ describe("redux-advanced", () => {
           await timer(50).toPromise();
           await getContainer(staticModel).actions.setAge.dispatch(payload);
           return "" + payload;
+        },
+        outerThrow: async ({ actions }) => {
+          await actions.innerThrow.dispatch({});
         }
       })
+      .overrideEffects((base) => ({
+        overrideSetInfo: async (context) => {
+          await base.overrideSetInfo(context);
+          await context.actions.setAge.dispatch(666);
+        }
+      }))
       .freeze();
 
     const staticModel = testModelBuilder.build({
@@ -73,11 +88,20 @@ describe("redux-advanced", () => {
 
     const appDependencies: IDependencies = { appId: 233 };
 
-    const store = createReduxAdvancedStore(appDependencies, {
-      staticModel,
-      dynamicModels: [dynamicModel],
-      autoRegisteredDynamicModel: [autoRegisteredDynamicModel]
-    });
+    let unhandledEffectErrorCount = 0;
+    const store = createReduxAdvancedStore(
+      appDependencies,
+      {
+        staticModel,
+        dynamicModels: [dynamicModel],
+        autoRegisteredDynamicModel: [autoRegisteredDynamicModel]
+      },
+      {
+        effectErrorHandler: () => {
+          unhandledEffectErrorCount += 1;
+        }
+      }
+    );
     const staticModelContainer = store.getContainer(staticModel);
     expect(staticModelContainer.namespace).eq("staticModel");
 
@@ -106,6 +130,20 @@ describe("redux-advanced", () => {
     expect(staticModelSetAgeResult).eq("233");
     expect(staticModelContainer.state.age).eq(233);
 
+    await staticModelContainer.actions.overrideSetInfo.dispatch({});
+    expect(staticModelContainer.state.name).eq("haha");
+    expect(staticModelContainer.state.age).eq(666);
+
+    staticModelContainer.actions.outerThrow
+      .dispatch({})
+      .then(() => undefined, () => undefined);
+    await timer(10).toPromise();
+    expect(unhandledEffectErrorCount).eq(0);
+
+    // staticModelContainer.actions.outerThrow.dispatch({}).then(() => undefined);
+    // await timer(10).toPromise();
+    // expect(unhandledEffectErrorCount).eq(1);
+
     const dynamicModelContainer = store.getContainer(dynamicModel);
     expect(dynamicModelContainer.isRegistered).eq(false);
     expect(dynamicModelContainer.namespace).eq("dynamicModels");
@@ -119,7 +157,7 @@ describe("redux-advanced", () => {
     });
     expect(dynamicModel1Container.isRegistered).eq(true);
     expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
-    expect(dynamicModel1Container.getters.staticSummary).eq("meow - 233");
+    expect(dynamicModel1Container.getters.staticSummary).eq("haha - 666");
 
     const dynamicModel2Container = store.getContainer(dynamicModel, "2");
     expect(dynamicModel2Container.isRegistered).eq(false);

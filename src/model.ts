@@ -17,9 +17,9 @@ import { createSelector } from "./selector";
 import { buildNamespace, functionWrapper } from "./util";
 
 export interface Model<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any
@@ -40,7 +40,7 @@ export interface Model<
   >;
 }
 
-export interface Models<TDependencies = any> {
+export interface Models<TDependencies extends object = any> {
   [key: string]:
     | Model<TDependencies>
     | Array<Model<TDependencies>>
@@ -50,9 +50,9 @@ export interface Models<TDependencies = any> {
 export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
 export class ModelBuilder<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any
@@ -99,15 +99,9 @@ export class ModelBuilder<
   public extend<TModel extends Model>(
     model: TModel
   ): ModelBuilder<
-    TDependencies extends undefined
-      ? ExtractDependencies<TModel>
-      : TDependencies & ExtractDependencies<TModel>,
-    TProps extends undefined
-      ? ExtractProps<TModel>
-      : TProps & ExtractProps<TModel>,
-    TState extends undefined
-      ? ExtractState<TModel>
-      : TState & ExtractState<TModel>,
+    TDependencies & ExtractDependencies<TModel>,
+    TProps & ExtractProps<TModel>,
+    TState & ExtractState<TModel>,
     TSelectors & ExtractSelectors<TModel>,
     TReducers & ExtractReducers<TModel>,
     TEffects & ExtractEffects<TModel>
@@ -128,8 +122,8 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public dependencies<T>(): ModelBuilder<
-    TDependencies extends undefined ? T : TDependencies & T,
+  public dependencies<T extends object>(): ModelBuilder<
+    TDependencies & T,
     TProps,
     TState,
     TSelectors,
@@ -143,11 +137,11 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public props<T>(
+  public props<T extends object>(
     props: T | PropsFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
-    TProps extends undefined ? T : TProps & T,
+    TProps & T,
     TState,
     TSelectors,
     TReducers,
@@ -177,12 +171,47 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public state<T>(
+  public overrideProps(
+    override: (
+      base: TProps
+    ) => Partial<TProps> | PropsFactory<TDependencies, Partial<TProps>>
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideProps(override);
+    }
+
+    const oldPropsFn = this._model.defaultProps;
+
+    this._model.defaultProps = (context) => {
+      const oldProps = oldPropsFn(context);
+      const newProps = functionWrapper(override(oldProps))(context);
+
+      if (oldProps === undefined && newProps === undefined) {
+        return undefined!;
+      }
+
+      return {
+        ...oldProps,
+        ...newProps
+      };
+    };
+
+    return this as any;
+  }
+
+  public state<T extends object>(
     state: T | StateFactory<TDependencies, TProps, T>
   ): ModelBuilder<
     TDependencies,
     TProps,
-    TState extends undefined ? T : TState & T,
+    TState & T,
     TSelectors,
     TReducers,
     TEffects
@@ -197,6 +226,41 @@ export class ModelBuilder<
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
       const newState = newStateFn(context);
+
+      if (oldState === undefined && newState === undefined) {
+        return undefined!;
+      }
+
+      return {
+        ...oldState,
+        ...newState
+      };
+    };
+
+    return this as any;
+  }
+
+  public overrideState(
+    override: (
+      base: TState
+    ) => Partial<TState> | StateFactory<TDependencies, TProps, Partial<TState>>
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideState(override);
+    }
+
+    const oldStateFn = this._model.state;
+
+    this._model.state = (context) => {
+      const oldState = oldStateFn(context);
+      const newState = functionWrapper(override(oldState))(context);
 
       if (oldState === undefined && newState === undefined) {
         return undefined!;
@@ -254,6 +318,44 @@ export class ModelBuilder<
     return this as any;
   }
 
+  public overrideSelectors(
+    override: (
+      base: TSelectors
+    ) =>
+      | Partial<TSelectors>
+      | SelectorsFactory<
+          TDependencies,
+          TProps,
+          TState,
+          ConvertSelectorsToGetters<TSelectors>,
+          ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>,
+          Partial<TSelectors>
+        >
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideSelectors(override);
+    }
+
+    let selectors = override(this._model.selectors);
+    if (typeof selectors === "function") {
+      selectors = selectors(createSelector);
+    }
+
+    this._model.selectors = {
+      ...this._model.selectors,
+      ...selectors
+    };
+
+    return this as any;
+  }
+
   public reducers<T extends Reducers<TDependencies, TProps, TState>>(
     reducers: T
   ): ModelBuilder<
@@ -271,6 +373,28 @@ export class ModelBuilder<
     this._model.reducers = {
       ...this._model.reducers,
       ...reducers
+    };
+
+    return this as any;
+  }
+
+  public overrideReducers(
+    override: (base: TReducers) => Partial<TReducers>
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideReducers(override);
+    }
+
+    this._model.reducers = {
+      ...this._model.reducers,
+      ...override(this._model.reducers)
     };
 
     return this as any;
@@ -301,6 +425,28 @@ export class ModelBuilder<
     this._model.effects = {
       ...this._model.effects,
       ...effects
+    };
+
+    return this as any;
+  }
+
+  public overrideEffects(
+    override: (base: TEffects) => Partial<TEffects>
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideEffects(override);
+    }
+
+    this._model.effects = {
+      ...this._model.effects,
+      ...override(this._model.effects)
     };
 
     return this as any;
@@ -392,19 +538,12 @@ export function isModel(obj: any): obj is Model {
   );
 }
 
-export function createModelBuilder(): ModelBuilder<
-  undefined,
-  undefined,
-  undefined,
-  {},
-  {},
-  {}
-> {
+export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
   return new ModelBuilder({
-    defaultProps: () => undefined,
+    defaultProps: () => ({}),
     autoRegister: false,
 
-    state: () => undefined,
+    state: () => ({}),
     selectors: {},
     reducers: {},
     effects: {},

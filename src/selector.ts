@@ -6,14 +6,14 @@ import { Model } from "./model";
 import { ContainerImpl } from "./container";
 
 export interface SelectorContext<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
   dependencies: TDependencies;
-  props: TProps;
+  namespace: string;
   key: string;
 
   state: TState;
@@ -24,9 +24,9 @@ export interface SelectorContext<
 }
 
 export type Selector<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
@@ -41,9 +41,9 @@ export type Selector<
 ) => TResult;
 
 export interface SelectorInternal<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
@@ -63,9 +63,9 @@ export interface SelectorInternal<
 }
 
 export interface Selectors<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -79,17 +79,13 @@ export interface Selectors<
 }
 
 export type SelectorsFactory<
-  TDependencies,
-  TProps,
-  TState,
+  TDependencies extends object,
+  TProps extends object,
+  TState extends object,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers,
-  TSelectors extends Selectors<
-    TDependencies,
-    TProps,
-    TState,
-    TGetters,
-    TActionHelpers
+  TSelectors extends Partial<
+    Selectors<TDependencies, TProps, TState, TGetters, TActionHelpers>
   >
 > = (
   createSelector: CreateSelector<
@@ -132,9 +128,9 @@ export type ExtractSelectors<T extends Model> = T extends Model<
   : never;
 
 export interface CreateSelector<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -708,7 +704,7 @@ export function createGetters<TModel extends Model>(
         return selector(
           {
             dependencies: storeCache.dependencies,
-            props: container.props,
+            namespace: container.namespace,
             key: container.key,
 
             state: container.state,

@@ -16,19 +16,17 @@ import { actionTypes } from "./action";
 import { ContainerImpl } from "./container";
 
 export interface EpicContext<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
   rootAction$: ActionsObservable<AnyAction>;
   rootState$: StateObservable<unknown>;
 
-  namespace: string;
-
   dependencies: TDependencies;
-  props: TProps;
+  namespace: string;
   key: string;
 
   getState: () => TState;
@@ -39,9 +37,9 @@ export interface EpicContext<
 }
 
 export type Epic<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > = (
@@ -49,9 +47,9 @@ export type Epic<
 ) => Observable<AnyAction>;
 
 export type Epics<
-  TDependencies = any,
-  TProps = any,
-  TState = any,
+  TDependencies extends object = any,
+  TProps extends object = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > = Array<Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>>;
@@ -61,17 +59,13 @@ export function createEpicsReduxObservableEpic(
   container: ContainerImpl<Model>
 ): ReduxObservableEpic {
   return (rootAction$, rootState$) => {
-    const { namespace } = container;
-
     const outputObservables = container.model.epics.map((epic: Epic) => {
       let output$ = epic({
         rootAction$,
         rootState$,
 
-        namespace,
-
         dependencies: storeCache.dependencies,
-        props: container.props,
+        namespace: container.namespace,
         key: container.key,
 
         getState: () => container.state,
@@ -89,7 +83,7 @@ export function createEpicsReduxObservableEpic(
     });
 
     const takeUntil$ = rootAction$.ofType(
-      `${namespace}/${actionTypes.unregister}`
+      `${container.namespace}/${actionTypes.unregister}`
     );
 
     return merge(...outputObservables).pipe(takeUntil(takeUntil$));

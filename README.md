@@ -117,9 +117,20 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.9.0
+
+  - CHANGE: remove `props` from effect, epic, selector
+  - CHANGE: make dependencies, props, state types extend `object`
+  - CHANGE: change default dependencies, props, state to `{}`
+  - CHANGE: `effectErrorHandler` now returns `void` instead of `Promise<void>`
+  - FIX: fix `effectErrorHandler` behavior
+  - ADD: export `actionTypes`
+  - ADD: support `rootState$` in effect
+  - ADD: support override methods in model builder
+
 - 0.9.0-alpha.4
 
-  - ADD: support rootAction$ in effect
+  - ADD: support `rootAction$` in effect
 
 - 0.9.0-alpha.3
 
