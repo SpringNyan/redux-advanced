@@ -29,7 +29,7 @@ export interface ReduxAdvancedOptions {
     rootEpic: Epic,
     reduxAdvancedMiddleware: Middleware
   ) => Store;
-  effectErrorHandler?: (error: any) => Promise<void>;
+  effectErrorHandler?: (error: any) => void;
   epicErrorHandler?: (
     error: any,
     caught: Observable<AnyAction>

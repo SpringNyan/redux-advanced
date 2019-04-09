@@ -71,12 +71,6 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
               context.effectDeferred!.reject(reason);
             }
           );
-
-          if (storeCache.options.effectErrorHandler != null) {
-            promise.catch((reason) =>
-              storeCache.options.effectErrorHandler!(reason)
-            );
-          }
         } else {
           context.effectDeferred!.resolve(undefined);
         }

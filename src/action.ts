@@ -6,6 +6,7 @@ import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
 
 import { ContainerImpl } from "./container";
+import { PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
@@ -120,15 +121,22 @@ export class ActionHelperImpl<TPayload, TResult>
       dispatch = this._storeCache.dispatch;
     }
 
-    const promise = new Promise<TResult>((resolve, reject) => {
+    const promise = new PatchedPromise<TResult>((resolve, reject) => {
       const context = this._storeCache.contextByAction.get(action);
       if (context != null) {
         context.effectDeferred = {
-          resolve: (value) => {
-            resolve(value);
-          },
-          reject: (err) => {
-            reject(err);
+          resolve,
+          reject: (reason) => {
+            setTimeout(() => {
+              if (
+                !promise.rejectionHandled &&
+                this._storeCache.options.effectErrorHandler != null
+              ) {
+                this._storeCache.options.effectErrorHandler(reason);
+              }
+            }, 0);
+
+            return reject(reason);
           }
         };
       }
@@ -136,7 +144,8 @@ export class ActionHelperImpl<TPayload, TResult>
 
     dispatch(action);
 
-    return promise;
+    // TODO: handle [Symbol.toStringTag]
+    return (promise as PromiseLike<TResult>) as Promise<TResult>;
   };
 }
 
