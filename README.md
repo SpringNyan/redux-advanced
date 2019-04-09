@@ -126,6 +126,7 @@ container.actions.setName.dispatch("nyan");
   - FIX: fix `effectErrorHandler` behavior
   - ADD: export `actionTypes`
   - ADD: support `rootState$` in effect
+  - ADD: support override methods in model builder
 
 - 0.9.0-alpha.4
 

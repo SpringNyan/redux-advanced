@@ -84,12 +84,8 @@ export type SelectorsFactory<
   TState extends object,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers,
-  TSelectors extends Selectors<
-    TDependencies,
-    TProps,
-    TState,
-    TGetters,
-    TActionHelpers
+  TSelectors extends Partial<
+    Selectors<TDependencies, TProps, TState, TGetters, TActionHelpers>
   >
 > = (
   createSelector: CreateSelector<
