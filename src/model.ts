@@ -17,9 +17,9 @@ import { createSelector } from "./selector";
 import { buildNamespace, functionWrapper } from "./util";
 
 export interface Model<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any
@@ -40,7 +40,7 @@ export interface Model<
   >;
 }
 
-export interface Models<TDependencies extends object = any> {
+export interface Models<TDependencies extends object | undefined = any> {
   [key: string]:
     | Model<TDependencies>
     | Array<Model<TDependencies>>
@@ -50,9 +50,9 @@ export interface Models<TDependencies extends object = any> {
 export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
 export class ModelBuilder<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any
@@ -99,9 +99,15 @@ export class ModelBuilder<
   public extend<TModel extends Model>(
     model: TModel
   ): ModelBuilder<
-    TDependencies & ExtractDependencies<TModel>,
-    TProps & ExtractProps<TModel>,
-    TState & ExtractState<TModel>,
+    TDependencies extends object
+      ? TDependencies & ExtractDependencies<TModel>
+      : ExtractDependencies<TModel>,
+    TProps extends object
+      ? TProps & ExtractProps<TModel>
+      : ExtractProps<TModel>,
+    TState extends object
+      ? TState & ExtractState<TModel>
+      : ExtractState<TModel>,
     TSelectors & ExtractSelectors<TModel>,
     TReducers & ExtractReducers<TModel>,
     TEffects & ExtractEffects<TModel>
@@ -123,7 +129,7 @@ export class ModelBuilder<
   }
 
   public dependencies<T extends object>(): ModelBuilder<
-    TDependencies & T,
+    TDependencies extends object ? TDependencies & T : T,
     TProps,
     TState,
     TSelectors,
@@ -141,7 +147,7 @@ export class ModelBuilder<
     props: T | PropsFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
-    TProps & T,
+    TProps extends object ? TProps & T : T,
     TState,
     TSelectors,
     TReducers,
@@ -211,7 +217,7 @@ export class ModelBuilder<
   ): ModelBuilder<
     TDependencies,
     TProps,
-    TState & T,
+    TState extends object ? TState & T : T,
     TSelectors,
     TReducers,
     TEffects
@@ -538,12 +544,19 @@ export function isModel(obj: any): obj is Model {
   );
 }
 
-export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
+export function createModelBuilder(): ModelBuilder<
+  undefined,
+  undefined,
+  undefined,
+  {},
+  {},
+  {}
+> {
   return new ModelBuilder({
-    defaultProps: () => ({}),
+    defaultProps: () => undefined,
     autoRegister: false,
 
-    state: () => ({}),
+    state: () => undefined,
     selectors: {},
     reducers: {},
     effects: {},

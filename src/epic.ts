@@ -16,9 +16,9 @@ import { actionTypes } from "./action";
 import { ContainerImpl } from "./container";
 
 export interface EpicContext<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -37,9 +37,9 @@ export interface EpicContext<
 }
 
 export type Epic<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > = (
@@ -47,9 +47,9 @@ export type Epic<
 ) => Observable<AnyAction>;
 
 export type Epics<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > = Array<Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>>;
