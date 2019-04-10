@@ -385,9 +385,9 @@ function isModel(obj) {
 }
 function createModelBuilder() {
     return new ModelBuilder({
-        defaultProps: function () { return ({}); },
+        defaultProps: function () { return undefined; },
         autoRegister: false,
-        state: function () { return ({}); },
+        state: function () { return undefined; },
         selectors: {},
         reducers: {},
         effects: {},

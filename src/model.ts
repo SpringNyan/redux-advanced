@@ -99,9 +99,15 @@ export class ModelBuilder<
   public extend<TModel extends Model>(
     model: TModel
   ): ModelBuilder<
-    TDependencies & ExtractDependencies<TModel>,
-    TProps & ExtractProps<TModel>,
-    TState & ExtractState<TModel>,
+    TDependencies extends object
+      ? TDependencies & ExtractDependencies<TModel>
+      : ExtractDependencies<TModel>,
+    TProps extends object
+      ? TProps & ExtractProps<TModel>
+      : ExtractProps<TModel>,
+    TState extends object
+      ? TState & ExtractState<TModel>
+      : ExtractState<TModel>,
     TSelectors & ExtractSelectors<TModel>,
     TReducers & ExtractReducers<TModel>,
     TEffects & ExtractEffects<TModel>
@@ -122,8 +128,8 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public dependencies<T extends object | undefined>(): ModelBuilder<
-    TDependencies & T,
+  public dependencies<T extends object>(): ModelBuilder<
+    TDependencies extends object ? TDependencies & T : T,
     TProps,
     TState,
     TSelectors,
@@ -137,11 +143,11 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public props<T extends object | undefined>(
+  public props<T extends object>(
     props: T | PropsFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
-    TProps & T,
+    TProps extends object ? TProps & T : T,
     TState,
     TSelectors,
     TReducers,
@@ -206,12 +212,12 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public state<T extends object | undefined>(
+  public state<T extends object>(
     state: T | StateFactory<TDependencies, TProps, T>
   ): ModelBuilder<
     TDependencies,
     TProps,
-    TState & T,
+    TState extends object ? TState & T : T,
     TSelectors,
     TReducers,
     TEffects
@@ -538,12 +544,19 @@ export function isModel(obj: any): obj is Model {
   );
 }
 
-export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}> {
+export function createModelBuilder(): ModelBuilder<
+  undefined,
+  undefined,
+  undefined,
+  {},
+  {},
+  {}
+> {
   return new ModelBuilder({
-    defaultProps: () => ({}),
+    defaultProps: () => undefined,
     autoRegister: false,
 
-    state: () => ({}),
+    state: () => undefined,
     selectors: {},
     reducers: {},
     effects: {},
