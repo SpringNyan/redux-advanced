@@ -6,9 +6,9 @@ import { Model } from "./model";
 import { Getters } from "./selector";
 
 export interface EffectContext<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -27,9 +27,9 @@ export interface EffectContext<
 }
 
 export type Effect<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TPayload = any,
@@ -46,9 +46,9 @@ export type Effect<
 ) => Promise<TResult>;
 
 export interface Effects<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {

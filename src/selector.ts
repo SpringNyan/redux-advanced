@@ -6,9 +6,9 @@ import { Model } from "./model";
 import { ContainerImpl } from "./container";
 
 export interface SelectorContext<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -24,9 +24,9 @@ export interface SelectorContext<
 }
 
 export type Selector<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
@@ -41,9 +41,9 @@ export type Selector<
 ) => TResult;
 
 export interface SelectorInternal<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
@@ -63,9 +63,9 @@ export interface SelectorInternal<
 }
 
 export interface Selectors<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -79,9 +79,9 @@ export interface Selectors<
 }
 
 export type SelectorsFactory<
-  TDependencies extends object,
-  TProps extends object,
-  TState extends object,
+  TDependencies extends object | undefined,
+  TProps extends object | undefined,
+  TState extends object | undefined,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers,
   TSelectors extends Partial<
@@ -128,9 +128,9 @@ export type ExtractSelectors<T extends Model> = T extends Model<
   : never;
 
 export interface CreateSelector<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {

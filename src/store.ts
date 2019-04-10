@@ -37,7 +37,7 @@ export interface ReduxAdvancedOptions {
 }
 
 export function createReduxAdvancedStore<
-  TDependencies extends object,
+  TDependencies extends object | undefined,
   TModels extends Models<TDependencies>
 >(
   dependencies: TDependencies,

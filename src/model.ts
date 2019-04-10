@@ -17,9 +17,9 @@ import { createSelector } from "./selector";
 import { buildNamespace, functionWrapper } from "./util";
 
 export interface Model<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any
@@ -40,7 +40,7 @@ export interface Model<
   >;
 }
 
-export interface Models<TDependencies extends object = any> {
+export interface Models<TDependencies extends object | undefined = any> {
   [key: string]:
     | Model<TDependencies>
     | Array<Model<TDependencies>>
@@ -50,9 +50,9 @@ export interface Models<TDependencies extends object = any> {
 export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
 export class ModelBuilder<
-  TDependencies extends object = any,
-  TProps extends object = any,
-  TState extends object = any,
+  TDependencies extends object | undefined = any,
+  TProps extends object | undefined = any,
+  TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any
@@ -122,7 +122,7 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public dependencies<T extends object>(): ModelBuilder<
+  public dependencies<T extends object | undefined>(): ModelBuilder<
     TDependencies & T,
     TProps,
     TState,
@@ -137,7 +137,7 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public props<T extends object>(
+  public props<T extends object | undefined>(
     props: T | PropsFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
@@ -206,7 +206,7 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public state<T extends object>(
+  public state<T extends object | undefined>(
     state: T | StateFactory<TDependencies, TProps, T>
   ): ModelBuilder<
     TDependencies,
