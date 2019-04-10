@@ -134,6 +134,39 @@ export interface CreateSelector<
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
+  <
+    T extends
+      | Array<
+          Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, any>
+        >
+      | [
+          Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, any>
+        ],
+    TResult
+  >(
+    selectors: T,
+    combiner: (
+      results: {
+        [P in keyof T]: T[P] extends Selector<
+          TDependencies,
+          TProps,
+          TState,
+          TGetters,
+          TActionHelpers,
+          any
+        >
+          ? ReturnType<T[P]>
+          : never
+      },
+      context: SelectorContext<
+        TDependencies,
+        TProps,
+        TState,
+        TGetters,
+        TActionHelpers
+      >
+    ) => TResult
+  ): Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, TResult>;
   <T1, TResult>(
     selector1: Selector<
       TDependencies,
@@ -640,10 +673,15 @@ export interface CreateSelector<
   ): Selector<TDependencies, TProps, TState, TGetters, TActionHelpers, TResult>;
 }
 
-// tslint:disable-next-line:ban-types
-export const createSelector: CreateSelector = ((...args: Function[]) => {
-  const selectors = args.slice(0, args.length - 1);
-  const combiner = args[args.length - 1];
+export const createSelector: CreateSelector = ((...args: any[]) => {
+  const arrayMode = Array.isArray(args[0]);
+
+  const selectors: Selector[] = arrayMode
+    ? args[0]
+    : args.slice(0, args.length - 1);
+
+  // tslint:disable-next-line:ban-types
+  const combiner: Function = args[args.length - 1];
 
   const cacheByKey: Map<
     string,
@@ -679,7 +717,9 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
 
     if (needUpdate) {
       cache.lastParams = params;
-      cache.lastResult = combiner(...params, context);
+      cache.lastResult = arrayMode
+        ? combiner(params, context)
+        : combiner(...params, context);
     }
 
     return cache.lastResult;

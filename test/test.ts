@@ -29,6 +29,10 @@ describe("redux-advanced", () => {
         fullSummary: createSelector(
           ({ getters }) => getters.summary,
           (summary, { dependencies }) => `${dependencies.appId} - ${summary}`
+        ),
+        summary2: createSelector(
+          [({ state }) => state.name, ({ state }) => state.age],
+          ([name, age]) => `${name} - ${age}`
         )
       }))
       .reducers({
@@ -157,6 +161,7 @@ describe("redux-advanced", () => {
     });
     expect(dynamicModel1Container.isRegistered).eq(true);
     expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
+    expect(dynamicModel1Container.getters.summary2).eq("hahaha - 0");
     expect(dynamicModel1Container.getters.staticSummary).eq("haha - 666");
 
     const dynamicModel2Container = store.getContainer(dynamicModel, "2");
@@ -168,6 +173,7 @@ describe("redux-advanced", () => {
     });
     expect(dynamicModel2Container.isRegistered).eq(true);
     expect(dynamicModel2Container.getters.summary).eq("zzzzzz - 0");
+    expect(dynamicModel2Container.getters.summary2).eq("zzzzzz - 0");
 
     const dynamicModel2SetNamePromise = dynamicModel2Container.actions.setNameAsync.dispatch(
       "Orz"
