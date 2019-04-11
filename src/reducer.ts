@@ -35,7 +35,9 @@ export interface Reducers<
   TProps extends object = any,
   TState extends object = any
 > {
-  [name: string]: Reducer<TDependencies, TProps, TState>;
+  [name: string]:
+    | Reducer<TDependencies, TProps, TState>
+    | Reducers<TDependencies, TProps, TState>;
 }
 
 export type ExtractReducers<T extends Model> = T extends Model<

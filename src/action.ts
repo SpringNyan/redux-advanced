@@ -31,7 +31,7 @@ export interface ActionHelper<TPayload = any, TResult = any> {
 }
 
 export interface ActionHelpers {
-  [name: string]: ActionHelper;
+  [name: string]: ActionHelper | ActionHelpers;
 }
 
 export type ExtractActionPayload<
@@ -48,38 +48,40 @@ export type ExtractActionHelperResult<
   T extends ActionHelper
 > = T extends ActionHelper<any, infer TResult> ? TResult : never;
 
-export type ExtractActionHelperPayloadResultPairsFromReducers<
-  TReducers extends Reducers,
-  TKeyOfUnknownResult
+export type ExtractActionHelperPayloadResultInfoFromReducers<
+  TReducers extends Reducers
 > = {
-  [P in keyof TReducers]: {
-    payload: ExtractActionPayload<TReducers[P]>;
-    result: P extends TKeyOfUnknownResult ? unknown : void;
-  }
+  [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
+    ? [ExtractActionPayload<TReducers[P]>]
+    : TReducers[P] extends {}
+    ? ExtractActionHelperPayloadResultInfoFromReducers<TReducers[P]>
+    : never
 };
 
-export type ExtractActionHelperPayloadResultPairsFromEffects<
+export type ExtractActionHelperPayloadResultInfoFromEffects<
   TEffects extends Effects
 > = {
-  [P in keyof TEffects]: {
-    payload: ExtractActionPayload<TEffects[P]>;
-    result: ExtractEffectResult<TEffects[P]>;
-  }
+  [P in keyof TEffects]: TEffects[P] extends (...args: any[]) => any
+    ? [ExtractActionPayload<TEffects[P]>, ExtractEffectResult<TEffects[P]>]
+    : TEffects[P] extends {}
+    ? ExtractActionHelperPayloadResultInfoFromEffects<TEffects[P]>
+    : never
 };
 
-export type ConvertPayloadResultPairsToActionHelpers<
-  T extends { [key: string]: { payload: unknown; result: unknown } }
-> = { [P in keyof T]: ActionHelper<T[P]["payload"], T[P]["result"]> };
+export type ConvertActionHelperPayloadResultInfoToActionHelpers<T> = {
+  [P in keyof T]: T[P] extends any[]
+    ? ActionHelper<T[P][0], T[P][1]>
+    : T[P] extends {}
+    ? ConvertActionHelperPayloadResultInfoToActionHelpers<T[P]>
+    : never
+};
 
 export type ConvertReducersAndEffectsToActionHelpers<
   TReducers extends Reducers,
   TEffects extends Effects
-> = ConvertPayloadResultPairsToActionHelpers<
-  ExtractActionHelperPayloadResultPairsFromReducers<
-    TReducers,
-    keyof TReducers & keyof TEffects
-  > &
-    ExtractActionHelperPayloadResultPairsFromEffects<TEffects>
+> = ConvertActionHelperPayloadResultInfoToActionHelpers<
+  ExtractActionHelperPayloadResultInfoFromReducers<TReducers> &
+    ExtractActionHelperPayloadResultInfoFromEffects<TEffects>
 >;
 
 export class ActionHelperImpl<TPayload, TResult>

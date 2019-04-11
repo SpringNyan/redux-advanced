@@ -23,14 +23,30 @@ describe("redux-advanced", () => {
         age: 0
       }))
       .selectors({
+        _: {
+          name: ({ state }) => state.name
+        },
         summary: ({ state }) => `${state.name} - ${state.age}`
       })
       .selectors((createSelector) => ({
+        _: {
+          age: createSelector(
+            ({ state }) => state.age,
+            (age) => age
+          )
+        },
         fullSummary: createSelector(
           ({ getters }) => getters.summary,
           (summary, { dependencies }) => `${dependencies.appId} - ${summary}`
         )
       }))
+      .selectors({
+        _: {
+          $: {
+            summary: ({ getters }) => `${getters._.name} - ${getters._.age}`
+          }
+        }
+      })
       .reducers({
         setName(state, payload: string) {
           state.name = payload;
@@ -133,6 +149,10 @@ describe("redux-advanced", () => {
     await staticModelContainer.actions.overrideSetInfo.dispatch({});
     expect(staticModelContainer.state.name).eq("haha");
     expect(staticModelContainer.state.age).eq(666);
+
+    expect(staticModelContainer.getters._.name).eq("haha");
+    expect(staticModelContainer.getters._.age).eq(666);
+    expect(staticModelContainer.getters._.$.summary).eq("haha - 666");
 
     staticModelContainer.actions.outerThrow
       .dispatch({})

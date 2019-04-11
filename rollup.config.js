@@ -1,4 +1,5 @@
 import resolve from "rollup-plugin-node-resolve";
+import commonjs from "rollup-plugin-commonjs";
 import cleanup from "rollup-plugin-cleanup";
 
 export default {
@@ -13,6 +14,6 @@ export default {
       format: "esm"
     }
   ],
-  plugins: [resolve(), cleanup({ comments: "none" })],
+  plugins: [resolve(), commonjs(), cleanup({ comments: "none" })],
   external: ["redux", "redux-observable", "rxjs", "rxjs/operators", "immer"]
 };

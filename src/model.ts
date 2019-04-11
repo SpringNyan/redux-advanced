@@ -14,7 +14,7 @@ import {
 import { ExtractState, StateFactory } from "./state";
 
 import { createSelector } from "./selector";
-import { buildNamespace, functionWrapper } from "./util";
+import { buildNamespace, functionWrapper, merge } from "./util";
 
 export interface Model<
   TDependencies extends object = any,
@@ -162,10 +162,7 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return {
-        ...oldProps,
-        ...newProps
-      };
+      return merge({}, oldProps, newProps);
     };
 
     return this as any;
@@ -197,10 +194,7 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return {
-        ...oldProps,
-        ...newProps
-      };
+      return merge({}, oldProps, newProps);
     };
 
     return this as any;
@@ -231,10 +225,7 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return {
-        ...oldState,
-        ...newState
-      };
+      return merge({}, oldState, newState);
     };
 
     return this as any;
@@ -266,10 +257,7 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return {
-        ...oldState,
-        ...newState
-      };
+      return merge({}, oldState, newState);
     };
 
     return this as any;
@@ -310,10 +298,7 @@ export class ModelBuilder<
       selectors = selectors(createSelector);
     }
 
-    this._model.selectors = {
-      ...this._model.selectors,
-      ...selectors
-    };
+    this._model.selectors = merge({}, this._model.selectors, selectors);
 
     return this as any;
   }
@@ -348,10 +333,7 @@ export class ModelBuilder<
       selectors = selectors(createSelector);
     }
 
-    this._model.selectors = {
-      ...this._model.selectors,
-      ...selectors
-    };
+    this._model.selectors = merge({}, this._model.selectors, selectors);
 
     return this as any;
   }
@@ -370,10 +352,7 @@ export class ModelBuilder<
       return this.clone().reducers(reducers);
     }
 
-    this._model.reducers = {
-      ...this._model.reducers,
-      ...reducers
-    };
+    this._model.reducers = merge({}, this._model.reducers, reducers);
 
     return this as any;
   }
@@ -392,10 +371,11 @@ export class ModelBuilder<
       return this.clone().overrideReducers(override);
     }
 
-    this._model.reducers = {
-      ...this._model.reducers,
-      ...override(this._model.reducers)
-    };
+    this._model.reducers = merge(
+      {},
+      this._model.reducers,
+      override(this._model.reducers)
+    );
 
     return this as any;
   }
@@ -422,10 +402,7 @@ export class ModelBuilder<
       return this.clone().effects(effects);
     }
 
-    this._model.effects = {
-      ...this._model.effects,
-      ...effects
-    };
+    this._model.effects = merge({}, this._model.effects, effects);
 
     return this as any;
   }
@@ -444,10 +421,11 @@ export class ModelBuilder<
       return this.clone().overrideEffects(override);
     }
 
-    this._model.effects = {
-      ...this._model.effects,
-      ...override(this._model.effects)
-    };
+    this._model.effects = merge(
+      {},
+      this._model.effects,
+      override(this._model.effects)
+    );
 
     return this as any;
   }
@@ -472,7 +450,7 @@ export class ModelBuilder<
       return this.clone().epics(epics);
     }
 
-    this._model.epics = [...this._model.epics, ...epics];
+    this._model.epics = this._model.epics.concat(epics);
 
     return this as any;
   }
@@ -514,10 +492,10 @@ function cloneModel<T extends Model>(model: T): T {
     autoRegister: model.autoRegister,
 
     state: model.state,
-    selectors: { ...model.selectors },
-    reducers: { ...model.reducers },
-    effects: { ...model.effects },
-    epics: [...model.epics]
+    selectors: merge({}, model.selectors),
+    reducers: merge({}, model.reducers),
+    effects: merge({}, model.effects),
+    epics: model.epics.slice()
   } as T;
 }
 

@@ -1,5 +1,12 @@
 export const nil = {} as symbol;
 
+import deepmerge from "deepmerge";
+export function merge<T, U>(obj1: T, obj2: U): T & U;
+export function merge<T, U, V>(obj1: T, obj2: U, obj3: V): T & U & V;
+export function merge(...objs: any[]): any {
+  return deepmerge.all(objs);
+}
+
 const namespaceSplitterRegExp = new RegExp("/", "g");
 export function convertNamespaceToPath(namespace: string): string {
   return namespace.replace(namespaceSplitterRegExp, ".");

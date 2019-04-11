@@ -69,13 +69,9 @@ export interface Selectors<
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
-  [name: string]: Selector<
-    TDependencies,
-    TProps,
-    TState,
-    TGetters,
-    TActionHelpers
-  >;
+  [name: string]:
+    | Selector<TDependencies, TProps, TState, TGetters, TActionHelpers>
+    | Selectors<TDependencies, TProps, TState, TGetters, TActionHelpers>;
 }
 
 export type SelectorsFactory<
@@ -113,7 +109,11 @@ export type ExtractSelectorResult<T extends Selector> = T extends Selector<
   : never;
 
 export type ConvertSelectorsToGetters<TSelectors extends Selectors> = {
-  [P in keyof TSelectors]: ExtractSelectorResult<TSelectors[P]>
+  [P in keyof TSelectors]: TSelectors[P] extends (...args: any[]) => any
+    ? ExtractSelectorResult<TSelectors[P]>
+    : TSelectors[P] extends {}
+    ? ConvertSelectorsToGetters<TSelectors[P]>
+    : never
 };
 
 export type ExtractSelectors<T extends Model> = T extends Model<
@@ -693,32 +693,40 @@ export const createSelector: CreateSelector = ((...args: Function[]) => {
 
 export function createGetters<TModel extends Model>(
   storeCache: StoreCache,
-  container: ContainerImpl<TModel>
+  container: ContainerImpl<TModel>,
+  selectors?: Selectors
 ): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
+  if (selectors == null) {
+    selectors = container.model.selectors;
+  }
+
   const getters: Getters = {};
-  Object.keys(container.model.selectors).forEach((key) => {
-    Object.defineProperty(getters, key, {
-      get() {
-        const selector = container.model.selectors[key] as SelectorInternal;
+  Object.keys(selectors!).forEach((key) => {
+    const selector = selectors![key];
+    if (typeof selector === "object") {
+      getters[key] = createGetters(storeCache, container, selector);
+    } else {
+      Object.defineProperty(getters, key, {
+        get() {
+          return (selector as SelectorInternal)(
+            {
+              dependencies: storeCache.dependencies,
+              namespace: container.namespace,
+              key: container.key,
 
-        return selector(
-          {
-            dependencies: storeCache.dependencies,
-            namespace: container.namespace,
-            key: container.key,
+              state: container.state,
+              getters: container.getters,
+              actions: container.actions,
 
-            state: container.state,
-            getters,
-            actions: container.actions,
-
-            getContainer: storeCache.getContainer
-          },
-          container.id
-        );
-      },
-      enumerable: true,
-      configurable: true
-    });
+              getContainer: storeCache.getContainer
+            },
+            container.id
+          );
+        },
+        enumerable: true,
+        configurable: true
+      });
+    }
   });
 
   return getters as any;
