@@ -1,7 +1,6 @@
 import {
   applyMiddleware,
   createStore,
-  Dispatch,
   Middleware,
   Reducer,
   Store
@@ -29,6 +28,7 @@ export interface ReduxAdvancedOptions {
     rootEpic: Epic,
     reduxAdvancedMiddleware: Middleware
   ) => Store;
+  resolveActionType?: (paths: string[]) => string;
   effectErrorHandler?: (error: any) => void;
   epicErrorHandler?: (
     error: any,
@@ -46,6 +46,9 @@ export function createReduxAdvancedStore<
 ): ReduxAdvancedStore {
   if (options == null) {
     options = {};
+  }
+  if (options.resolveActionType == null) {
+    options.resolveActionType = (paths) => paths[paths.length - 1];
   }
 
   const storeCache = createStoreCache();

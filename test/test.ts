@@ -48,6 +48,16 @@ describe("redux-advanced", () => {
         }
       })
       .reducers({
+        _: {
+          setName1(state, payload: string) {
+            state.name = payload;
+          },
+          nested: {
+            setName2(state, payload: string) {
+              state.name = payload;
+            }
+          }
+        },
         setName(state, payload: string) {
           state.name = payload;
         },
@@ -56,13 +66,23 @@ describe("redux-advanced", () => {
         }
       })
       .effects({
+        _: {
+          setAge1: async ({ actions }, payload: number) => {
+            await actions.setAge.dispatch(payload);
+          }
+        },
+        $: {
+          setAge2: async ({ actions }, payload: number) => {
+            await actions.setAge.dispatch(payload);
+          }
+        },
         setName: async ({ actions, getState }, payload: string) => {
           return payload;
         },
         innerThrow: async () => {
           throw new Error();
         },
-        overrideSetInfo: async ({ actions, getState }) => {
+        overrideSetInfo: async ({ actions }) => {
           await actions.setName.dispatch("haha");
         }
       })
