@@ -14,6 +14,7 @@ import { Getters } from "./selector";
 
 import { actionTypes } from "./action";
 import { ContainerImpl } from "./container";
+import { flattenFunctionObject } from "./util";
 
 export interface EpicContext<
   TDependencies extends object | undefined = any,
@@ -46,20 +47,38 @@ export type Epic<
   context: EpicContext<TDependencies, TProps, TState, TGetters, TActionHelpers>
 ) => Observable<AnyAction>;
 
-export type Epics<
+export interface Epics<
   TDependencies extends object | undefined = any,
   TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
-> = Array<Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>>;
+> {
+  [name: string]:
+    | Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>
+    | Epics<TDependencies, TProps, TState, TGetters, TActionHelpers>;
+}
+
+export type ExtractEpics<T extends Model> = T extends Model<
+  any,
+  any,
+  any,
+  any,
+  any,
+  any,
+  infer TEpics
+>
+  ? TEpics
+  : never;
 
 export function createEpicsReduxObservableEpic(
   storeCache: StoreCache,
   container: ContainerImpl<Model>
 ): ReduxObservableEpic {
   return (rootAction$, rootState$) => {
-    const outputObservables = container.model.epics.map((epic: Epic) => {
+    const outputObservables = flattenFunctionObject<Epic>(
+      container.model.epics
+    ).map(({ value: epic }) => {
       let output$ = epic({
         rootAction$,
         rootState$,

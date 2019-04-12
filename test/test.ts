@@ -1,6 +1,7 @@
 import { expect } from "chai";
 
-import { timer } from "rxjs";
+import { empty, timer } from "rxjs";
+import { mergeMapTo, tap } from "rxjs/operators";
 
 import { createModelBuilder, createReduxAdvancedStore } from "../lib";
 
@@ -14,6 +15,8 @@ const defaultModelBuilder = createModelBuilder()
 
 describe("redux-advanced", () => {
   it("test", async () => {
+    let setAge2Count = 0;
+
     const testModelBuilder = defaultModelBuilder
       .props({
         name: ""
@@ -23,9 +26,18 @@ describe("redux-advanced", () => {
         age: 0
       }))
       .selectors({
+        _: {
+          name: ({ state }) => state.name
+        },
         summary: ({ state }) => `${state.name} - ${state.age}`
       })
       .selectors((createSelector) => ({
+        _: {
+          age: createSelector(
+            ({ state }) => state.age,
+            (age) => age
+          )
+        },
         fullSummary: createSelector(
           ({ getters }) => getters.summary,
           (summary, { dependencies }) => `${dependencies.appId} - ${summary}`
@@ -35,7 +47,24 @@ describe("redux-advanced", () => {
           ([name, age]) => `${name} - ${age}`
         )
       }))
+      .selectors({
+        _: {
+          $: {
+            summary: ({ getters }) => `${getters._.name} - ${getters._.age}`
+          }
+        }
+      })
       .reducers({
+        _: {
+          setName1(state, payload: string) {
+            state.name = payload;
+          },
+          nested: {
+            setName2(state, payload: string) {
+              state.name = payload;
+            }
+          }
+        },
         setName(state, payload: string) {
           state.name = payload;
         },
@@ -44,13 +73,23 @@ describe("redux-advanced", () => {
         }
       })
       .effects({
+        _: {
+          setAge1: async ({ actions }, payload: number) => {
+            await actions.setAge.dispatch(payload);
+          }
+        },
+        $: {
+          setAge2: async ({ actions }, payload: number) => {
+            await actions.setAge.dispatch(payload);
+          }
+        },
         setName: async ({ actions, getState }, payload: string) => {
           return payload;
         },
         innerThrow: async () => {
           throw new Error();
         },
-        overrideSetInfo: async ({ actions, getState }) => {
+        overrideSetInfo: async ({ actions }) => {
           await actions.setName.dispatch("haha");
         }
       })
@@ -75,6 +114,15 @@ describe("redux-advanced", () => {
           await context.actions.setAge.dispatch(666);
         }
       }))
+      .epics({
+        "@@": {
+          countSetAge2: ({ rootAction$, actions }) =>
+            rootAction$.ofType(actions.$.setAge2.type).pipe(
+              tap(() => (setAge2Count += 1)),
+              mergeMapTo(empty())
+            )
+        }
+      })
       .freeze();
 
     const staticModel = testModelBuilder.build({
@@ -134,9 +182,26 @@ describe("redux-advanced", () => {
     expect(staticModelSetAgeResult).eq("233");
     expect(staticModelContainer.state.age).eq(233);
 
+    await staticModelContainer.actions._.setName1.dispatch("_1");
+    expect(staticModelContainer.state.name).eq("_1");
+    await staticModelContainer.actions._.nested.setName2.dispatch("_2");
+    expect(staticModelContainer.state.name).eq("_2");
+    await staticModelContainer.actions._.setAge1.dispatch(1);
+    expect(staticModelContainer.state.age).eq(1);
+
+    expect(setAge2Count).eq(0);
+    await staticModelContainer.actions.$.setAge2.dispatch(2);
+    expect(setAge2Count).eq(1);
+    await staticModelContainer.actions.$.setAge2.dispatch(22);
+    expect(setAge2Count).eq(2);
+
     await staticModelContainer.actions.overrideSetInfo.dispatch({});
     expect(staticModelContainer.state.name).eq("haha");
     expect(staticModelContainer.state.age).eq(666);
+
+    expect(staticModelContainer.getters._.name).eq("haha");
+    expect(staticModelContainer.getters._.age).eq(666);
+    expect(staticModelContainer.getters._.$.summary).eq("haha - 666");
 
     staticModelContainer.actions.outerThrow
       .dispatch({})

@@ -115,6 +115,12 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.10.0
+
+  - CHANGE: change epics type from array to object
+  - ADD: model selectors/reducers/effects/epics can be nested
+  - ADD: add `resolveActionName` option
+
 - 0.9.1
 
   - REVERT: revert default dependencies, props, state to `undefined`

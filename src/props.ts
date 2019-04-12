@@ -16,6 +16,7 @@ export type ExtractProps<T extends Model> = T extends Model<
   any,
   any,
   any,
+  any,
   any
 >
   ? TProps

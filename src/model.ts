@@ -1,10 +1,10 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
 import { ExtractDependencies } from "./dependencies";
-import { Effects, ExtractEffects } from "./effect";
-import { Epics } from "./epic";
+import { Effect, Effects, ExtractEffects } from "./effect";
+import { Epics, ExtractEpics } from "./epic";
 import { ExtractProps, PropsFactory } from "./props";
-import { ExtractReducers, Reducers } from "./reducer";
+import { ExtractReducers, Reducer, Reducers } from "./reducer";
 import {
   ConvertSelectorsToGetters,
   ExtractSelectors,
@@ -14,7 +14,12 @@ import {
 import { ExtractState, StateFactory } from "./state";
 
 import { createSelector } from "./selector";
-import { buildNamespace, functionWrapper } from "./util";
+import {
+  buildNamespace,
+  flattenFunctionObject,
+  functionWrapper,
+  merge
+} from "./util";
 
 export interface Model<
   TDependencies extends object | undefined = any,
@@ -22,7 +27,8 @@ export interface Model<
   TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
-  TEffects extends Effects = any
+  TEffects extends Effects = any,
+  TEpics extends Epics = any
 > {
   defaultProps: PropsFactory<TDependencies, TProps>;
   autoRegister: boolean;
@@ -31,13 +37,7 @@ export interface Model<
   selectors: TSelectors;
   reducers: TReducers;
   effects: TEffects;
-  epics: Epics<
-    TDependencies,
-    TProps,
-    TState,
-    ConvertSelectorsToGetters<TSelectors>,
-    ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
-  >;
+  epics: TEpics;
 }
 
 export interface Models<TDependencies extends object | undefined = any> {
@@ -55,7 +55,8 @@ export class ModelBuilder<
   TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
-  TEffects extends Effects = any
+  TEffects extends Effects = any,
+  TEpics extends Epics = any
 > {
   private readonly _model: Model<
     TDependencies,
@@ -63,12 +64,21 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   >;
   private _isFrozen: boolean = false;
 
   constructor(
-    model: Model<TDependencies, TProps, TState, TSelectors, TReducers, TEffects>
+    model: Model<
+      TDependencies,
+      TProps,
+      TState,
+      TSelectors,
+      TReducers,
+      TEffects,
+      TEpics
+    >
   ) {
     this._model = cloneModel(model);
   }
@@ -79,7 +89,8 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     this._isFrozen = true;
     return this;
@@ -91,7 +102,8 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     return new ModelBuilder(this._model);
   }
@@ -110,7 +122,8 @@ export class ModelBuilder<
       : ExtractState<TModel>,
     TSelectors & ExtractSelectors<TModel>,
     TReducers & ExtractReducers<TModel>,
-    TEffects & ExtractEffects<TModel>
+    TEffects & ExtractEffects<TModel>,
+    TEpics & ExtractEpics<TModel>
   > {
     if (this._isFrozen) {
       return this.clone().extend(model);
@@ -134,7 +147,8 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().dependencies<T>();
@@ -151,7 +165,8 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().props(props);
@@ -187,7 +202,8 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().overrideProps(override);
@@ -220,7 +236,8 @@ export class ModelBuilder<
     TState extends object ? TState & T : T,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().state(state);
@@ -256,7 +273,8 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().overrideState(override);
@@ -306,7 +324,8 @@ export class ModelBuilder<
     TState,
     TSelectors & T,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().selectors(selectors);
@@ -316,10 +335,7 @@ export class ModelBuilder<
       selectors = selectors(createSelector);
     }
 
-    this._model.selectors = {
-      ...this._model.selectors,
-      ...selectors
-    };
+    this._model.selectors = merge({}, this._model.selectors, selectors);
 
     return this as any;
   }
@@ -343,7 +359,8 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().overrideSelectors(override);
@@ -354,10 +371,7 @@ export class ModelBuilder<
       selectors = selectors(createSelector);
     }
 
-    this._model.selectors = {
-      ...this._model.selectors,
-      ...selectors
-    };
+    this._model.selectors = merge({}, this._model.selectors, selectors);
 
     return this as any;
   }
@@ -370,16 +384,14 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers & T,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().reducers(reducers);
     }
 
-    this._model.reducers = {
-      ...this._model.reducers,
-      ...reducers
-    };
+    this._model.reducers = merge({}, this._model.reducers, reducers);
 
     return this as any;
   }
@@ -392,16 +404,18 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().overrideReducers(override);
     }
 
-    this._model.reducers = {
-      ...this._model.reducers,
-      ...override(this._model.reducers)
-    };
+    this._model.reducers = merge(
+      {},
+      this._model.reducers,
+      override(this._model.reducers)
+    );
 
     return this as any;
   }
@@ -422,16 +436,14 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects & T
+    TEffects & T,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().effects(effects);
     }
 
-    this._model.effects = {
-      ...this._model.effects,
-      ...effects
-    };
+    this._model.effects = merge({}, this._model.effects, effects);
 
     return this as any;
   }
@@ -444,41 +456,70 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().overrideEffects(override);
     }
 
-    this._model.effects = {
-      ...this._model.effects,
-      ...override(this._model.effects)
-    };
+    this._model.effects = merge(
+      {},
+      this._model.effects,
+      override(this._model.effects)
+    );
 
     return this as any;
   }
 
-  public epics(
-    epics: Epics<
+  public epics<
+    T extends Epics<
       TDependencies,
       TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
     >
+  >(
+    epics: T
   ): ModelBuilder<
     TDependencies,
     TProps,
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics & T
   > {
     if (this._isFrozen) {
       return this.clone().epics(epics);
     }
 
-    this._model.epics = [...this._model.epics, ...epics];
+    this._model.epics = merge({}, this._model.epics, epics);
+
+    return this as any;
+  }
+
+  public overrideEpics(
+    override: (base: TEpics) => Partial<TEpics>
+  ): ModelBuilder<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects,
+    TEpics
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideEpics(override);
+    }
+
+    this._model.epics = merge(
+      {},
+      this._model.epics,
+      override(this._model.epics)
+    );
 
     return this as any;
   }
@@ -491,7 +532,8 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects
+    TEffects,
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().autoRegister(value);
@@ -504,7 +546,15 @@ export class ModelBuilder<
 
   public build(
     props?: TProps | PropsFactory<TDependencies, TProps>
-  ): Model<TDependencies, TProps, TState, TSelectors, TReducers, TEffects> {
+  ): Model<
+    TDependencies,
+    TProps,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects,
+    TEpics
+  > {
     const model = cloneModel(this._model);
     if (props !== undefined) {
       model.defaultProps = functionWrapper(props);
@@ -520,10 +570,10 @@ function cloneModel<T extends Model>(model: T): T {
     autoRegister: model.autoRegister,
 
     state: model.state,
-    selectors: { ...model.selectors },
-    reducers: { ...model.reducers },
-    effects: { ...model.effects },
-    epics: [...model.epics]
+    selectors: merge({}, model.selectors),
+    reducers: merge({}, model.reducers),
+    effects: merge({}, model.effects),
+    epics: merge({}, model.epics)
   } as T;
 }
 
@@ -550,6 +600,7 @@ export function createModelBuilder(): ModelBuilder<
   undefined,
   {},
   {},
+  {},
   {}
 > {
   return new ModelBuilder({
@@ -560,7 +611,7 @@ export function createModelBuilder(): ModelBuilder<
     selectors: {},
     reducers: {},
     effects: {},
-    epics: []
+    epics: {}
   });
 }
 
@@ -575,9 +626,36 @@ export function registerModel<TModel extends Model>(
       throw new Error("model is already registered");
     }
 
+    const reducerByActionName: { [name: string]: Reducer } = {};
+    flattenFunctionObject<Reducer>(_model.reducers).forEach(
+      ({ paths, value }) => {
+        const actionName = storeCache.options.resolveActionName!(paths);
+        if (reducerByActionName[actionName] != null) {
+          throw new Error("action name of reducer should be unique");
+        }
+
+        reducerByActionName[actionName] = value;
+      }
+    );
+
+    const effectByActionName: { [name: string]: Effect } = {};
+    flattenFunctionObject<Effect>(_model.effects).forEach(
+      ({ paths, value }) => {
+        const actionName = storeCache.options.resolveActionName!(paths);
+        if (effectByActionName[actionName] != null) {
+          throw new Error("action name of effect should be unique");
+        }
+
+        effectByActionName[actionName] = value;
+      }
+    );
+
     storeCache.contextByModel.set(_model, {
       baseNamespace: namespace,
-      cacheIdByKey: new Map()
+      cacheIdByKey: new Map(),
+
+      reducerByActionName,
+      effectByActionName
     });
   });
 }

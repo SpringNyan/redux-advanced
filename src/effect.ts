@@ -52,13 +52,9 @@ export interface Effects<
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
-  [name: string]: Effect<
-    TDependencies,
-    TProps,
-    TState,
-    TGetters,
-    TActionHelpers
-  >;
+  [name: string]:
+    | Effect<TDependencies, TProps, TState, TGetters, TActionHelpers>
+    | Effects<TDependencies, TProps, TState, TGetters, TActionHelpers>;
 }
 
 export type ExtractEffects<T extends Model> = T extends Model<
@@ -67,7 +63,8 @@ export type ExtractEffects<T extends Model> = T extends Model<
   any,
   any,
   any,
-  infer TEffects
+  infer TEffects,
+  any
 >
   ? TEffects
   : never;

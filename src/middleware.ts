@@ -4,7 +4,6 @@ import { distinctUntilChanged } from "rxjs/operators";
 
 import { AnyAction } from "./action";
 import { StoreCache } from "./cache";
-import { Effect } from "./effect";
 import { Model } from "./model";
 
 import { ContainerImpl } from "./container";
@@ -43,7 +42,11 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
       ) as ContainerImpl<Model>;
 
       if (container.isRegistered) {
-        const effect = container.model.effects[actionName] as Effect;
+        const modelContext = storeCache.contextByModel.get(container.model);
+        const effect = modelContext
+          ? modelContext.effectByActionName[actionName]
+          : null;
+
         if (effect != null) {
           const promise = effect(
             {

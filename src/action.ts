@@ -6,7 +6,7 @@ import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
 
 import { ContainerImpl } from "./container";
-import { PatchedPromise } from "./util";
+import { flattenFunctionObject, merge, PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
@@ -31,7 +31,7 @@ export interface ActionHelper<TPayload = any, TResult = any> {
 }
 
 export interface ActionHelpers {
-  [name: string]: ActionHelper;
+  [name: string]: ActionHelper | ActionHelpers;
 }
 
 export type ExtractActionPayload<
@@ -48,38 +48,40 @@ export type ExtractActionHelperResult<
   T extends ActionHelper
 > = T extends ActionHelper<any, infer TResult> ? TResult : never;
 
-export type ExtractActionHelperPayloadResultPairsFromReducers<
-  TReducers extends Reducers,
-  TKeyOfUnknownResult
+export type ExtractActionHelperPayloadResultInfoFromReducers<
+  TReducers extends Reducers
 > = {
-  [P in keyof TReducers]: {
-    payload: ExtractActionPayload<TReducers[P]>;
-    result: P extends TKeyOfUnknownResult ? unknown : void;
-  }
+  [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
+    ? [ExtractActionPayload<TReducers[P]>]
+    : TReducers[P] extends {}
+    ? ExtractActionHelperPayloadResultInfoFromReducers<TReducers[P]>
+    : never
 };
 
-export type ExtractActionHelperPayloadResultPairsFromEffects<
+export type ExtractActionHelperPayloadResultInfoFromEffects<
   TEffects extends Effects
 > = {
-  [P in keyof TEffects]: {
-    payload: ExtractActionPayload<TEffects[P]>;
-    result: ExtractEffectResult<TEffects[P]>;
-  }
+  [P in keyof TEffects]: TEffects[P] extends (...args: any[]) => any
+    ? [ExtractActionPayload<TEffects[P]>, ExtractEffectResult<TEffects[P]>]
+    : TEffects[P] extends {}
+    ? ExtractActionHelperPayloadResultInfoFromEffects<TEffects[P]>
+    : never
 };
 
-export type ConvertPayloadResultPairsToActionHelpers<
-  T extends { [key: string]: { payload: unknown; result: unknown } }
-> = { [P in keyof T]: ActionHelper<T[P]["payload"], T[P]["result"]> };
+export type ConvertActionHelperPayloadResultInfoToActionHelpers<T> = {
+  [P in keyof T]: T[P] extends any[]
+    ? ActionHelper<T[P][0], T[P][1]>
+    : T[P] extends {}
+    ? ConvertActionHelperPayloadResultInfoToActionHelpers<T[P]>
+    : never
+};
 
 export type ConvertReducersAndEffectsToActionHelpers<
   TReducers extends Reducers,
   TEffects extends Effects
-> = ConvertPayloadResultPairsToActionHelpers<
-  ExtractActionHelperPayloadResultPairsFromReducers<
-    TReducers,
-    keyof TReducers & keyof TEffects
-  > &
-    ExtractActionHelperPayloadResultPairsFromEffects<TEffects>
+> = ConvertActionHelperPayloadResultInfoToActionHelpers<
+  ExtractActionHelperPayloadResultInfoFromReducers<TReducers> &
+    ExtractActionHelperPayloadResultInfoFromEffects<TEffects>
 >;
 
 export class ActionHelperImpl<TPayload, TResult>
@@ -157,13 +159,26 @@ export function createActionHelpers<TModel extends Model>(
   ExtractEffects<TModel>
 > {
   const actionHelpers: ActionHelpers = {};
-  [
-    ...Object.keys(container.model.reducers),
-    ...Object.keys(container.model.effects)
-  ].forEach((key) => {
-    if (actionHelpers[key] == null) {
-      actionHelpers[key] = new ActionHelperImpl(storeCache, container, key);
-    }
+
+  flattenFunctionObject(
+    // TODO: check conflict
+    merge({}, container.model.reducers, container.model.effects)
+  ).forEach(({ paths }) => {
+    let obj = actionHelpers;
+    paths.forEach((path, index) => {
+      if (index === paths.length - 1) {
+        obj[path] = new ActionHelperImpl(
+          storeCache,
+          container,
+          storeCache.options.resolveActionName!(paths)
+        );
+      } else {
+        if (obj[path] == null) {
+          obj[path] = {};
+        }
+        obj = obj[path] as ActionHelpers;
+      }
+    });
   });
 
   return actionHelpers as any;

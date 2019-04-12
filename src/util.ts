@@ -1,5 +1,12 @@
 export const nil = {} as symbol;
 
+import deepmerge from "deepmerge";
+export function merge<T, U>(obj1: T, obj2: U): T & U;
+export function merge<T, U, V>(obj1: T, obj2: U, obj3: V): T & U & V;
+export function merge(...objs: any[]): any {
+  return deepmerge.all(objs);
+}
+
 const namespaceSplitterRegExp = new RegExp("/", "g");
 export function convertNamespaceToPath(namespace: string): string {
   return namespace.replace(namespaceSplitterRegExp, ".");
@@ -31,6 +38,27 @@ export function functionWrapper<T, U extends any[]>(
   obj: T | ((...args: U) => T)
 ): (...args: U) => T {
   return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
+}
+
+export function flattenFunctionObject<T>(
+  obj: any,
+  paths: string[] = []
+): Array<{ paths: string[]; value: T }> {
+  const result: Array<{ paths: string[]; value: T }> = [];
+
+  Object.keys(obj).forEach((key) => {
+    const value = obj[key];
+    if (value != null && typeof value === "object") {
+      result.push(...flattenFunctionObject<T>(value, [...paths, key]));
+    } else if (typeof value === "function") {
+      result.push({
+        paths: [...paths, key],
+        value
+      });
+    }
+  });
+
+  return result;
 }
 
 export class PatchedPromise<T> implements PromiseLike<T> {

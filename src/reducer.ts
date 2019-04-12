@@ -35,7 +35,9 @@ export interface Reducers<
   TProps extends object | undefined = any,
   TState extends object | undefined = any
 > {
-  [name: string]: Reducer<TDependencies, TProps, TState>;
+  [name: string]:
+    | Reducer<TDependencies, TProps, TState>
+    | Reducers<TDependencies, TProps, TState>;
 }
 
 export type ExtractReducers<T extends Model> = T extends Model<
@@ -44,6 +46,7 @@ export type ExtractReducers<T extends Model> = T extends Model<
   any,
   any,
   infer TReducers,
+  any,
   any
 >
   ? TReducers
@@ -102,7 +105,10 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       return rootState;
     }
 
-    const reducer = container.model.reducers[actionName] as Reducer;
+    const modelContext = storeCache.contextByModel.get(container.model);
+    const reducer = modelContext
+      ? modelContext.reducerByActionName[actionName]
+      : null;
     if (reducer == null) {
       return rootState;
     }
