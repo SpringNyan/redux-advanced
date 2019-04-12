@@ -117,6 +117,11 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.10.0
+
+  - CHANGE: change epics from array to object
+  - ADD: model properties can be nested
+
 - 0.9.0
 
   - CHANGE: remove `props` from effect, epic, selector
