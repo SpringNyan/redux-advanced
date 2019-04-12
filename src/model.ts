@@ -183,7 +183,10 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return merge({}, oldProps, newProps);
+      return {
+        ...oldProps,
+        ...newProps
+      };
     };
 
     return this as any;
@@ -216,7 +219,10 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return merge({}, oldProps, newProps);
+      return {
+        ...oldProps,
+        ...newProps
+      };
     };
 
     return this as any;
@@ -248,7 +254,10 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return merge({}, oldState, newState);
+      return {
+        ...oldState,
+        ...newState
+      };
     };
 
     return this as any;
@@ -281,7 +290,10 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return merge({}, oldState, newState);
+      return {
+        ...oldState,
+        ...newState
+      };
     };
 
     return this as any;
