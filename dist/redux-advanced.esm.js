@@ -461,7 +461,14 @@ var ModelBuilder =  (function () {
         if (this._isFrozen) {
             return this.clone().epics(epics);
         }
-        this._model.epics = this._model.epics.concat(epics);
+        this._model.epics = merge({}, this._model.epics, epics);
+        return this;
+    };
+    ModelBuilder.prototype.overrideEpics = function (override) {
+        if (this._isFrozen) {
+            return this.clone().overrideEpics(override);
+        }
+        this._model.epics = merge({}, this._model.epics, override(this._model.epics));
         return this;
     };
     ModelBuilder.prototype.autoRegister = function (value) {
@@ -489,7 +496,7 @@ function cloneModel(model) {
         selectors: merge({}, model.selectors),
         reducers: merge({}, model.reducers),
         effects: merge({}, model.effects),
-        epics: model.epics.slice()
+        epics: merge({}, model.epics)
     };
 }
 function isModel(obj) {
@@ -514,7 +521,7 @@ function createModelBuilder() {
         selectors: {},
         reducers: {},
         effects: {},
-        epics: []
+        epics: {}
     });
 }
 function registerModel(storeCache, namespace, model) {
@@ -568,7 +575,8 @@ function registerModels(storeCache, namespace, models) {
 
 function createEpicsReduxObservableEpic(storeCache, container) {
     return function (rootAction$, rootState$) {
-        var outputObservables = container.model.epics.map(function (epic) {
+        var outputObservables = flattenFunctionObject(container.model.epics).map(function (_a) {
+            var epic = _a.value;
             var output$ = epic({
                 rootAction$: rootAction$,
                 rootState$: rootState$,

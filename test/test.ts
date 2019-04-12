@@ -1,6 +1,7 @@
 import { expect } from "chai";
 
-import { timer } from "rxjs";
+import { empty, timer } from "rxjs";
+import { mergeMapTo, tap } from "rxjs/operators";
 
 import { createModelBuilder, createReduxAdvancedStore } from "../lib";
 
@@ -14,6 +15,8 @@ const defaultModelBuilder = createModelBuilder()
 
 describe("redux-advanced", () => {
   it("test", async () => {
+    let setAge2Count = 0;
+
     const testModelBuilder = defaultModelBuilder
       .props({
         name: ""
@@ -107,6 +110,15 @@ describe("redux-advanced", () => {
           await context.actions.setAge.dispatch(666);
         }
       }))
+      .epics({
+        "@@": {
+          countSetAge2: ({ rootAction$, actions }) =>
+            rootAction$.ofType(actions.$.setAge2.type).pipe(
+              tap(() => (setAge2Count += 1)),
+              mergeMapTo(empty())
+            )
+        }
+      })
       .freeze();
 
     const staticModel = testModelBuilder.build({
@@ -172,6 +184,12 @@ describe("redux-advanced", () => {
     expect(staticModelContainer.state.name).eq("_2");
     await staticModelContainer.actions._.setAge1.dispatch(1);
     expect(staticModelContainer.state.age).eq(1);
+
+    expect(setAge2Count).eq(0);
+    await staticModelContainer.actions.$.setAge2.dispatch(2);
+    expect(setAge2Count).eq(1);
+    await staticModelContainer.actions.$.setAge2.dispatch(22);
+    expect(setAge2Count).eq(2);
 
     await staticModelContainer.actions.overrideSetInfo.dispatch({});
     expect(staticModelContainer.state.name).eq("haha");
