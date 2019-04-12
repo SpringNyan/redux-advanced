@@ -4,8 +4,6 @@
 
 [![npm version](https://img.shields.io/npm/v/redux-advanced.svg)](https://www.npmjs.com/package/redux-advanced)
 
-[中文文档](https://github.com/SpringNyan/redux-advanced/blob/master/README-zh.md)
-
 ## Features
 
 - Full TypeScript support (need TypeScript 3.2+)
@@ -122,6 +120,11 @@ container.actions.setName.dispatch("nyan");
   - CHANGE: change epics from array to object
   - ADD: model properties can be nested
   - ADD: add `resolveActionName` option
+
+- 0.9.1
+
+  - REVERT: revert default dependencies, props, state to `undefined`
+  - ADD: support selector array in `createSelector`
 
 - 0.9.0
 

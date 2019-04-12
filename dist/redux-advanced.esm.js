@@ -248,7 +248,10 @@ var createSelector = (function () {
     for (var _i = 0; _i < arguments.length; _i++) {
         args[_i] = arguments[_i];
     }
-    var selectors = args.slice(0, args.length - 1);
+    var arrayMode = Array.isArray(args[0]);
+    var selectors = arrayMode
+        ? args[0]
+        : args.slice(0, args.length - 1);
     var combiner = args[args.length - 1];
     var cacheByKey = new Map();
     var resultSelector = function (context, cacheKey) {
@@ -274,7 +277,9 @@ var createSelector = (function () {
         }
         if (needUpdate) {
             cache.lastParams = params;
-            cache.lastResult = combiner.apply(void 0, params.concat([context]));
+            cache.lastResult = arrayMode
+                ? combiner(params, context)
+                : combiner.apply(void 0, params.concat([context]));
         }
         return cache.lastResult;
     };
@@ -515,9 +520,9 @@ function isModel(obj) {
 }
 function createModelBuilder() {
     return new ModelBuilder({
-        defaultProps: function () { return ({}); },
+        defaultProps: function () { return undefined; },
         autoRegister: false,
-        state: function () { return ({}); },
+        state: function () { return undefined; },
         selectors: {},
         reducers: {},
         effects: {},
