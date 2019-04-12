@@ -305,33 +305,36 @@ var createSelector = (function () {
     };
     return resultSelector;
 });
-function createGetters(storeCache, container, selectors) {
-    if (selectors == null) {
-        selectors = container.model.selectors;
-    }
+function createGetters(storeCache, container) {
     var getters = {};
-    Object.keys(selectors).forEach(function (key) {
-        var selector = selectors[key];
-        if (typeof selector === "object") {
-            getters[key] = createGetters(storeCache, container, selector);
-        }
-        else {
-            Object.defineProperty(getters, key, {
-                get: function () {
-                    return selector({
-                        dependencies: storeCache.dependencies,
-                        namespace: container.namespace,
-                        key: container.key,
-                        state: container.state,
-                        getters: container.getters,
-                        actions: container.actions,
-                        getContainer: storeCache.getContainer
-                    }, container.id);
-                },
-                enumerable: true,
-                configurable: true
-            });
-        }
+    flattenFunctionObject(container.model.selectors).forEach(function (_a) {
+        var paths = _a.paths, value = _a.value;
+        var obj = getters;
+        paths.forEach(function (path, index) {
+            if (index === paths.length - 1) {
+                Object.defineProperty(obj, path, {
+                    get: function () {
+                        return value({
+                            dependencies: storeCache.dependencies,
+                            namespace: container.namespace,
+                            key: container.key,
+                            state: container.state,
+                            getters: container.getters,
+                            actions: container.actions,
+                            getContainer: storeCache.getContainer
+                        }, container.id);
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+            }
+            else {
+                if (obj[path] == null) {
+                    obj[path] = {};
+                }
+                obj = obj[path];
+            }
+        });
     });
     return getters;
 }

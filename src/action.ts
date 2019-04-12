@@ -165,7 +165,6 @@ export function createActionHelpers<TModel extends Model>(
     merge({}, container.model.reducers, container.model.effects)
   ).forEach(({ paths }) => {
     let obj = actionHelpers;
-
     paths.forEach((path, index) => {
       if (index === paths.length - 1) {
         obj[path] = new ActionHelperImpl(

@@ -4,6 +4,7 @@ import { GetContainer } from "./container";
 import { Model } from "./model";
 
 import { ContainerImpl } from "./container";
+import { flattenFunctionObject } from "./util";
 
 export interface SelectorContext<
   TDependencies extends object | undefined = any,
@@ -734,41 +735,44 @@ export const createSelector: CreateSelector = ((...args: any[]) => {
 
 export function createGetters<TModel extends Model>(
   storeCache: StoreCache,
-  container: ContainerImpl<TModel>,
-  selectors?: Selectors
+  container: ContainerImpl<TModel>
 ): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
-  if (selectors == null) {
-    selectors = container.model.selectors;
-  }
-
   const getters: Getters = {};
-  Object.keys(selectors!).forEach((key) => {
-    const selector = selectors![key];
-    if (typeof selector === "object") {
-      getters[key] = createGetters(storeCache, container, selector);
-    } else {
-      Object.defineProperty(getters, key, {
-        get() {
-          return (selector as SelectorInternal)(
-            {
-              dependencies: storeCache.dependencies,
-              namespace: container.namespace,
-              key: container.key,
 
-              state: container.state,
-              getters: container.getters,
-              actions: container.actions,
+  flattenFunctionObject<SelectorInternal>(container.model.selectors).forEach(
+    ({ paths, value }) => {
+      let obj = getters;
+      paths.forEach((path, index) => {
+        if (index === paths.length - 1) {
+          Object.defineProperty(obj, path, {
+            get() {
+              return value(
+                {
+                  dependencies: storeCache.dependencies,
+                  namespace: container.namespace,
+                  key: container.key,
 
-              getContainer: storeCache.getContainer
+                  state: container.state,
+                  getters: container.getters,
+                  actions: container.actions,
+
+                  getContainer: storeCache.getContainer
+                },
+                container.id
+              );
             },
-            container.id
-          );
-        },
-        enumerable: true,
-        configurable: true
+            enumerable: true,
+            configurable: true
+          });
+        } else {
+          if (obj[path] == null) {
+            obj[path] = {};
+          }
+          obj = obj[path] as Getters;
+        }
       });
     }
-  });
+  );
 
   return getters as any;
 }
