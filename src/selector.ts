@@ -122,6 +122,7 @@ export type ExtractSelectors<T extends Model> = T extends Model<
   any,
   infer TSelectors,
   any,
+  any,
   any
 >
   ? TSelectors

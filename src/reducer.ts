@@ -46,6 +46,7 @@ export type ExtractReducers<T extends Model> = T extends Model<
   any,
   any,
   infer TReducers,
+  any,
   any
 >
   ? TReducers

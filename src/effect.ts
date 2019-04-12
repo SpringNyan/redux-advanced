@@ -63,7 +63,8 @@ export type ExtractEffects<T extends Model> = T extends Model<
   any,
   any,
   any,
-  infer TEffects
+  infer TEffects,
+  any
 >
   ? TEffects
   : never;

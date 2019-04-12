@@ -21,6 +21,7 @@ export type ExtractState<T extends Model> = T extends Model<
   infer TState,
   any,
   any,
+  any,
   any
 >
   ? TState
