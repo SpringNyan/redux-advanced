@@ -125,6 +125,23 @@ function buildNamespace(baseNamespace, key) {
 function functionWrapper(obj) {
     return typeof obj === "function" ? obj : function () { return obj; };
 }
+function flattenFunctionObject(obj, paths) {
+    if (paths === void 0) { paths = []; }
+    var result = [];
+    Object.keys(obj).forEach(function (key) {
+        var value = obj[key];
+        if (value != null && typeof value === "object") {
+            result.push.apply(result, flattenFunctionObject(value, paths.concat([key])));
+        }
+        else if (typeof value === "function") {
+            result.push({
+                paths: paths.concat([key]),
+                value: value
+            });
+        }
+    });
+    return result;
+}
 var PatchedPromise =  (function () {
     function PatchedPromise(executor) {
         this.rejectionHandled = false;
@@ -207,10 +224,21 @@ var ActionHelperImpl =  (function () {
 }());
 function createActionHelpers(storeCache, container) {
     var actionHelpers = {};
-    Object.keys(container.model.reducers).concat(Object.keys(container.model.effects)).forEach(function (key) {
-        if (actionHelpers[key] == null) {
-            actionHelpers[key] = new ActionHelperImpl(storeCache, container, key);
-        }
+    flattenFunctionObject(
+    merge({}, container.model.reducers, container.model.effects)).forEach(function (_a) {
+        var paths = _a.paths;
+        var obj = actionHelpers;
+        paths.forEach(function (path, index) {
+            if (index === paths.length - 1) {
+                obj[path] = new ActionHelperImpl(storeCache, container, storeCache.options.resolveActionName(paths));
+            }
+            else {
+                if (obj[path] == null) {
+                    obj[path] = {};
+                }
+                obj = obj[path];
+            }
+        });
     });
     return actionHelpers;
 }
@@ -495,9 +523,29 @@ function registerModel(storeCache, namespace, model) {
         if (storeCache.contextByModel.has(_model)) {
             throw new Error("model is already registered");
         }
+        var reducerByActionName = {};
+        flattenFunctionObject(_model.reducers).forEach(function (_a) {
+            var paths = _a.paths, value = _a.value;
+            var actionName = storeCache.options.resolveActionName(paths);
+            if (reducerByActionName[actionName] != null) {
+                throw new Error("action name of reducer should be unique");
+            }
+            reducerByActionName[actionName] = value;
+        });
+        var effectByActionName = {};
+        flattenFunctionObject(_model.effects).forEach(function (_a) {
+            var paths = _a.paths, value = _a.value;
+            var actionName = storeCache.options.resolveActionName(paths);
+            if (effectByActionName[actionName] != null) {
+                throw new Error("action name of effect should be unique");
+            }
+            effectByActionName[actionName] = value;
+        });
         storeCache.contextByModel.set(_model, {
             baseNamespace: namespace,
-            cacheIdByKey: new Map()
+            cacheIdByKey: new Map(),
+            reducerByActionName: reducerByActionName,
+            effectByActionName: effectByActionName
         });
     });
 }
@@ -775,7 +823,10 @@ function createMiddleware(storeCache) {
             var _a = parseActionType(action.type), namespace = _a.namespace, actionName = _a.actionName;
             var container_1 = storeCache.getContainer(context.model, context.key);
             if (container_1.isRegistered) {
-                var effect = container_1.model.effects[actionName];
+                var modelContext = storeCache.contextByModel.get(container_1.model);
+                var effect = modelContext
+                    ? modelContext.effectByActionName[actionName]
+                    : null;
                 if (effect != null) {
                     var promise = effect({
                         rootAction$: rootAction$,
@@ -855,7 +906,10 @@ function createRootReduxReducer(storeCache) {
         if (container == null) {
             return rootState;
         }
-        var reducer = container.model.reducers[actionName];
+        var modelContext = storeCache.contextByModel.get(container.model);
+        var reducer = modelContext
+            ? modelContext.reducerByActionName[actionName]
+            : null;
         if (reducer == null) {
             return rootState;
         }
@@ -873,6 +927,9 @@ function createRootReduxReducer(storeCache) {
 function createReduxAdvancedStore(dependencies, models, options) {
     if (options == null) {
         options = {};
+    }
+    if (options.resolveActionName == null) {
+        options.resolveActionName = function (paths) { return paths[paths.length - 1]; };
     }
     var storeCache = createStoreCache();
     storeCache.options = options;

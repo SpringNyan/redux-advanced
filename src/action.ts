@@ -6,7 +6,7 @@ import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
 
 import { ContainerImpl } from "./container";
-import { merge, PatchedPromise } from "./util";
+import { flattenFunctionObject, merge, PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
@@ -153,39 +153,33 @@ export class ActionHelperImpl<TPayload, TResult>
 
 export function createActionHelpers<TModel extends Model>(
   storeCache: StoreCache,
-  container: ContainerImpl<TModel>,
-  context?: {
-    obj: any;
-    paths: string[];
-  }
+  container: ContainerImpl<TModel>
 ): ConvertReducersAndEffectsToActionHelpers<
   ExtractReducers<TModel>,
   ExtractEffects<TModel>
 > {
-  if (context == null) {
-    context = {
-      obj: merge({}, container.model.reducers, container.model.effects),
-      paths: []
-    };
-  }
-  const { obj, paths } = context;
-
   const actionHelpers: ActionHelpers = {};
-  Object.keys(obj).forEach((key) => {
-    const value = obj[key];
 
-    if (typeof value === "function") {
-      actionHelpers[key] = new ActionHelperImpl(
-        storeCache,
-        container,
-        storeCache.options.resolveActionType!([...paths, key])
-      );
-    } else {
-      actionHelpers[key] = createActionHelpers(storeCache, container, {
-        obj: value,
-        paths: [...paths, key]
-      });
-    }
+  flattenFunctionObject(
+    // TODO: check conflict
+    merge({}, container.model.reducers, container.model.effects)
+  ).forEach(({ paths }) => {
+    let obj = actionHelpers;
+
+    paths.forEach((path, index) => {
+      if (index === paths.length - 1) {
+        obj[path] = new ActionHelperImpl(
+          storeCache,
+          container,
+          storeCache.options.resolveActionName!(paths)
+        );
+      } else {
+        if (obj[path] == null) {
+          obj[path] = {};
+        }
+        obj = obj[path] as ActionHelpers;
+      }
+    });
   });
 
   return actionHelpers as any;

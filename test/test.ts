@@ -166,6 +166,13 @@ describe("redux-advanced", () => {
     expect(staticModelSetAgeResult).eq("233");
     expect(staticModelContainer.state.age).eq(233);
 
+    await staticModelContainer.actions._.setName1.dispatch("_1");
+    expect(staticModelContainer.state.name).eq("_1");
+    await staticModelContainer.actions._.nested.setName2.dispatch("_2");
+    expect(staticModelContainer.state.name).eq("_2");
+    await staticModelContainer.actions._.setAge1.dispatch(1);
+    expect(staticModelContainer.state.age).eq(1);
+
     await staticModelContainer.actions.overrideSetInfo.dispatch({});
     expect(staticModelContainer.state.name).eq("haha");
     expect(staticModelContainer.state.age).eq(666);

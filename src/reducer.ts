@@ -104,7 +104,10 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       return rootState;
     }
 
-    const reducer = container.model.reducers[actionName] as Reducer;
+    const modelContext = storeCache.contextByModel.get(container.model);
+    const reducer = modelContext
+      ? modelContext.reducerByActionName[actionName]
+      : null;
     if (reducer == null) {
       return rootState;
     }

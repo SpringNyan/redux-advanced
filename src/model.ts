@@ -1,10 +1,10 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
 import { ExtractDependencies } from "./dependencies";
-import { Effects, ExtractEffects } from "./effect";
+import { Effect, Effects, ExtractEffects } from "./effect";
 import { Epics } from "./epic";
 import { ExtractProps, PropsFactory } from "./props";
-import { ExtractReducers, Reducers } from "./reducer";
+import { ExtractReducers, Reducer, Reducers } from "./reducer";
 import {
   ConvertSelectorsToGetters,
   ExtractSelectors,
@@ -14,7 +14,12 @@ import {
 import { ExtractState, StateFactory } from "./state";
 
 import { createSelector } from "./selector";
-import { buildNamespace, functionWrapper, merge } from "./util";
+import {
+  buildNamespace,
+  flattenFunctionObject,
+  functionWrapper,
+  merge
+} from "./util";
 
 export interface Model<
   TDependencies extends object = any,
@@ -540,9 +545,36 @@ export function registerModel<TModel extends Model>(
       throw new Error("model is already registered");
     }
 
+    const reducerByActionName: { [name: string]: Reducer } = {};
+    flattenFunctionObject<Reducer>(_model.reducers).forEach(
+      ({ paths, value }) => {
+        const actionName = storeCache.options.resolveActionName!(paths);
+        if (reducerByActionName[actionName] != null) {
+          throw new Error("action name of reducer should be unique");
+        }
+
+        reducerByActionName[actionName] = value;
+      }
+    );
+
+    const effectByActionName: { [name: string]: Effect } = {};
+    flattenFunctionObject<Effect>(_model.effects).forEach(
+      ({ paths, value }) => {
+        const actionName = storeCache.options.resolveActionName!(paths);
+        if (effectByActionName[actionName] != null) {
+          throw new Error("action name of effect should be unique");
+        }
+
+        effectByActionName[actionName] = value;
+      }
+    );
+
     storeCache.contextByModel.set(_model, {
       baseNamespace: namespace,
-      cacheIdByKey: new Map()
+      cacheIdByKey: new Map(),
+
+      reducerByActionName,
+      effectByActionName
     });
   });
 }

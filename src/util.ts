@@ -40,6 +40,27 @@ export function functionWrapper<T, U extends any[]>(
   return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
 }
 
+export function flattenFunctionObject<T>(
+  obj: any,
+  paths: string[] = []
+): Array<{ paths: string[]; value: T }> {
+  const result: Array<{ paths: string[]; value: T }> = [];
+
+  Object.keys(obj).forEach((key) => {
+    const value = obj[key];
+    if (value != null && typeof value === "object") {
+      result.push(...flattenFunctionObject<T>(value, [...paths, key]));
+    } else if (typeof value === "function") {
+      result.push({
+        paths: [...paths, key],
+        value
+      });
+    }
+  });
+
+  return result;
+}
+
 export class PatchedPromise<T> implements PromiseLike<T> {
   public rejectionHandled: boolean = false;
 

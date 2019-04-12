@@ -4,10 +4,10 @@ import { BehaviorSubject } from "rxjs";
 
 import { AnyAction, ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { GetContainer } from "./container";
-import { Effects, ExtractEffects } from "./effect";
+import { Effect, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractProps } from "./props";
-import { ExtractReducers, Reducers } from "./reducer";
+import { ExtractReducers, Reducer } from "./reducer";
 import { ConvertSelectorsToGetters, ExtractSelectors } from "./selector";
 import { ExtractState } from "./state";
 import { ReduxAdvancedOptions } from "./store";
@@ -70,8 +70,8 @@ export interface StoreCache {
       baseNamespace: string;
       cacheIdByKey: Map<string, string>;
 
-      flatReducers: Reducers;
-      flatEffects: Effects;
+      reducerByActionName: { [name: string]: Reducer };
+      effectByActionName: { [name: string]: Effect };
     }
   >;
 }
