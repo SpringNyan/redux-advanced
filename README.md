@@ -121,6 +121,7 @@ container.actions.setName.dispatch("nyan");
 
   - CHANGE: change epics from array to object
   - ADD: model properties can be nested
+  - ADD: add `resolveActionName` option
 
 - 0.9.0
 
