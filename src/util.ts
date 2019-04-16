@@ -1,3 +1,5 @@
+export type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> };
+
 export const nil = {} as symbol;
 
 import deepmerge from "deepmerge";
