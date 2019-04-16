@@ -2,6 +2,7 @@ import { ActionHelpers } from "./action";
 import { StoreCache } from "./cache";
 import { GetContainer } from "./container";
 import { Model } from "./model";
+import { DeepPartial } from "./util";
 
 import { ContainerImpl } from "./container";
 import { flattenFunctionObject } from "./util";
@@ -81,7 +82,7 @@ export type SelectorsFactory<
   TState extends object | undefined,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers,
-  TSelectors extends Partial<
+  TSelectors extends DeepPartial<
     Selectors<TDependencies, TProps, TState, TGetters, TActionHelpers>
   >
 > = (

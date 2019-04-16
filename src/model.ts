@@ -12,6 +12,7 @@ import {
   SelectorsFactory
 } from "./selector";
 import { ExtractState, StateFactory } from "./state";
+import { DeepPartial } from "./util";
 
 import { createSelector } from "./selector";
 import {
@@ -183,10 +184,7 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return {
-        ...oldProps,
-        ...newProps
-      };
+      return merge({}, oldProps, newProps);
     };
 
     return this as any;
@@ -195,7 +193,7 @@ export class ModelBuilder<
   public overrideProps(
     override: (
       base: TProps
-    ) => Partial<TProps> | PropsFactory<TDependencies, Partial<TProps>>
+    ) => DeepPartial<TProps> | PropsFactory<TDependencies, DeepPartial<TProps>>
   ): ModelBuilder<
     TDependencies,
     TProps,
@@ -219,10 +217,7 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return {
-        ...oldProps,
-        ...newProps
-      };
+      return merge({}, oldProps, newProps);
     };
 
     return this as any;
@@ -254,10 +249,7 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return {
-        ...oldState,
-        ...newState
-      };
+      return merge({}, oldState, newState);
     };
 
     return this as any;
@@ -266,7 +258,9 @@ export class ModelBuilder<
   public overrideState(
     override: (
       base: TState
-    ) => Partial<TState> | StateFactory<TDependencies, TProps, Partial<TState>>
+    ) =>
+      | DeepPartial<TState>
+      | StateFactory<TDependencies, TProps, DeepPartial<TState>>
   ): ModelBuilder<
     TDependencies,
     TProps,
@@ -290,10 +284,7 @@ export class ModelBuilder<
         return undefined!;
       }
 
-      return {
-        ...oldState,
-        ...newState
-      };
+      return merge({}, oldState, newState);
     };
 
     return this as any;
@@ -344,14 +335,14 @@ export class ModelBuilder<
     override: (
       base: TSelectors
     ) =>
-      | Partial<TSelectors>
+      | DeepPartial<TSelectors>
       | SelectorsFactory<
           TDependencies,
           TProps,
           TState,
           ConvertSelectorsToGetters<TSelectors>,
           ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>,
-          Partial<TSelectors>
+          DeepPartial<TSelectors>
         >
   ): ModelBuilder<
     TDependencies,
@@ -397,7 +388,7 @@ export class ModelBuilder<
   }
 
   public overrideReducers(
-    override: (base: TReducers) => Partial<TReducers>
+    override: (base: TReducers) => DeepPartial<TReducers>
   ): ModelBuilder<
     TDependencies,
     TProps,
@@ -449,7 +440,7 @@ export class ModelBuilder<
   }
 
   public overrideEffects(
-    override: (base: TEffects) => Partial<TEffects>
+    override: (base: TEffects) => DeepPartial<TEffects>
   ): ModelBuilder<
     TDependencies,
     TProps,
@@ -501,7 +492,7 @@ export class ModelBuilder<
   }
 
   public overrideEpics(
-    override: (base: TEpics) => Partial<TEpics>
+    override: (base: TEpics) => DeepPartial<TEpics>
   ): ModelBuilder<
     TDependencies,
     TProps,

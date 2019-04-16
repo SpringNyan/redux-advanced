@@ -115,6 +115,11 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.10.1
+
+  - FIX: fix props/state merge behavior
+  - FIX: fix override partial type
+
 - 0.10.0
 
   - CHANGE: change epics type from array to object
