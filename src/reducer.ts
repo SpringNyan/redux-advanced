@@ -1,6 +1,7 @@
 import produce from "immer";
 import { Reducer as ReduxReducer } from "redux";
 
+import { ExtractActionPayload } from "./action";
 import { StoreCache } from "./cache";
 import { Model } from "./model";
 
@@ -51,6 +52,17 @@ export type ExtractReducers<T extends Model> = T extends Model<
 >
   ? TReducers
   : never;
+
+export type OverrideReducers<
+  TReducers,
+  TDependencies extends object | undefined,
+  TProps extends object | undefined,
+  TState extends object | undefined
+> = {
+  [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
+    ? Reducer<TDependencies, TProps, TState, ExtractActionPayload<TReducers[P]>>
+    : OverrideReducers<TReducers[P], TDependencies, TProps, TState>
+};
 
 export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
   return (rootState, action) => {

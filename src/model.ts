@@ -1,13 +1,19 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
 import { ExtractDependencies } from "./dependencies";
-import { Effect, Effects, ExtractEffects } from "./effect";
-import { Epics, ExtractEpics } from "./epic";
+import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
+import { Epics, ExtractEpics, OverrideEpics } from "./epic";
 import { ExtractProps, PropsFactory } from "./props";
-import { ExtractReducers, Reducer, Reducers } from "./reducer";
+import {
+  ExtractReducers,
+  OverrideReducers,
+  Reducer,
+  Reducers
+} from "./reducer";
 import {
   ConvertSelectorsToGetters,
   ExtractSelectors,
+  OverrideSelectors,
   Selectors,
   SelectorsFactory
 } from "./selector";
@@ -335,20 +341,45 @@ export class ModelBuilder<
     override: (
       base: TSelectors
     ) =>
-      | DeepPartial<TSelectors>
+      | DeepPartial<
+          OverrideSelectors<
+            TSelectors,
+            TDependencies,
+            TProps,
+            TState,
+            ConvertSelectorsToGetters<TSelectors>,
+            ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+          >
+        >
       | SelectorsFactory<
           TDependencies,
           TProps,
           TState,
           ConvertSelectorsToGetters<TSelectors>,
           ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>,
-          DeepPartial<TSelectors>
+          DeepPartial<
+            OverrideSelectors<
+              TSelectors,
+              TDependencies,
+              TProps,
+              TState,
+              ConvertSelectorsToGetters<TSelectors>,
+              ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+            >
+          >
         >
   ): ModelBuilder<
     TDependencies,
     TProps,
     TState,
-    TSelectors,
+    OverrideSelectors<
+      TSelectors,
+      TDependencies,
+      TProps,
+      TState,
+      ConvertSelectorsToGetters<TSelectors>,
+      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+    >,
     TReducers,
     TEffects,
     TEpics
@@ -388,13 +419,15 @@ export class ModelBuilder<
   }
 
   public overrideReducers(
-    override: (base: TReducers) => DeepPartial<TReducers>
+    override: (
+      base: TReducers
+    ) => DeepPartial<OverrideReducers<TReducers, TDependencies, TProps, TState>>
   ): ModelBuilder<
     TDependencies,
     TProps,
     TState,
     TSelectors,
-    TReducers,
+    OverrideReducers<TReducers, TDependencies, TProps, TState>,
     TEffects,
     TEpics
   > {
@@ -440,14 +473,32 @@ export class ModelBuilder<
   }
 
   public overrideEffects(
-    override: (base: TEffects) => DeepPartial<TEffects>
+    override: (
+      base: TEffects
+    ) => DeepPartial<
+      OverrideEffects<
+        TEffects,
+        TDependencies,
+        TProps,
+        TState,
+        ConvertSelectorsToGetters<TSelectors>,
+        ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+      >
+    >
   ): ModelBuilder<
     TDependencies,
     TProps,
     TState,
     TSelectors,
     TReducers,
-    TEffects,
+    OverrideEffects<
+      TEffects,
+      TDependencies,
+      TProps,
+      TState,
+      ConvertSelectorsToGetters<TSelectors>,
+      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+    >,
     TEpics
   > {
     if (this._isFrozen) {
@@ -492,7 +543,18 @@ export class ModelBuilder<
   }
 
   public overrideEpics(
-    override: (base: TEpics) => DeepPartial<TEpics>
+    override: (
+      base: TEpics
+    ) => DeepPartial<
+      OverrideEpics<
+        TEpics,
+        TDependencies,
+        TProps,
+        TState,
+        ConvertSelectorsToGetters<TSelectors>,
+        ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+      >
+    >
   ): ModelBuilder<
     TDependencies,
     TProps,
@@ -500,7 +562,14 @@ export class ModelBuilder<
     TSelectors,
     TReducers,
     TEffects,
-    TEpics
+    OverrideEpics<
+      TEpics,
+      TDependencies,
+      TProps,
+      TState,
+      ConvertSelectorsToGetters<TSelectors>,
+      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+    >
   > {
     if (this._isFrozen) {
       return this.clone().overrideEpics(override);

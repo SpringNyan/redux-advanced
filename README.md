@@ -115,6 +115,10 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.10.2
+
+  - FIX: fix override type
+
 - 0.10.1
 
   - FIX: fix props/state merge behavior
