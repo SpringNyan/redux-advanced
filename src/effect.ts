@@ -1,6 +1,6 @@
 import { Observable } from "rxjs";
 
-import { ActionHelpers, AnyAction } from "./action";
+import { ActionHelpers, AnyAction, ExtractActionPayload } from "./action";
 import { GetContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
@@ -80,3 +80,31 @@ export type ExtractEffectResult<T extends Effect> = T extends Effect<
 >
   ? TResult
   : never;
+
+export type OverrideEffects<
+  TEffects,
+  TDependencies extends object | undefined,
+  TProps extends object | undefined,
+  TState extends object | undefined,
+  TGetters extends Getters,
+  TActionHelpers extends ActionHelpers
+> = {
+  [P in keyof TEffects]: TEffects[P] extends (...args: any[]) => any
+    ? Effect<
+        TDependencies,
+        TProps,
+        TState,
+        TGetters,
+        TActionHelpers,
+        ExtractActionPayload<TEffects[P]>,
+        ExtractEffectResult<TEffects[P]>
+      >
+    : OverrideEffects<
+        TEffects[P],
+        TDependencies,
+        TProps,
+        TState,
+        TGetters,
+        TActionHelpers
+      >
+};

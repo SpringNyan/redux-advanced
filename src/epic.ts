@@ -71,6 +71,26 @@ export type ExtractEpics<T extends Model> = T extends Model<
   ? TEpics
   : never;
 
+export type OverrideEpics<
+  TEpics,
+  TDependencies extends object | undefined,
+  TProps extends object | undefined,
+  TState extends object | undefined,
+  TGetters extends Getters,
+  TActionHelpers extends ActionHelpers
+> = {
+  [P in keyof TEpics]: TEpics[P] extends (...args: any[]) => any
+    ? Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>
+    : OverrideEpics<
+        TEpics[P],
+        TDependencies,
+        TProps,
+        TState,
+        TGetters,
+        TActionHelpers
+      >
+};
+
 export function createEpicsReduxObservableEpic(
   storeCache: StoreCache,
   container: ContainerImpl<Model>

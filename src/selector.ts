@@ -130,6 +130,33 @@ export type ExtractSelectors<T extends Model> = T extends Model<
   ? TSelectors
   : never;
 
+export type OverrideSelectors<
+  TSelectors,
+  TDependencies extends object | undefined,
+  TProps extends object | undefined,
+  TState extends object | undefined,
+  TGetters extends Getters,
+  TActionHelpers extends ActionHelpers
+> = {
+  [P in keyof TSelectors]: TSelectors[P] extends (...args: any[]) => any
+    ? Selector<
+        TDependencies,
+        TProps,
+        TState,
+        TGetters,
+        TActionHelpers,
+        ExtractSelectorResult<TSelectors[P]>
+      >
+    : OverrideSelectors<
+        TSelectors[P],
+        TDependencies,
+        TProps,
+        TState,
+        TGetters,
+        TActionHelpers
+      >
+};
+
 export interface CreateSelector<
   TDependencies extends object | undefined = any,
   TProps extends object | undefined = any,
