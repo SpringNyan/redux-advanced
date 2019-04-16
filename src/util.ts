@@ -1,4 +1,8 @@
-export type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> };
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends (...args: any[]) => any
+    ? T[P]
+    : DeepPartial<T[P]>
+};
 
 export const nil = {} as symbol;
 
