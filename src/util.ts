@@ -1,9 +1,17 @@
 export const nil = {} as symbol;
 
 import deepmerge from "deepmerge";
-export function merge<T, U>(obj1: T, obj2: U): T & U;
-export function merge<T, U, V>(obj1: T, obj2: U, obj3: V): T & U & V;
+export function merge<T, U>(
+  obj1: T | null | undefined,
+  obj2: U | null | undefined
+): T & U;
+export function merge<T, U, V>(
+  obj1: T | null | undefined,
+  obj2: U | null | undefined,
+  obj3: V | null | undefined
+): T & U & V;
 export function merge(...objs: any[]): any {
+  objs = objs.map((obj) => (obj != null ? obj : {}));
   return deepmerge.all(objs);
 }
 
