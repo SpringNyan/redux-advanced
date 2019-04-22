@@ -345,8 +345,7 @@ var ModelBuilder =  (function () {
             .selectors(model.selectors)
             .reducers(model.reducers)
             .effects(model.effects)
-            .epics(model.epics)
-            .autoRegister(model.autoRegister);
+            .epics(model.epics);
         return this;
     };
     ModelBuilder.prototype.dependencies = function () {
@@ -836,7 +835,21 @@ function createMiddleware(storeCache) {
         var result = next(action);
         rootStateSubject.next(store.getState());
         rootActionSubject.next(action);
-        if (context != null && context.effectDeferred != null) {
+        if (context != null) {
+            var effectDeferred_1 = context.effectDeferred != null
+                ? context.effectDeferred
+                : {
+                    resolve: function () {
+                        return;
+                    },
+                    reject: function (reason) {
+                        setTimeout(function () {
+                            if (storeCache.options.effectErrorHandler != null) {
+                                storeCache.options.effectErrorHandler(reason);
+                            }
+                        }, 0);
+                    }
+                };
             var _a = parseActionType(action.type), namespace = _a.namespace, actionName = _a.actionName;
             var container_1 = storeCache.getContainer(context.model, context.key);
             if (container_1.isRegistered) {
@@ -857,17 +870,17 @@ function createMiddleware(storeCache) {
                         getContainer: storeCache.getContainer
                     }, action.payload);
                     promise.then(function (value) {
-                        context.effectDeferred.resolve(value);
+                        effectDeferred_1.resolve(value);
                     }, function (reason) {
-                        context.effectDeferred.reject(reason);
+                        effectDeferred_1.reject(reason);
                     });
                 }
                 else {
-                    context.effectDeferred.resolve(undefined);
+                    effectDeferred_1.resolve(undefined);
                 }
             }
             else {
-                context.effectDeferred.resolve(undefined);
+                effectDeferred_1.resolve(undefined);
             }
         }
         return result;

@@ -33,7 +33,24 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
     rootActionSubject.next(action);
 
     // handle effect
-    if (context != null && context.effectDeferred != null) {
+    if (context != null) {
+      const effectDeferred =
+        context.effectDeferred != null
+          ? context.effectDeferred
+          : {
+              resolve: () => {
+                return;
+              },
+              reject: (reason: unknown) => {
+                // same behavior as action helper dispatch
+                setTimeout(() => {
+                  if (storeCache.options.effectErrorHandler != null) {
+                    storeCache.options.effectErrorHandler(reason);
+                  }
+                }, 0);
+              }
+            };
+
       const { namespace, actionName } = parseActionType(action.type);
 
       const container = storeCache.getContainer(
@@ -68,17 +85,17 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
 
           promise.then(
             (value) => {
-              context.effectDeferred!.resolve(value);
+              effectDeferred.resolve(value);
             },
             (reason) => {
-              context.effectDeferred!.reject(reason);
+              effectDeferred.reject(reason);
             }
           );
         } else {
-          context.effectDeferred!.resolve(undefined);
+          effectDeferred.resolve(undefined);
         }
       } else {
-        context.effectDeferred!.resolve(undefined);
+        effectDeferred.resolve(undefined);
       }
     }
 

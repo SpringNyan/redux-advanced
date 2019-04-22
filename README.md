@@ -115,6 +115,11 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.10.3
+
+  - FIX: model won't extend `autoRegister`
+  - FIX: fix effect is not invoked when dispatch an action manually
+
 - 0.10.2
 
   - FIX: fix override type
