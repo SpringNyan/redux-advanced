@@ -345,8 +345,7 @@ var ModelBuilder =  (function () {
             .selectors(model.selectors)
             .reducers(model.reducers)
             .effects(model.effects)
-            .epics(model.epics)
-            .autoRegister(model.autoRegister);
+            .epics(model.epics);
         return this;
     };
     ModelBuilder.prototype.dependencies = function () {
