@@ -125,7 +125,7 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       return rootState;
     }
 
-    return produce(rootState, (draft) => {
+    return produce(rootState, (draft: any) => {
       reducer(draft[container.path], action.payload, {
         dependencies: storeCache.dependencies,
         props: container.props,

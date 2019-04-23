@@ -115,6 +115,10 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.10.4
+
+  - FIX: fix type error after upgrade immer to ^3.0.0
+
 - 0.10.3
 
   - FIX: model won't extend `autoRegister`
