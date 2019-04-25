@@ -2,6 +2,7 @@ import { Model } from "./model";
 
 export interface PropsContext<TDependencies extends object | undefined = any> {
   dependencies: TDependencies;
+  namespace: string;
   key: string;
 }
 

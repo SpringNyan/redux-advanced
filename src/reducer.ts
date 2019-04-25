@@ -14,7 +14,7 @@ export interface ReducerContext<
   TState extends object | undefined = any
 > {
   dependencies: TDependencies;
-  props: TProps;
+  namespace: string;
   key: string;
 
   originalState: TState;
@@ -81,8 +81,10 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       if (rootState[_container.path] === undefined) {
         const initialState = _container.model.state({
           dependencies: storeCache.dependencies,
-          props: _container.props,
-          key: _container.key
+          namespace: _container.namespace,
+          key: _container.key,
+
+          props: _container.props
         });
 
         if (initialState !== undefined) {
@@ -128,7 +130,7 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
     return produce(rootState, (draft: any) => {
       reducer(draft[container.path], action.payload, {
         dependencies: storeCache.dependencies,
-        props: container.props,
+        namespace: container.namespace,
         key: container.key,
 
         originalState: rootState[container.path]

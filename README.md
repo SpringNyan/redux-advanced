@@ -115,6 +115,13 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.11.0
+
+  - CHANGE: rename actionType `epicEnd` to `willUnregister`
+  - ADD: add `namespace` to props, state, reducer context
+  - ADD: support extend model into namespace
+  - FIX: remove `props` from reducer context
+
 - 0.10.4
 
   - FIX: fix type error after upgrade immer to ^3.0.0

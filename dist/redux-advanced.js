@@ -132,19 +132,32 @@ function buildNamespace(baseNamespace, key) {
 function functionWrapper(obj) {
     return typeof obj === "function" ? obj : function () { return obj; };
 }
-function flattenFunctionObject(obj, paths) {
+function flattenNestedFunctionMap(obj, paths) {
     if (paths === void 0) { paths = []; }
     var result = [];
     Object.keys(obj).forEach(function (key) {
         var value = obj[key];
         if (value != null && typeof value === "object") {
-            result.push.apply(result, flattenFunctionObject(value, paths.concat([key])));
+            result.push.apply(result, flattenNestedFunctionMap(value, paths.concat([key])));
         }
         else if (typeof value === "function") {
             result.push({
                 paths: paths.concat([key]),
                 value: value
             });
+        }
+    });
+    return result;
+}
+function mapNestedFunctionMap(obj, callback) {
+    var result = {};
+    Object.keys(obj).forEach(function (key) {
+        var value = obj[key];
+        if (value != null && typeof value === "object") {
+            result[key] = mapNestedFunctionMap(value, callback);
+        }
+        else if (typeof value === "function") {
+            result[key] = callback(value);
         }
     });
     return result;
@@ -177,7 +190,7 @@ var PatchedPromise =  (function () {
 
 var actionTypes = {
     register: "@@REGISTER",
-    epicEnd: "@@EPIC_END",
+    willUnregister: "@@WILL_UNREGISTER",
     unregister: "@@UNREGISTER"
 };
 var ActionHelperImpl =  (function () {
@@ -231,7 +244,7 @@ var ActionHelperImpl =  (function () {
 }());
 function createActionHelpers(storeCache, container) {
     var actionHelpers = {};
-    flattenFunctionObject(
+    flattenNestedFunctionMap(
     merge({}, container.model.reducers, container.model.effects)).forEach(function (_a) {
         var paths = _a.paths;
         var obj = actionHelpers;
@@ -297,7 +310,7 @@ var createSelector = (function () {
 });
 function createGetters(storeCache, container) {
     var getters = {};
-    flattenFunctionObject(container.model.selectors).forEach(function (_a) {
+    flattenNestedFunctionMap(container.model.selectors).forEach(function (_a) {
         var paths = _a.paths, value = _a.value;
         var obj = getters;
         paths.forEach(function (path, index) {
@@ -341,17 +354,117 @@ var ModelBuilder =  (function () {
     ModelBuilder.prototype.clone = function () {
         return new ModelBuilder(this._model);
     };
-    ModelBuilder.prototype.extend = function (model) {
+    ModelBuilder.prototype.extend = function (model, namespace) {
+        var _a, _b, _c, _d;
         if (this._isFrozen) {
-            return this.clone().extend(model);
+            return this.clone().extend(model, namespace);
+        }
+        var defaultProps = model.defaultProps;
+        var state = model.state;
+        var selectors = model.selectors;
+        var reducers = model.reducers;
+        var effects = model.effects;
+        var epics = model.epics;
+        if (namespace !== undefined) {
+            defaultProps = function (context) {
+                var _a;
+                return (_a = {},
+                    _a[namespace] = model.defaultProps({
+                        dependencies: context.dependencies,
+                        namespace: context.namespace,
+                        key: context.key
+                    }),
+                    _a);
+            };
+            state = function (context) {
+                var _a;
+                return (_a = {},
+                    _a[namespace] = model.state({
+                        dependencies: context.dependencies,
+                        namespace: context.namespace,
+                        key: context.key,
+                        props: context.props[namespace]
+                    }),
+                    _a);
+            };
+            selectors = (_a = {},
+                _a[namespace] = mapNestedFunctionMap(model.selectors, function (oldSelector) {
+                    var newSelector = function (context, cacheKey) {
+                        return oldSelector({
+                            dependencies: context.dependencies,
+                            namespace: context.namespace,
+                            key: context.key,
+                            state: context.state[namespace],
+                            getters: context.getters[namespace],
+                            actions: context.actions[namespace],
+                            getContainer: context.getContainer
+                        }, cacheKey);
+                    };
+                    if (oldSelector.__deleteCache != null) {
+                        newSelector.__deleteCache = function (cacheKey) {
+                            return oldSelector.__deleteCache(cacheKey);
+                        };
+                    }
+                    return newSelector;
+                }),
+                _a);
+            reducers = (_b = {},
+                _b[namespace] = mapNestedFunctionMap(model.reducers, function (oldReducer) {
+                    var newReducer = function (_state, payload, context) {
+                        return oldReducer(_state[namespace], payload, {
+                            dependencies: context.dependencies,
+                            namespace: context.namespace,
+                            key: context.key,
+                            originalState: context.originalState[namespace]
+                        });
+                    };
+                    return newReducer;
+                }),
+                _b);
+            effects = (_c = {},
+                _c[namespace] = mapNestedFunctionMap(model.effects, function (oldEffect) {
+                    var newEffect = function (context, payload) {
+                        return oldEffect({
+                            rootAction$: context.rootAction$,
+                            rootState$: context.rootState$,
+                            dependencies: context.dependencies,
+                            namespace: context.namespace,
+                            key: context.key,
+                            getState: function () { return context.getState()[namespace]; },
+                            getters: context.getters[namespace],
+                            actions: context.actions[namespace],
+                            getContainer: context.getContainer
+                        }, payload);
+                    };
+                    return newEffect;
+                }),
+                _c);
+            epics = (_d = {},
+                _d[namespace] = mapNestedFunctionMap(model.epics, function (oldEpic) {
+                    var newEpic = function (context) {
+                        return oldEpic({
+                            rootAction$: context.rootAction$,
+                            rootState$: context.rootState$,
+                            dependencies: context.dependencies,
+                            namespace: context.namespace,
+                            key: context.key,
+                            getState: function () { return context.getState()[namespace]; },
+                            getters: context.getters[namespace],
+                            actions: context.actions[namespace],
+                            getContainer: context.getContainer
+                        });
+                    };
+                    return newEpic;
+                }),
+                _d);
         }
         this.dependencies()
-            .props(model.defaultProps)
-            .state(model.state)
-            .selectors(model.selectors)
-            .reducers(model.reducers)
-            .effects(model.effects)
-            .epics(model.epics);
+            .props(defaultProps)
+            .state(state)
+            .selectors(selectors)
+            .reducers(reducers)
+            .effects(effects)
+            .epics(epics);
         return this;
     };
     ModelBuilder.prototype.dependencies = function () {
@@ -545,7 +658,7 @@ function registerModel(storeCache, namespace, model) {
             throw new Error("model is already registered");
         }
         var reducerByActionName = {};
-        flattenFunctionObject(_model.reducers).forEach(function (_a) {
+        flattenNestedFunctionMap(_model.reducers).forEach(function (_a) {
             var paths = _a.paths, value = _a.value;
             var actionName = storeCache.options.resolveActionName(paths);
             if (reducerByActionName[actionName] != null) {
@@ -554,7 +667,7 @@ function registerModel(storeCache, namespace, model) {
             reducerByActionName[actionName] = value;
         });
         var effectByActionName = {};
-        flattenFunctionObject(_model.effects).forEach(function (_a) {
+        flattenNestedFunctionMap(_model.effects).forEach(function (_a) {
             var paths = _a.paths, value = _a.value;
             var actionName = storeCache.options.resolveActionName(paths);
             if (effectByActionName[actionName] != null) {
@@ -589,7 +702,7 @@ function registerModels(storeCache, namespace, models) {
 
 function createEpicsReduxObservableEpic(storeCache, container) {
     return function (rootAction$, rootState$) {
-        var outputObservables = flattenFunctionObject(container.model.epics).map(function (_a) {
+        var outputObservables = flattenNestedFunctionMap(container.model.epics).map(function (_a) {
             var epic = _a.value;
             var output$ = epic({
                 rootAction$: rootAction$,
@@ -672,8 +785,9 @@ var ContainerImpl =  (function () {
                 if (cache.cachedState === nil) {
                     cache.cachedState = this.model.state({
                         dependencies: this._storeCache.dependencies,
-                        props: cache.props,
-                        key: this.key
+                        namespace: this.namespace,
+                        key: this.key,
+                        props: cache.props
                     });
                 }
                 return cache.cachedState;
@@ -734,7 +848,7 @@ var ContainerImpl =  (function () {
     ContainerImpl.prototype.unregister = function () {
         if (this.isRegistered) {
             this._storeCache.dispatch({
-                type: this.namespace + "/" + actionTypes.epicEnd
+                type: this.namespace + "/" + actionTypes.willUnregister
             });
             this._storeCache.containerByNamespace.delete(this.namespace);
             this._storeCache.dispatch({
@@ -749,6 +863,7 @@ var ContainerImpl =  (function () {
         }
         return functionWrapper(props)({
             dependencies: this._storeCache.dependencies,
+            namespace: this.namespace,
             key: this.key
         });
     };
@@ -918,8 +1033,9 @@ function createRootReduxReducer(storeCache) {
             if (rootState[_container.path] === undefined) {
                 var initialState = _container.model.state({
                     dependencies: storeCache.dependencies,
-                    props: _container.props,
-                    key: _container.key
+                    namespace: _container.namespace,
+                    key: _container.key,
+                    props: _container.props
                 });
                 if (initialState !== undefined) {
                     if (initialRootState == null) {
@@ -952,7 +1068,7 @@ function createRootReduxReducer(storeCache) {
         return produce(rootState, function (draft) {
             reducer(draft[container.path], action.payload, {
                 dependencies: storeCache.dependencies,
-                props: container.props,
+                namespace: container.namespace,
                 key: container.key,
                 originalState: rootState[container.path]
             });

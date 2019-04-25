@@ -6,11 +6,11 @@ import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
 
 import { ContainerImpl } from "./container";
-import { flattenFunctionObject, merge, PatchedPromise } from "./util";
+import { flattenNestedFunctionMap, merge, PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
-  epicEnd: "@@EPIC_END",
+  willUnregister: "@@WILL_UNREGISTER",
   unregister: "@@UNREGISTER"
 };
 
@@ -160,7 +160,7 @@ export function createActionHelpers<TModel extends Model>(
 > {
   const actionHelpers: ActionHelpers = {};
 
-  flattenFunctionObject(
+  flattenNestedFunctionMap(
     // TODO: check conflict
     merge({}, container.model.reducers, container.model.effects)
   ).forEach(({ paths }) => {
