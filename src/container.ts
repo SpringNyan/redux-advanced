@@ -107,8 +107,10 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
       if (cache.cachedState === nil) {
         cache.cachedState = this.model.state({
           dependencies: this._storeCache.dependencies,
-          props: cache.props,
-          key: this.key
+          namespace: this.namespace,
+          key: this.key,
+
+          props: cache.props
         });
       }
 
@@ -205,6 +207,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
     return functionWrapper(props)({
       dependencies: this._storeCache.dependencies,
+      namespace: this.namespace,
       key: this.key
     });
   }

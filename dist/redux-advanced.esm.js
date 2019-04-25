@@ -171,7 +171,7 @@ var PatchedPromise =  (function () {
 
 var actionTypes = {
     register: "@@REGISTER",
-    epicEnd: "@@EPIC_END",
+    willUnregister: "@@WILL_UNREGISTER",
     unregister: "@@UNREGISTER"
 };
 var ActionHelperImpl =  (function () {
@@ -666,8 +666,9 @@ var ContainerImpl =  (function () {
                 if (cache.cachedState === nil) {
                     cache.cachedState = this.model.state({
                         dependencies: this._storeCache.dependencies,
-                        props: cache.props,
-                        key: this.key
+                        namespace: this.namespace,
+                        key: this.key,
+                        props: cache.props
                     });
                 }
                 return cache.cachedState;
@@ -728,7 +729,7 @@ var ContainerImpl =  (function () {
     ContainerImpl.prototype.unregister = function () {
         if (this.isRegistered) {
             this._storeCache.dispatch({
-                type: this.namespace + "/" + actionTypes.epicEnd
+                type: this.namespace + "/" + actionTypes.willUnregister
             });
             this._storeCache.containerByNamespace.delete(this.namespace);
             this._storeCache.dispatch({
@@ -743,6 +744,7 @@ var ContainerImpl =  (function () {
         }
         return functionWrapper(props)({
             dependencies: this._storeCache.dependencies,
+            namespace: this.namespace,
             key: this.key
         });
     };
@@ -912,8 +914,9 @@ function createRootReduxReducer(storeCache) {
             if (rootState[_container.path] === undefined) {
                 var initialState = _container.model.state({
                     dependencies: storeCache.dependencies,
-                    props: _container.props,
-                    key: _container.key
+                    namespace: _container.namespace,
+                    key: _container.key,
+                    props: _container.props
                 });
                 if (initialState !== undefined) {
                     if (initialRootState == null) {
@@ -946,7 +949,7 @@ function createRootReduxReducer(storeCache) {
         return produce(rootState, function (draft) {
             reducer(draft[container.path], action.payload, {
                 dependencies: storeCache.dependencies,
-                props: container.props,
+                namespace: container.namespace,
                 key: container.key,
                 originalState: rootState[container.path]
             });

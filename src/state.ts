@@ -5,8 +5,10 @@ export interface StateContext<
   TProps extends object | undefined = any
 > {
   dependencies: TDependencies;
-  props: TProps;
+  namespace: string;
   key: string;
+
+  props: TProps;
 }
 
 export type StateFactory<
