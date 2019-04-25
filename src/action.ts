@@ -10,7 +10,7 @@ import { flattenFunctionObject, merge, PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
-  epicEnd: "@@EPIC_END",
+  willUnregister: "@@WILL_UNREGISTER",
   unregister: "@@UNREGISTER"
 };
 
