@@ -23,7 +23,7 @@ import { DeepPartial } from "./util";
 import { createSelector } from "./selector";
 import {
   buildNamespace,
-  flattenFunctionObject,
+  flattenNestedFunctionMap,
   functionWrapper,
   merge
 } from "./util";
@@ -686,7 +686,7 @@ export function registerModel<TModel extends Model>(
     }
 
     const reducerByActionName: { [name: string]: Reducer } = {};
-    flattenFunctionObject<Reducer>(_model.reducers).forEach(
+    flattenNestedFunctionMap<Reducer>(_model.reducers).forEach(
       ({ paths, value }) => {
         const actionName = storeCache.options.resolveActionName!(paths);
         if (reducerByActionName[actionName] != null) {
@@ -698,7 +698,7 @@ export function registerModel<TModel extends Model>(
     );
 
     const effectByActionName: { [name: string]: Effect } = {};
-    flattenFunctionObject<Effect>(_model.effects).forEach(
+    flattenNestedFunctionMap<Effect>(_model.effects).forEach(
       ({ paths, value }) => {
         const actionName = storeCache.options.resolveActionName!(paths);
         if (effectByActionName[actionName] != null) {

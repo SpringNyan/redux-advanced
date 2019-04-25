@@ -5,7 +5,7 @@ import { Model } from "./model";
 import { DeepPartial } from "./util";
 
 import { ContainerImpl } from "./container";
-import { flattenFunctionObject } from "./util";
+import { flattenNestedFunctionMap } from "./util";
 
 export interface SelectorContext<
   TDependencies extends object | undefined = any,
@@ -767,7 +767,7 @@ export function createGetters<TModel extends Model>(
 ): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
   const getters: Getters = {};
 
-  flattenFunctionObject<SelectorInternal>(container.model.selectors).forEach(
+  flattenNestedFunctionMap<SelectorInternal>(container.model.selectors).forEach(
     ({ paths, value }) => {
       let obj = getters;
       paths.forEach((path, index) => {

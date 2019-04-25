@@ -54,7 +54,7 @@ export function functionWrapper<T, U extends any[]>(
   return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
 }
 
-export function flattenFunctionObject<T>(
+export function flattenNestedFunctionMap<T>(
   obj: any,
   paths: string[] = []
 ): Array<{ paths: string[]; value: T }> {
@@ -63,12 +63,30 @@ export function flattenFunctionObject<T>(
   Object.keys(obj).forEach((key) => {
     const value = obj[key];
     if (value != null && typeof value === "object") {
-      result.push(...flattenFunctionObject<T>(value, [...paths, key]));
+      result.push(...flattenNestedFunctionMap<T>(value, [...paths, key]));
     } else if (typeof value === "function") {
       result.push({
         paths: [...paths, key],
         value
       });
+    }
+  });
+
+  return result;
+}
+
+export function mapNestedFunctionMap<T>(
+  obj: any,
+  callback: (value: T) => T
+): any {
+  const result: any = {};
+
+  Object.keys(obj).forEach((key) => {
+    const value = obj[key];
+    if (value != null && typeof value === "object") {
+      result[key] = mapNestedFunctionMap(value, callback);
+    } else if (typeof value === "function") {
+      result[key] = callback(value);
     }
   });
 

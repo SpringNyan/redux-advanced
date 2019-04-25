@@ -14,7 +14,7 @@ import { Getters } from "./selector";
 
 import { actionTypes } from "./action";
 import { ContainerImpl } from "./container";
-import { flattenFunctionObject } from "./util";
+import { flattenNestedFunctionMap } from "./util";
 
 export interface EpicContext<
   TDependencies extends object | undefined = any,
@@ -96,7 +96,7 @@ export function createEpicsReduxObservableEpic(
   container: ContainerImpl<Model>
 ): ReduxObservableEpic {
   return (rootAction$, rootState$) => {
-    const outputObservables = flattenFunctionObject<Epic>(
+    const outputObservables = flattenNestedFunctionMap<Epic>(
       container.model.epics
     ).map(({ value: epic }) => {
       let output$ = epic({
