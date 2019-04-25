@@ -142,19 +142,21 @@ export class ModelBuilder<
       ? TDependencies & ExtractDependencies<TModel>
       : ExtractDependencies<TModel>,
     TProps extends object
-      ? TProps & ExtractProps<TModel> extends object
-        ? { [P in TNamespace]: ExtractProps<TModel> }
-        : {}
-      : ExtractProps<TModel> extends object
-      ? { [P in TNamespace]: ExtractProps<TModel> }
-      : {},
+      ? TProps &
+          (ExtractProps<TModel> extends object
+            ? { [P in TNamespace]: ExtractProps<TModel> }
+            : {})
+      : (ExtractProps<TModel> extends object
+          ? { [P in TNamespace]: ExtractProps<TModel> }
+          : {}),
     TState extends object
-      ? TState & ExtractState<TModel> extends object
-        ? { [P in TNamespace]: ExtractState<TModel> }
-        : {}
-      : ExtractState<TModel> extends object
-      ? { [P in TNamespace]: ExtractState<TModel> }
-      : {},
+      ? TState &
+          (ExtractState<TModel> extends object
+            ? { [P in TNamespace]: ExtractState<TModel> }
+            : {})
+      : (ExtractState<TModel> extends object
+          ? { [P in TNamespace]: ExtractState<TModel> }
+          : {}),
     TSelectors & { [P in TNamespace]: ExtractSelectors<TModel> },
     TReducers & { [P in TNamespace]: ExtractReducers<TModel> },
     TEffects & { [P in TNamespace]: ExtractEffects<TModel> },
