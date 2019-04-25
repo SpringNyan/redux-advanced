@@ -115,6 +115,10 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.11.1
+
+  - FIX: fix extend type
+
 - 0.11.0
 
   - CHANGE: rename actionType `epicEnd` to `willUnregister`
