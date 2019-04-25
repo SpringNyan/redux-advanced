@@ -2,7 +2,7 @@ import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
 import { ExtractDependencies } from "./dependencies";
 import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
-import { Epics, ExtractEpics, OverrideEpics } from "./epic";
+import { Epic, Epics, ExtractEpics, OverrideEpics } from "./epic";
 import { ExtractProps, PropsFactory } from "./props";
 import {
   ExtractReducers,
@@ -14,6 +14,7 @@ import {
   ConvertSelectorsToGetters,
   ExtractSelectors,
   OverrideSelectors,
+  SelectorInternal,
   Selectors,
   SelectorsFactory
 } from "./selector";
@@ -25,6 +26,7 @@ import {
   buildNamespace,
   flattenNestedFunctionMap,
   functionWrapper,
+  mapNestedFunctionMap,
   merge
 } from "./util";
 
@@ -131,18 +133,162 @@ export class ModelBuilder<
     TReducers & ExtractReducers<TModel>,
     TEffects & ExtractEffects<TModel>,
     TEpics & ExtractEpics<TModel>
-  > {
+  >;
+  public extend<TModel extends Model, TNamespace extends string>(
+    model: TModel,
+    namespace: TNamespace
+  ): ModelBuilder<
+    TDependencies extends object
+      ? TDependencies & ExtractDependencies<TModel>
+      : ExtractDependencies<TModel>,
+    TProps extends object
+      ? TProps & { [P in TNamespace]: ExtractProps<TModel> }
+      : { [P in TNamespace]: ExtractProps<TModel> },
+    TState extends object
+      ? TState & { [P in TNamespace]: ExtractState<TModel> }
+      : { [P in TNamespace]: ExtractState<TModel> },
+    TSelectors & { [P in TNamespace]: ExtractSelectors<TModel> },
+    TReducers & { [P in TNamespace]: ExtractReducers<TModel> },
+    TEffects & { [P in TNamespace]: ExtractEffects<TModel> },
+    TEpics & { [P in TNamespace]: ExtractEpics<TModel> }
+  >;
+  public extend(model: Model, namespace?: string) {
     if (this._isFrozen) {
-      return this.clone().extend(model);
+      return this.clone().extend(model, namespace!);
+    }
+
+    let defaultProps = model.defaultProps;
+    let state = model.state;
+    let selectors = model.selectors;
+    let reducers = model.reducers;
+    let effects = model.effects;
+    let epics = model.epics;
+
+    if (namespace !== undefined) {
+      defaultProps = (context) => ({
+        [namespace]: model.defaultProps({
+          dependencies: context.dependencies,
+          namespace: context.namespace,
+          key: context.key
+        })
+      });
+
+      state = (context) => ({
+        [namespace]: model.state({
+          dependencies: context.dependencies,
+          namespace: context.namespace,
+          key: context.key,
+
+          props: context.props[namespace]
+        })
+      });
+
+      selectors = {
+        [namespace]: mapNestedFunctionMap<SelectorInternal>(
+          model.selectors,
+          (oldSelector) => {
+            const newSelector: SelectorInternal = (context, cacheKey) =>
+              oldSelector(
+                {
+                  dependencies: context.dependencies,
+                  namespace: context.namespace,
+                  key: context.key,
+
+                  state: context.state[namespace],
+                  getters: context.getters[namespace],
+                  actions: context.actions[namespace],
+
+                  getContainer: context.getContainer
+                },
+                cacheKey
+              );
+
+            if (oldSelector.__deleteCache != null) {
+              newSelector.__deleteCache = (cacheKey) =>
+                oldSelector.__deleteCache!(cacheKey);
+            }
+
+            return newSelector;
+          }
+        )
+      };
+
+      reducers = {
+        [namespace]: mapNestedFunctionMap<Reducer>(
+          model.reducers,
+          (oldReducer) => {
+            const newReducer: Reducer = (_state, payload, context) =>
+              oldReducer(_state[namespace], payload, {
+                dependencies: context.dependencies,
+                namespace: context.namespace,
+                key: context.key,
+
+                originalState: context.originalState[namespace]
+              });
+
+            return newReducer;
+          }
+        )
+      };
+
+      effects = {
+        [namespace]: mapNestedFunctionMap<Effect>(
+          model.effects,
+          (oldEffect) => {
+            const newEffect: Effect = (context, payload) =>
+              oldEffect(
+                {
+                  rootAction$: context.rootAction$,
+                  rootState$: context.rootState$,
+
+                  dependencies: context.dependencies,
+                  namespace: context.namespace,
+                  key: context.key,
+
+                  getState: () => context.getState()[namespace],
+                  getters: context.getters[namespace],
+                  actions: context.actions[namespace],
+
+                  getContainer: context.getContainer
+                },
+                payload
+              );
+
+            return newEffect;
+          }
+        )
+      };
+
+      epics = {
+        [namespace]: mapNestedFunctionMap<Epic>(model.epics, (oldEpic) => {
+          const newEpic: Epic = (context) =>
+            oldEpic({
+              rootAction$: context.rootAction$,
+              rootState$: context.rootState$,
+
+              dependencies: context.dependencies,
+              namespace: context.namespace,
+              key: context.key,
+
+              getState: () => context.getState()[namespace],
+              getters: context.getters[namespace],
+              actions: context.actions[namespace],
+
+              getContainer: context.getContainer
+            });
+
+          return newEpic;
+        })
+      };
     }
 
     this.dependencies()
-      .props(model.defaultProps)
-      .state(model.state)
-      .selectors(model.selectors)
-      .reducers(model.reducers)
-      .effects(model.effects)
-      .epics(model.epics);
+      .props(defaultProps)
+      .state(state)
+      .selectors(selectors)
+      .reducers(reducers)
+      .effects(effects)
+      .epics(epics);
 
     return this as any;
   }
