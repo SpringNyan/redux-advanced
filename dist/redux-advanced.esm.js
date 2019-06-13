@@ -582,6 +582,13 @@ var ModelBuilder =  (function () {
         if (this._isFrozen) {
             return this.clone().epics(epics);
         }
+        if (Array.isArray(epics)) {
+            epics = epics.reduce(function (obj, epic) {
+                obj["ANONYMOUS_EPIC_" + ModelBuilder._nextEpicId] = epic;
+                ModelBuilder._nextEpicId += 1;
+                return obj;
+            }, {});
+        }
         this._model.epics = merge({}, this._model.epics, epics);
         return this;
     };
@@ -607,6 +614,7 @@ var ModelBuilder =  (function () {
         }
         return model;
     };
+    ModelBuilder._nextEpicId = 1;
     return ModelBuilder;
 }());
 function cloneModel(model) {

@@ -115,6 +115,10 @@ container.actions.setName.dispatch("nyan");
 
 ## Changelogs
 
+- 0.12.0
+
+  - ADD: support epics array in `ModelBuilder`
+
 - 0.11.1
 
   - FIX: fix extend type

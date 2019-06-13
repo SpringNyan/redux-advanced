@@ -16,6 +16,7 @@ const defaultModelBuilder = createModelBuilder()
 describe("redux-advanced", () => {
   it("test", async () => {
     let setAge2Count = 0;
+    let setAge2Count2 = 0;
 
     const testModelBuilder = defaultModelBuilder
       .props({
@@ -123,6 +124,18 @@ describe("redux-advanced", () => {
             )
         }
       })
+      .epics([
+        ({ rootAction$, actions }) =>
+          rootAction$.ofType(actions.$.setAge2.type).pipe(
+            tap(() => (setAge2Count2 += 1)),
+            mergeMapTo(empty())
+          ),
+        ({ rootAction$, actions }) =>
+          rootAction$.ofType(actions.$.setAge2.type).pipe(
+            tap(() => (setAge2Count2 += 2)),
+            mergeMapTo(empty())
+          )
+      ])
       .freeze();
 
     const staticModel = testModelBuilder.build({
@@ -190,10 +203,13 @@ describe("redux-advanced", () => {
     expect(staticModelContainer.state.age).eq(1);
 
     expect(setAge2Count).eq(0);
+    expect(setAge2Count2).eq(0);
     await staticModelContainer.actions.$.setAge2.dispatch(2);
     expect(setAge2Count).eq(1);
+    expect(setAge2Count2).eq(3);
     await staticModelContainer.actions.$.setAge2.dispatch(22);
     expect(setAge2Count).eq(2);
+    expect(setAge2Count2).eq(6);
 
     await staticModelContainer.actions.overrideSetInfo.dispatch({});
     expect(staticModelContainer.state.name).eq("haha");

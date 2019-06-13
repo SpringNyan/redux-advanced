@@ -67,6 +67,8 @@ export class ModelBuilder<
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
+  private static _nextEpicId: number = 1;
+
   private readonly _model: Model<
     TDependencies,
     TProps,
@@ -678,7 +680,17 @@ export class ModelBuilder<
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
     >
   >(
-    epics: T
+    epics:
+      | T
+      | Array<
+          Epic<
+            TDependencies,
+            TProps,
+            TState,
+            ConvertSelectorsToGetters<TSelectors>,
+            ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+          >
+        >
   ): ModelBuilder<
     TDependencies,
     TProps,
@@ -690,6 +702,14 @@ export class ModelBuilder<
   > {
     if (this._isFrozen) {
       return this.clone().epics(epics);
+    }
+
+    if (Array.isArray(epics)) {
+      epics = epics.reduce<{ [key: string]: Epic }>((obj, epic) => {
+        obj["ANONYMOUS_EPIC_" + ModelBuilder._nextEpicId] = epic;
+        ModelBuilder._nextEpicId += 1;
+        return obj;
+      }, {}) as T;
     }
 
     this._model.epics = merge({}, this._model.epics, epics);
