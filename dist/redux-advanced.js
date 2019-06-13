@@ -190,7 +190,7 @@ var PatchedPromise =  (function () {
 
 var actionTypes = {
     register: "@@REGISTER",
-    willUnregister: "@@WILL_UNREGISTER",
+    beforeUnregister: "@@BEFORE_UNREGISTER",
     unregister: "@@UNREGISTER"
 };
 var ActionHelperImpl =  (function () {
@@ -856,7 +856,7 @@ var ContainerImpl =  (function () {
     ContainerImpl.prototype.unregister = function () {
         if (this.isRegistered) {
             this._storeCache.dispatch({
-                type: this.namespace + "/" + actionTypes.willUnregister
+                type: this.namespace + "/" + actionTypes.beforeUnregister
             });
             this._storeCache.containerByNamespace.delete(this.namespace);
             this._storeCache.dispatch({

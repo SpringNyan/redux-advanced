@@ -183,7 +183,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
   public unregister() {
     if (this.isRegistered) {
       this._storeCache.dispatch({
-        type: `${this.namespace}/${actionTypes.willUnregister}`
+        type: `${this.namespace}/${actionTypes.beforeUnregister}`
       });
 
       this._storeCache.containerByNamespace.delete(this.namespace);
