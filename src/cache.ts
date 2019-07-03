@@ -3,7 +3,7 @@ import { Epic as ReduxObservableEpic } from "redux-observable";
 import { BehaviorSubject } from "rxjs";
 
 import { AnyAction, ConvertReducersAndEffectsToActionHelpers } from "./action";
-import { GetContainer } from "./container";
+import { Container, GetContainer } from "./container";
 import { Effect, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer } from "./reducer";
@@ -26,6 +26,7 @@ export interface StoreCache {
   getState: () => any;
   dispatch: Dispatch;
 
+  pendingInitContainers: Array<{ container: Container; initialState: any }>;
   pendingInitStates: Array<{ namespace: string; state: any }>;
   pendingInitEpics: ReduxObservableEpic[];
 
@@ -87,6 +88,7 @@ export function createStoreCache(): StoreCache {
     getState: (...args) => storeCache.store!.getState(...args),
     dispatch: (...args) => storeCache.store!.dispatch(...args),
 
+    pendingInitContainers: [],
     pendingInitStates: [],
     pendingInitEpics: [],
 

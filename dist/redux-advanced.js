@@ -648,7 +648,10 @@ function registerModels(storeCache, namespace, models) {
         }
         else if (isModel(model)) {
             registerModel(storeCache, modelNamespace, model);
-            storeCache.getContainer(model).register();
+            storeCache.pendingInitContainers.push({
+                container: storeCache.getContainer(model),
+                initialState: undefined
+            });
         }
         else {
             registerModels(storeCache, modelNamespace, model);
@@ -804,9 +807,11 @@ var ContainerImpl =  (function () {
     ContainerImpl.prototype.unregister = function () {
         if (this.isRegistered) {
             this._storeCache.containerByNamespace.delete(this.namespace);
-            this._storeCache.dispatch({
-                type: this.namespace + "/" + actionTypes.unregister
-            });
+            if (this._storeCache.initialized) {
+                this._storeCache.dispatch({
+                    type: this.namespace + "/" + actionTypes.unregister
+                });
+            }
         }
         this._clearCache();
     };
@@ -871,6 +876,7 @@ function createStoreCache() {
             }
             return (_a = storeCache.store).dispatch.apply(_a, args);
         },
+        pendingInitContainers: [],
         pendingInitStates: [],
         pendingInitEpics: [],
         nextCacheId: 1,
@@ -1039,6 +1045,11 @@ function createReduxAdvancedStore(dependencies, models, options) {
     storeCache.options = options;
     storeCache.dependencies = dependencies;
     registerModels(storeCache, "", models);
+    storeCache.pendingInitContainers.forEach(function (_a) {
+        var container = _a.container, initialState = _a.initialState;
+        container.register(initialState);
+    });
+    storeCache.pendingInitContainers.length = 0;
     var rootReducer = createRootReduxReducer(storeCache);
     storeCache.addEpic$ = new rxjs.BehaviorSubject(reduxObservable.combineEpics.apply(void 0, storeCache.pendingInitEpics));
     storeCache.pendingInitEpics.length = 0;

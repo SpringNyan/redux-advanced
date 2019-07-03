@@ -767,7 +767,10 @@ export function registerModels(
       registerModel(storeCache, modelNamespace, model);
     } else if (isModel(model)) {
       registerModel(storeCache, modelNamespace, model);
-      storeCache.getContainer(model).register();
+      storeCache.pendingInitContainers.push({
+        container: storeCache.getContainer(model),
+        initialState: undefined
+      });
     } else {
       registerModels(storeCache, modelNamespace, model as Models);
     }

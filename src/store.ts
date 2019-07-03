@@ -57,6 +57,10 @@ export function createReduxAdvancedStore<
   storeCache.dependencies = dependencies;
 
   registerModels(storeCache, "", models);
+  storeCache.pendingInitContainers.forEach(({ container, initialState }) => {
+    container.register(initialState);
+  });
+  storeCache.pendingInitContainers.length = 0;
 
   const rootReducer: Reducer = createRootReduxReducer(storeCache);
 
