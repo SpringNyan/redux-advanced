@@ -1029,6 +1029,7 @@ var __assign = function() {
 
 function createRootReduxReducer(storeCache) {
     return function (rootState, action) {
+        var _a;
         if (rootState === undefined) {
             rootState = {};
         }
@@ -1057,7 +1058,7 @@ function createRootReduxReducer(storeCache) {
         if (initialRootState != null) {
             rootState = __assign({}, rootState, initialRootState);
         }
-        var _a = parseActionType(action.type), namespace = _a.namespace, actionName = _a.actionName;
+        var _b = parseActionType(action.type), namespace = _b.namespace, actionName = _b.actionName;
         if (actionName === actionTypes.unregister) {
             rootState = __assign({}, rootState);
             delete rootState[convertNamespaceToPath(namespace)];
@@ -1073,14 +1074,21 @@ function createRootReduxReducer(storeCache) {
         if (reducer == null) {
             return rootState;
         }
-        return produce(rootState, function (draft) {
-            reducer(draft[container.path], action.payload, {
+        var state = rootState[container.path];
+        var newState = produce(state, function (draft) {
+            reducer(draft, action.payload, {
                 dependencies: storeCache.dependencies,
                 namespace: container.namespace,
                 key: container.key,
-                originalState: rootState[container.path]
+                originalState: state
             });
         });
+        if (newState !== state) {
+            return __assign({}, rootState, (_a = {}, _a[container.path] = newState, _a));
+        }
+        else {
+            return rootState;
+        }
     };
 }
 

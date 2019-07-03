@@ -127,14 +127,24 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       return rootState;
     }
 
-    return produce(rootState, (draft: any) => {
-      reducer(draft[container.path], action.payload, {
+    const state = rootState[container.path];
+    const newState = produce(state, (draft: any) => {
+      reducer(draft, action.payload, {
         dependencies: storeCache.dependencies,
         namespace: container.namespace,
         key: container.key,
 
-        originalState: rootState[container.path]
+        originalState: state
       });
     });
+
+    if (newState !== state) {
+      return {
+        ...rootState,
+        [container.path]: newState
+      };
+    } else {
+      return rootState;
+    }
   };
 }

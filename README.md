@@ -119,6 +119,7 @@ container.actions.setName.dispatch("nyan");
 
   - CHANGE: rename actionType `willUnregister` to `beforeUnregister`
   - ADD: support epics array in `ModelBuilder`
+  - IMPROVEMENT: improve reducer performance
 
 - 0.11.1
 
