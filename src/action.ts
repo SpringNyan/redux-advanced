@@ -10,7 +10,6 @@ import { flattenNestedFunctionMap, merge, PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
-  willUnregister: "@@WILL_UNREGISTER",
   unregister: "@@UNREGISTER"
 };
 
@@ -38,9 +37,9 @@ export type ExtractActionPayload<
   T extends Action | ActionHelper | Reducer | Effect
 > = T extends
   | Action<infer TPayload>
-  | ActionHelper<infer TPayload>
-  | Reducer<any, any, any, infer TPayload>
-  | Effect<any, any, any, any, any, infer TPayload>
+  | ActionHelper<infer TPayload, any>
+  | Reducer<any, any, infer TPayload>
+  | Effect<any, any, any, any, infer TPayload, any>
   ? TPayload
   : never;
 

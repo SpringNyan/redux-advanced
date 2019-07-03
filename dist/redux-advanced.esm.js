@@ -12,87 +12,97 @@ function createCommonjsModule(fn, module) {
 
 var umd = createCommonjsModule(function (module, exports) {
 (function (global, factory) {
-	module.exports = factory();
-}(commonjsGlobal, (function () {var isMergeableObject = function isMergeableObject(value) {
-	return isNonNullObject(value)
-		&& !isSpecial(value)
-};
-function isNonNullObject(value) {
-	return !!value && typeof value === 'object'
-}
-function isSpecial(value) {
-	var stringValue = Object.prototype.toString.call(value);
-	return stringValue === '[object RegExp]'
-		|| stringValue === '[object Date]'
-		|| isReactElement(value)
-}
-var canUseSymbol = typeof Symbol === 'function' && Symbol.for;
-var REACT_ELEMENT_TYPE = canUseSymbol ? Symbol.for('react.element') : 0xeac7;
-function isReactElement(value) {
-	return value.$$typeof === REACT_ELEMENT_TYPE
-}
-function emptyTarget(val) {
-	return Array.isArray(val) ? [] : {}
-}
-function cloneUnlessOtherwiseSpecified(value, options) {
-	return (options.clone !== false && options.isMergeableObject(value))
-		? deepmerge(emptyTarget(value), value, options)
-		: value
-}
-function defaultArrayMerge(target, source, options) {
-	return target.concat(source).map(function(element) {
-		return cloneUnlessOtherwiseSpecified(element, options)
-	})
-}
-function getMergeFunction(key, options) {
-	if (!options.customMerge) {
-		return deepmerge
+	 module.exports = factory() ;
+}(commonjsGlobal, function () {	var isMergeableObject = function isMergeableObject(value) {
+		return isNonNullObject(value)
+			&& !isSpecial(value)
+	};
+	function isNonNullObject(value) {
+		return !!value && typeof value === 'object'
 	}
-	var customMerge = options.customMerge(key);
-	return typeof customMerge === 'function' ? customMerge : deepmerge
-}
-function mergeObject(target, source, options) {
-	var destination = {};
-	if (options.isMergeableObject(target)) {
-		Object.keys(target).forEach(function(key) {
-			destination[key] = cloneUnlessOtherwiseSpecified(target[key], options);
-		});
+	function isSpecial(value) {
+		var stringValue = Object.prototype.toString.call(value);
+		return stringValue === '[object RegExp]'
+			|| stringValue === '[object Date]'
+			|| isReactElement(value)
 	}
-	Object.keys(source).forEach(function(key) {
-		if (!options.isMergeableObject(source[key]) || !target[key]) {
-			destination[key] = cloneUnlessOtherwiseSpecified(source[key], options);
-		} else {
-			destination[key] = getMergeFunction(key, options)(target[key], source[key], options);
+	var canUseSymbol = typeof Symbol === 'function' && Symbol.for;
+	var REACT_ELEMENT_TYPE = canUseSymbol ? Symbol.for('react.element') : 0xeac7;
+	function isReactElement(value) {
+		return value.$$typeof === REACT_ELEMENT_TYPE
+	}
+	function emptyTarget(val) {
+		return Array.isArray(val) ? [] : {}
+	}
+	function cloneUnlessOtherwiseSpecified(value, options) {
+		return (options.clone !== false && options.isMergeableObject(value))
+			? deepmerge(emptyTarget(value), value, options)
+			: value
+	}
+	function defaultArrayMerge(target, source, options) {
+		return target.concat(source).map(function(element) {
+			return cloneUnlessOtherwiseSpecified(element, options)
+		})
+	}
+	function getMergeFunction(key, options) {
+		if (!options.customMerge) {
+			return deepmerge
 		}
-	});
-	return destination
-}
-function deepmerge(target, source, options) {
-	options = options || {};
-	options.arrayMerge = options.arrayMerge || defaultArrayMerge;
-	options.isMergeableObject = options.isMergeableObject || isMergeableObject;
-	var sourceIsArray = Array.isArray(source);
-	var targetIsArray = Array.isArray(target);
-	var sourceAndTargetTypesMatch = sourceIsArray === targetIsArray;
-	if (!sourceAndTargetTypesMatch) {
-		return cloneUnlessOtherwiseSpecified(source, options)
-	} else if (sourceIsArray) {
-		return options.arrayMerge(target, source, options)
-	} else {
-		return mergeObject(target, source, options)
+		var customMerge = options.customMerge(key);
+		return typeof customMerge === 'function' ? customMerge : deepmerge
 	}
-}
-deepmerge.all = function deepmergeAll(array, options) {
-	if (!Array.isArray(array)) {
-		throw new Error('first argument should be an array')
+	function getEnumerableOwnPropertySymbols(target) {
+		return Object.getOwnPropertySymbols
+			? Object.getOwnPropertySymbols(target).filter(function(symbol) {
+				return target.propertyIsEnumerable(symbol)
+			})
+			: []
 	}
-	return array.reduce(function(prev, next) {
-		return deepmerge(prev, next, options)
-	}, {})
-};
-var deepmerge_1 = deepmerge;
-return deepmerge_1;
-})));
+	function getKeys(target) {
+		return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target))
+	}
+	function mergeObject(target, source, options) {
+		var destination = {};
+		if (options.isMergeableObject(target)) {
+			getKeys(target).forEach(function(key) {
+				destination[key] = cloneUnlessOtherwiseSpecified(target[key], options);
+			});
+		}
+		getKeys(source).forEach(function(key) {
+			if (!options.isMergeableObject(source[key]) || !target[key]) {
+				destination[key] = cloneUnlessOtherwiseSpecified(source[key], options);
+			} else {
+				destination[key] = getMergeFunction(key, options)(target[key], source[key], options);
+			}
+		});
+		return destination
+	}
+	function deepmerge(target, source, options) {
+		options = options || {};
+		options.arrayMerge = options.arrayMerge || defaultArrayMerge;
+		options.isMergeableObject = options.isMergeableObject || isMergeableObject;
+		var sourceIsArray = Array.isArray(source);
+		var targetIsArray = Array.isArray(target);
+		var sourceAndTargetTypesMatch = sourceIsArray === targetIsArray;
+		if (!sourceAndTargetTypesMatch) {
+			return cloneUnlessOtherwiseSpecified(source, options)
+		} else if (sourceIsArray) {
+			return options.arrayMerge(target, source, options)
+		} else {
+			return mergeObject(target, source, options)
+		}
+	}
+	deepmerge.all = function deepmergeAll(array, options) {
+		if (!Array.isArray(array)) {
+			throw new Error('first argument should be an array')
+		}
+		return array.reduce(function(prev, next) {
+			return deepmerge(prev, next, options)
+		}, {})
+	};
+	var deepmerge_1 = deepmerge;
+	return deepmerge_1;
+}));
 });
 
 var nil = {};
@@ -184,7 +194,6 @@ var PatchedPromise =  (function () {
 
 var actionTypes = {
     register: "@@REGISTER",
-    willUnregister: "@@WILL_UNREGISTER",
     unregister: "@@UNREGISTER"
 };
 var ActionHelperImpl =  (function () {
@@ -353,31 +362,19 @@ var ModelBuilder =  (function () {
         if (this._isFrozen) {
             return this.clone().extend(model, namespace);
         }
-        var defaultProps = model.defaultProps;
         var state = model.state;
         var selectors = model.selectors;
         var reducers = model.reducers;
         var effects = model.effects;
         var epics = model.epics;
         if (namespace !== undefined) {
-            defaultProps = function (context) {
-                var _a;
-                return (_a = {},
-                    _a[namespace] = model.defaultProps({
-                        dependencies: context.dependencies,
-                        namespace: context.namespace,
-                        key: context.key
-                    }),
-                    _a);
-            };
             state = function (context) {
                 var _a;
                 return (_a = {},
                     _a[namespace] = model.state({
                         dependencies: context.dependencies,
                         namespace: context.namespace,
-                        key: context.key,
-                        props: context.props[namespace]
+                        key: context.key
                     }),
                     _a);
             };
@@ -453,7 +450,6 @@ var ModelBuilder =  (function () {
                 _d);
         }
         this.dependencies()
-            .props(defaultProps)
             .state(state)
             .selectors(selectors)
             .reducers(reducers)
@@ -465,37 +461,6 @@ var ModelBuilder =  (function () {
         if (this._isFrozen) {
             return this.clone().dependencies();
         }
-        return this;
-    };
-    ModelBuilder.prototype.props = function (props) {
-        if (this._isFrozen) {
-            return this.clone().props(props);
-        }
-        var oldPropsFn = this._model.defaultProps;
-        var newPropsFn = functionWrapper(props);
-        this._model.defaultProps = function (context) {
-            var oldProps = oldPropsFn(context);
-            var newProps = newPropsFn(context);
-            if (oldProps === undefined && newProps === undefined) {
-                return undefined;
-            }
-            return merge({}, oldProps, newProps);
-        };
-        return this;
-    };
-    ModelBuilder.prototype.overrideProps = function (override) {
-        if (this._isFrozen) {
-            return this.clone().overrideProps(override);
-        }
-        var oldPropsFn = this._model.defaultProps;
-        this._model.defaultProps = function (context) {
-            var oldProps = oldPropsFn(context);
-            var newProps = functionWrapper(override(oldProps))(context);
-            if (oldProps === undefined && newProps === undefined) {
-                return undefined;
-            }
-            return merge({}, oldProps, newProps);
-        };
         return this;
     };
     ModelBuilder.prototype.state = function (state) {
@@ -582,6 +547,13 @@ var ModelBuilder =  (function () {
         if (this._isFrozen) {
             return this.clone().epics(epics);
         }
+        if (Array.isArray(epics)) {
+            epics = epics.reduce(function (obj, epic) {
+                obj["ANONYMOUS_EPIC_" + ModelBuilder._nextEpicId] = epic;
+                ModelBuilder._nextEpicId += 1;
+                return obj;
+            }, {});
+        }
         this._model.epics = merge({}, this._model.epics, epics);
         return this;
     };
@@ -600,18 +572,15 @@ var ModelBuilder =  (function () {
         this._model.autoRegister = value;
         return this;
     };
-    ModelBuilder.prototype.build = function (props) {
+    ModelBuilder.prototype.build = function () {
         var model = cloneModel(this._model);
-        if (props !== undefined) {
-            model.defaultProps = functionWrapper(props);
-        }
         return model;
     };
+    ModelBuilder._nextEpicId = 1;
     return ModelBuilder;
 }());
 function cloneModel(model) {
     return {
-        defaultProps: model.defaultProps,
         autoRegister: model.autoRegister,
         state: model.state,
         selectors: merge({}, model.selectors),
@@ -623,20 +592,17 @@ function cloneModel(model) {
 function isModel(obj) {
     var model = obj;
     return (model != null &&
-        model.defaultProps != null &&
         model.autoRegister != null &&
         model.state != null &&
         model.selectors != null &&
         model.reducers != null &&
         model.effects != null &&
         model.epics != null &&
-        typeof model.defaultProps === "function" &&
         typeof model.autoRegister === "boolean" &&
         typeof model.state === "function");
 }
 function createModelBuilder() {
     return new ModelBuilder({
-        defaultProps: function () { return undefined; },
         autoRegister: false,
         state: function () { return undefined; },
         selectors: {},
@@ -686,7 +652,10 @@ function registerModels(storeCache, namespace, models) {
         }
         else if (isModel(model)) {
             registerModel(storeCache, modelNamespace, model);
-            storeCache.getContainer(model).register();
+            storeCache.pendingInitContainers.push({
+                container: storeCache.getContainer(model),
+                initialState: undefined
+            });
         }
         else {
             registerModels(storeCache, modelNamespace, model);
@@ -735,7 +704,6 @@ var ContainerImpl =  (function () {
             var cache = this._storeCache.cacheById.get(this.id);
             if (cache == null) {
                 cache = {
-                    props: this._createProps(),
                     cachedState: nil,
                     cachedGetters: undefined,
                     cachedActions: undefined
@@ -762,13 +730,6 @@ var ContainerImpl =  (function () {
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(ContainerImpl.prototype, "props", {
-        get: function () {
-            return this._cache.props;
-        },
-        enumerable: true,
-        configurable: true
-    });
     Object.defineProperty(ContainerImpl.prototype, "state", {
         get: function () {
             if (this.isRegistered) {
@@ -780,8 +741,7 @@ var ContainerImpl =  (function () {
                     cache.cachedState = this.model.state({
                         dependencies: this._storeCache.dependencies,
                         namespace: this.namespace,
-                        key: this.key,
-                        props: cache.props
+                        key: this.key
                     });
                 }
                 return cache.cachedState;
@@ -819,47 +779,45 @@ var ContainerImpl =  (function () {
         enumerable: true,
         configurable: true
     });
-    ContainerImpl.prototype.register = function (props) {
+    ContainerImpl.prototype.register = function (initialState) {
         if (!this.canRegister) {
             throw new Error("namespace is already registered");
         }
+        initialState =
+            initialState !== undefined
+                ? functionWrapper(initialState)({
+                    dependencies: this._storeCache.dependencies,
+                    namespace: this.namespace,
+                    key: this.key
+                })
+                : undefined;
         this._storeCache.containerById.set(this.id, this);
-        var cache = this._cache;
-        cache.props = this._createProps(props);
         this._storeCache.containerByNamespace.set(this.namespace, this);
-        this._storeCache.initStateNamespaces.push(this.namespace);
+        this._storeCache.pendingInitStates.push({
+            namespace: this.namespace,
+            state: initialState
+        });
         var epic = createEpicsReduxObservableEpic(this._storeCache, this);
-        if (this._storeCache.store != null) {
+        if (this._storeCache.initialized) {
             this._storeCache.addEpic$.next(epic);
             this._storeCache.dispatch({
                 type: this.namespace + "/" + actionTypes.register
             });
         }
         else {
-            this._storeCache.initialEpics.push(epic);
+            this._storeCache.pendingInitEpics.push(epic);
         }
     };
     ContainerImpl.prototype.unregister = function () {
         if (this.isRegistered) {
-            this._storeCache.dispatch({
-                type: this.namespace + "/" + actionTypes.willUnregister
-            });
             this._storeCache.containerByNamespace.delete(this.namespace);
-            this._storeCache.dispatch({
-                type: this.namespace + "/" + actionTypes.unregister
-            });
+            if (this._storeCache.initialized) {
+                this._storeCache.dispatch({
+                    type: this.namespace + "/" + actionTypes.unregister
+                });
+            }
         }
         this._clearCache();
-    };
-    ContainerImpl.prototype._createProps = function (props) {
-        if (props === undefined) {
-            props = this.model.defaultProps;
-        }
-        return functionWrapper(props)({
-            dependencies: this._storeCache.dependencies,
-            namespace: this.namespace,
-            key: this.key
-        });
     };
     ContainerImpl.prototype._clearCache = function () {
         var _this = this;
@@ -900,11 +858,12 @@ function createGetContainer(storeCache) {
 
 function createStoreCache() {
     var storeCache = {
+        initialized: false,
         store: undefined,
         options: undefined,
         dependencies: undefined,
+        getContainer: undefined,
         addEpic$: undefined,
-        initialEpics: [],
         getState: function () {
             var _a;
             var args = [];
@@ -921,14 +880,15 @@ function createStoreCache() {
             }
             return (_a = storeCache.store).dispatch.apply(_a, args);
         },
-        getContainer: undefined,
-        initStateNamespaces: [],
-        contextByAction: new WeakMap(),
+        pendingInitContainers: [],
+        pendingInitStates: [],
+        pendingInitEpics: [],
         nextCacheId: 1,
         cacheById: new Map(),
         containerById: new Map(),
         containerByNamespace: new Map(),
-        contextByModel: new Map()
+        contextByModel: new Map(),
+        contextByAction: new WeakMap()
     };
     storeCache.getContainer = createGetContainer(storeCache);
     return storeCache;
@@ -1015,11 +975,13 @@ var __assign = function() {
 
 function createRootReduxReducer(storeCache) {
     return function (rootState, action) {
+        var _a;
         if (rootState === undefined) {
             rootState = {};
         }
         var initialRootState;
-        storeCache.initStateNamespaces.forEach(function (_namespace) {
+        storeCache.pendingInitStates.forEach(function (_a) {
+            var _namespace = _a.namespace, _state = _a.state;
             var _container = storeCache.containerByNamespace.get(_namespace);
             if (_container == null) {
                 return;
@@ -1028,22 +990,21 @@ function createRootReduxReducer(storeCache) {
                 var initialState = _container.model.state({
                     dependencies: storeCache.dependencies,
                     namespace: _container.namespace,
-                    key: _container.key,
-                    props: _container.props
+                    key: _container.key
                 });
-                if (initialState !== undefined) {
+                if (initialState !== undefined || _state !== undefined) {
                     if (initialRootState == null) {
                         initialRootState = {};
                     }
-                    initialRootState[_container.path] = initialState;
+                    initialRootState[_container.path] = merge({}, initialState, _state);
                 }
             }
         });
-        storeCache.initStateNamespaces.length = 0;
+        storeCache.pendingInitStates.length = 0;
         if (initialRootState != null) {
             rootState = __assign({}, rootState, initialRootState);
         }
-        var _a = parseActionType(action.type), namespace = _a.namespace, actionName = _a.actionName;
+        var _b = parseActionType(action.type), namespace = _b.namespace, actionName = _b.actionName;
         if (actionName === actionTypes.unregister) {
             rootState = __assign({}, rootState);
             delete rootState[convertNamespaceToPath(namespace)];
@@ -1059,30 +1020,40 @@ function createRootReduxReducer(storeCache) {
         if (reducer == null) {
             return rootState;
         }
-        return produce(rootState, function (draft) {
-            reducer(draft[container.path], action.payload, {
+        var state = rootState[container.path];
+        var newState = produce(state, function (draft) {
+            reducer(draft, action.payload, {
                 dependencies: storeCache.dependencies,
                 namespace: container.namespace,
                 key: container.key,
-                originalState: rootState[container.path]
+                originalState: state
             });
         });
+        if (newState !== state) {
+            return __assign({}, rootState, (_a = {}, _a[container.path] = newState, _a));
+        }
+        else {
+            return rootState;
+        }
     };
 }
 
-function createReduxAdvancedStore(dependencies, models, options) {
-    if (options == null) {
-        options = {};
-    }
+function init(options) {
     if (options.resolveActionName == null) {
         options.resolveActionName = function (paths) { return paths[paths.length - 1]; };
     }
     var storeCache = createStoreCache();
     storeCache.options = options;
-    storeCache.dependencies = dependencies;
-    registerModels(storeCache, "", models);
+    storeCache.dependencies = options.dependencies;
+    registerModels(storeCache, "", options.models);
+    storeCache.pendingInitContainers.forEach(function (_a) {
+        var container = _a.container, initialState = _a.initialState;
+        container.register(initialState);
+    });
+    storeCache.pendingInitContainers.length = 0;
     var rootReducer = createRootReduxReducer(storeCache);
-    storeCache.addEpic$ = new BehaviorSubject(combineEpics.apply(void 0, storeCache.initialEpics));
+    storeCache.addEpic$ = new BehaviorSubject(combineEpics.apply(void 0, storeCache.pendingInitEpics));
+    storeCache.pendingInitEpics.length = 0;
     var rootEpic = function (action$, state$, epicDependencies) {
         return storeCache.addEpic$.pipe(mergeMap(function (epic) { return epic(action$, state$, epicDependencies); }));
     };
@@ -1095,9 +1066,11 @@ function createReduxAdvancedStore(dependencies, models, options) {
         storeCache.store = createStore(rootReducer, applyMiddleware(reduxAdvancedMiddleware, epicMiddleware));
         epicMiddleware.run(rootEpic);
     }
-    var store = storeCache.store;
-    store.getContainer = storeCache.getContainer;
-    return store;
+    storeCache.initialized = true;
+    return {
+        store: storeCache.store,
+        getContainer: storeCache.getContainer
+    };
 }
 
-export { actionTypes, createModelBuilder, createReduxAdvancedStore };
+export { actionTypes, createModelBuilder, init };

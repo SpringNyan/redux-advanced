@@ -18,7 +18,6 @@ import { flattenNestedFunctionMap } from "./util";
 
 export interface EpicContext<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
@@ -39,28 +38,25 @@ export interface EpicContext<
 
 export type Epic<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > = (
-  context: EpicContext<TDependencies, TProps, TState, TGetters, TActionHelpers>
+  context: EpicContext<TDependencies, TState, TGetters, TActionHelpers>
 ) => Observable<AnyAction>;
 
 export interface Epics<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
   [name: string]:
-    | Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>
-    | Epics<TDependencies, TProps, TState, TGetters, TActionHelpers>;
+    | Epic<TDependencies, TState, TGetters, TActionHelpers>
+    | Epics<TDependencies, TState, TGetters, TActionHelpers>;
 }
 
 export type ExtractEpics<T extends Model> = T extends Model<
-  any,
   any,
   any,
   any,
@@ -74,21 +70,13 @@ export type ExtractEpics<T extends Model> = T extends Model<
 export type OverrideEpics<
   TEpics,
   TDependencies extends object | undefined,
-  TProps extends object | undefined,
   TState extends object | undefined,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers
 > = {
   [P in keyof TEpics]: TEpics[P] extends (...args: any[]) => any
-    ? Epic<TDependencies, TProps, TState, TGetters, TActionHelpers>
-    : OverrideEpics<
-        TEpics[P],
-        TDependencies,
-        TProps,
-        TState,
-        TGetters,
-        TActionHelpers
-      >
+    ? Epic<TDependencies, TState, TGetters, TActionHelpers>
+    : OverrideEpics<TEpics[P], TDependencies, TState, TGetters, TActionHelpers>
 };
 
 export function createEpicsReduxObservableEpic(

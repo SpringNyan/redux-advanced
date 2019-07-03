@@ -3,10 +3,9 @@ import { Epic as ReduxObservableEpic } from "redux-observable";
 import { BehaviorSubject } from "rxjs";
 
 import { AnyAction, ConvertReducersAndEffectsToActionHelpers } from "./action";
-import { GetContainer } from "./container";
+import { Container, GetContainer } from "./container";
 import { Effect, ExtractEffects } from "./effect";
 import { Model } from "./model";
-import { ExtractProps } from "./props";
 import { ExtractReducers, Reducer } from "./reducer";
 import { ConvertSelectorsToGetters, ExtractSelectors } from "./selector";
 import { ExtractState } from "./state";
@@ -16,38 +15,25 @@ import { ContainerImpl, createGetContainer } from "./container";
 import { nil } from "./util";
 
 export interface StoreCache {
+  initialized: boolean;
+
   store: Store;
   options: ReduxAdvancedOptions;
   dependencies: any;
-
+  getContainer: GetContainer;
   addEpic$: BehaviorSubject<ReduxObservableEpic>;
-  initialEpics: ReduxObservableEpic[];
 
   getState: () => any;
   dispatch: Dispatch;
-  getContainer: GetContainer;
 
-  initStateNamespaces: string[];
-
-  contextByAction: WeakMap<
-    AnyAction,
-    {
-      model: Model;
-      key: string;
-
-      effectDeferred?: {
-        resolve: (value: any) => void;
-        reject: (err: unknown) => void;
-      };
-    }
-  >;
+  pendingInitContainers: Array<{ container: Container; initialState: any }>;
+  pendingInitStates: Array<{ namespace: string; state: any }>;
+  pendingInitEpics: ReduxObservableEpic[];
 
   nextCacheId: number;
   cacheById: Map<
     string,
     {
-      props: ExtractProps<Model> | undefined;
-
       cachedState: ExtractState<Model> | typeof nil;
       cachedGetters:
         | ConvertSelectorsToGetters<ExtractSelectors<Model>>
@@ -74,24 +60,37 @@ export interface StoreCache {
       effectByActionName: { [name: string]: Effect };
     }
   >;
+
+  contextByAction: WeakMap<
+    AnyAction,
+    {
+      model: Model;
+      key: string;
+
+      effectDeferred?: {
+        resolve: (value: any) => void;
+        reject: (err: unknown) => void;
+      };
+    }
+  >;
 }
 
 export function createStoreCache(): StoreCache {
   const storeCache: StoreCache = {
+    initialized: false,
+
     store: undefined!,
     options: undefined!,
     dependencies: undefined!,
-
+    getContainer: undefined!,
     addEpic$: undefined!,
-    initialEpics: [],
 
     getState: (...args) => storeCache.store!.getState(...args),
     dispatch: (...args) => storeCache.store!.dispatch(...args),
-    getContainer: undefined!,
 
-    initStateNamespaces: [],
-
-    contextByAction: new WeakMap(),
+    pendingInitContainers: [],
+    pendingInitStates: [],
+    pendingInitEpics: [],
 
     nextCacheId: 1,
     cacheById: new Map(),
@@ -99,7 +98,9 @@ export function createStoreCache(): StoreCache {
     containerById: new Map(),
     containerByNamespace: new Map(),
 
-    contextByModel: new Map()
+    contextByModel: new Map(),
+
+    contextByAction: new WeakMap()
   };
 
   storeCache.getContainer = createGetContainer(storeCache);

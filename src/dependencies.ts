@@ -6,7 +6,6 @@ export type ExtractDependencies<T extends Model> = T extends Model<
   any,
   any,
   any,
-  any,
   any
 >
   ? TDependencies
