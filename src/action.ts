@@ -10,7 +10,6 @@ import { flattenNestedFunctionMap, merge, PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
-  beforeUnregister: "@@BEFORE_UNREGISTER",
   unregister: "@@UNREGISTER"
 };
 

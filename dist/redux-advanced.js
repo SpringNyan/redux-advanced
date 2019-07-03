@@ -190,7 +190,6 @@ var PatchedPromise =  (function () {
 
 var actionTypes = {
     register: "@@REGISTER",
-    beforeUnregister: "@@BEFORE_UNREGISTER",
     unregister: "@@UNREGISTER"
 };
 var ActionHelperImpl =  (function () {
@@ -777,25 +776,33 @@ var ContainerImpl =  (function () {
         if (!this.canRegister) {
             throw new Error("namespace is already registered");
         }
+        initialState =
+            initialState !== undefined
+                ? functionWrapper(initialState)({
+                    dependencies: this._storeCache.dependencies,
+                    namespace: this.namespace,
+                    key: this.key
+                })
+                : undefined;
         this._storeCache.containerById.set(this.id, this);
         this._storeCache.containerByNamespace.set(this.namespace, this);
-        this._storeCache.initStateNamespaces.push(this.namespace);
+        this._storeCache.pendingInitStates.push({
+            namespace: this.namespace,
+            state: initialState
+        });
         var epic = createEpicsReduxObservableEpic(this._storeCache, this);
-        if (this._storeCache.store != null) {
+        if (this._storeCache.initialized) {
             this._storeCache.addEpic$.next(epic);
             this._storeCache.dispatch({
                 type: this.namespace + "/" + actionTypes.register
             });
         }
         else {
-            this._storeCache.initialEpics.push(epic);
+            this._storeCache.pendingInitEpics.push(epic);
         }
     };
     ContainerImpl.prototype.unregister = function () {
         if (this.isRegistered) {
-            this._storeCache.dispatch({
-                type: this.namespace + "/" + actionTypes.beforeUnregister
-            });
             this._storeCache.containerByNamespace.delete(this.namespace);
             this._storeCache.dispatch({
                 type: this.namespace + "/" + actionTypes.unregister
@@ -842,11 +849,12 @@ function createGetContainer(storeCache) {
 
 function createStoreCache() {
     var storeCache = {
+        initialized: false,
         store: undefined,
         options: undefined,
         dependencies: undefined,
+        getContainer: undefined,
         addEpic$: undefined,
-        initialEpics: [],
         getState: function () {
             var _a;
             var args = [];
@@ -863,14 +871,14 @@ function createStoreCache() {
             }
             return (_a = storeCache.store).dispatch.apply(_a, args);
         },
-        getContainer: undefined,
-        initStateNamespaces: [],
-        contextByAction: new WeakMap(),
+        pendingInitStates: [],
+        pendingInitEpics: [],
         nextCacheId: 1,
         cacheById: new Map(),
         containerById: new Map(),
         containerByNamespace: new Map(),
-        contextByModel: new Map()
+        contextByModel: new Map(),
+        contextByAction: new WeakMap()
     };
     storeCache.getContainer = createGetContainer(storeCache);
     return storeCache;
@@ -962,7 +970,8 @@ function createRootReduxReducer(storeCache) {
             rootState = {};
         }
         var initialRootState;
-        storeCache.initStateNamespaces.forEach(function (_namespace) {
+        storeCache.pendingInitStates.forEach(function (_a) {
+            var _namespace = _a.namespace, _state = _a.state;
             var _container = storeCache.containerByNamespace.get(_namespace);
             if (_container == null) {
                 return;
@@ -973,15 +982,15 @@ function createRootReduxReducer(storeCache) {
                     namespace: _container.namespace,
                     key: _container.key
                 });
-                if (initialState !== undefined) {
+                if (initialState !== undefined || _state !== undefined) {
                     if (initialRootState == null) {
                         initialRootState = {};
                     }
-                    initialRootState[_container.path] = initialState;
+                    initialRootState[_container.path] = merge({}, initialState, _state);
                 }
             }
         });
-        storeCache.initStateNamespaces.length = 0;
+        storeCache.pendingInitStates.length = 0;
         if (initialRootState != null) {
             rootState = __assign({}, rootState, initialRootState);
         }
@@ -1031,7 +1040,8 @@ function createReduxAdvancedStore(dependencies, models, options) {
     storeCache.dependencies = dependencies;
     registerModels(storeCache, "", models);
     var rootReducer = createRootReduxReducer(storeCache);
-    storeCache.addEpic$ = new rxjs.BehaviorSubject(reduxObservable.combineEpics.apply(void 0, storeCache.initialEpics));
+    storeCache.addEpic$ = new rxjs.BehaviorSubject(reduxObservable.combineEpics.apply(void 0, storeCache.pendingInitEpics));
+    storeCache.pendingInitEpics.length = 0;
     var rootEpic = function (action$, state$, epicDependencies) {
         return storeCache.addEpic$.pipe(operators.mergeMap(function (epic) { return epic(action$, state$, epicDependencies); }));
     };
@@ -1046,6 +1056,7 @@ function createReduxAdvancedStore(dependencies, models, options) {
     }
     var store = storeCache.store;
     store.getContainer = storeCache.getContainer;
+    storeCache.initialized = true;
     return store;
 }
 

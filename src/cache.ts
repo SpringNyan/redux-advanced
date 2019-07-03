@@ -15,31 +15,19 @@ import { ContainerImpl, createGetContainer } from "./container";
 import { nil } from "./util";
 
 export interface StoreCache {
+  initialized: boolean;
+
   store: Store;
   options: ReduxAdvancedOptions;
   dependencies: any;
-
+  getContainer: GetContainer;
   addEpic$: BehaviorSubject<ReduxObservableEpic>;
-  initialEpics: ReduxObservableEpic[];
 
   getState: () => any;
   dispatch: Dispatch;
-  getContainer: GetContainer;
 
-  initStateNamespaces: string[];
-
-  contextByAction: WeakMap<
-    AnyAction,
-    {
-      model: Model;
-      key: string;
-
-      effectDeferred?: {
-        resolve: (value: any) => void;
-        reject: (err: unknown) => void;
-      };
-    }
-  >;
+  pendingInitStates: Array<{ namespace: string; state: any }>;
+  pendingInitEpics: ReduxObservableEpic[];
 
   nextCacheId: number;
   cacheById: Map<
@@ -71,24 +59,36 @@ export interface StoreCache {
       effectByActionName: { [name: string]: Effect };
     }
   >;
+
+  contextByAction: WeakMap<
+    AnyAction,
+    {
+      model: Model;
+      key: string;
+
+      effectDeferred?: {
+        resolve: (value: any) => void;
+        reject: (err: unknown) => void;
+      };
+    }
+  >;
 }
 
 export function createStoreCache(): StoreCache {
   const storeCache: StoreCache = {
+    initialized: false,
+
     store: undefined!,
     options: undefined!,
     dependencies: undefined!,
-
+    getContainer: undefined!,
     addEpic$: undefined!,
-    initialEpics: [],
 
     getState: (...args) => storeCache.store!.getState(...args),
     dispatch: (...args) => storeCache.store!.dispatch(...args),
-    getContainer: undefined!,
 
-    initStateNamespaces: [],
-
-    contextByAction: new WeakMap(),
+    pendingInitStates: [],
+    pendingInitEpics: [],
 
     nextCacheId: 1,
     cacheById: new Map(),
@@ -96,7 +96,9 @@ export function createStoreCache(): StoreCache {
     containerById: new Map(),
     containerByNamespace: new Map(),
 
-    contextByModel: new Map()
+    contextByModel: new Map(),
+
+    contextByAction: new WeakMap()
   };
 
   storeCache.getContainer = createGetContainer(storeCache);

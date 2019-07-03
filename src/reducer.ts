@@ -6,7 +6,7 @@ import { StoreCache } from "./cache";
 import { Model } from "./model";
 
 import { actionTypes } from "./action";
-import { convertNamespaceToPath, parseActionType } from "./util";
+import { convertNamespaceToPath, merge, parseActionType } from "./util";
 
 export interface ReducerContext<
   TDependencies extends object | undefined = any,
@@ -67,29 +67,31 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
 
     let initialRootState: { [namespace: string]: any } | undefined;
 
-    storeCache.initStateNamespaces.forEach((_namespace) => {
-      const _container = storeCache.containerByNamespace.get(_namespace);
-      if (_container == null) {
-        return;
-      }
+    storeCache.pendingInitStates.forEach(
+      ({ namespace: _namespace, state: _state }) => {
+        const _container = storeCache.containerByNamespace.get(_namespace);
+        if (_container == null) {
+          return;
+        }
 
-      if (rootState[_container.path] === undefined) {
-        const initialState = _container.model.state({
-          dependencies: storeCache.dependencies,
-          namespace: _container.namespace,
-          key: _container.key
-        });
+        if (rootState[_container.path] === undefined) {
+          const initialState = _container.model.state({
+            dependencies: storeCache.dependencies,
+            namespace: _container.namespace,
+            key: _container.key
+          });
 
-        if (initialState !== undefined) {
-          if (initialRootState == null) {
-            initialRootState = {};
+          if (initialState !== undefined || _state !== undefined) {
+            if (initialRootState == null) {
+              initialRootState = {};
+            }
+
+            initialRootState[_container.path] = merge({}, initialState, _state);
           }
-
-          initialRootState[_container.path] = initialState;
         }
       }
-    });
-    storeCache.initStateNamespaces.length = 0;
+    );
+    storeCache.pendingInitStates.length = 0;
 
     if (initialRootState != null) {
       rootState = {

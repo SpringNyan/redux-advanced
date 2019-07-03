@@ -1,5 +1,6 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
+import { ExtractDependencies } from "./dependencies";
 import { ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers } from "./reducer";
@@ -8,13 +9,18 @@ import {
   ExtractSelectors,
   SelectorInternal
 } from "./selector";
-import { ExtractState } from "./state";
+import { ExtractState, StateFactory } from "./state";
 import { DeepPartial } from "./util";
 
 import { actionTypes, createActionHelpers } from "./action";
 import { createEpicsReduxObservableEpic } from "./epic";
 import { createGetters } from "./selector";
-import { buildNamespace, convertNamespaceToPath, nil } from "./util";
+import {
+  buildNamespace,
+  convertNamespaceToPath,
+  functionWrapper,
+  nil
+} from "./util";
 
 export interface Container<TModel extends Model = any> {
   namespace: string;
@@ -29,7 +35,14 @@ export interface Container<TModel extends Model = any> {
     ExtractEffects<TModel>
   >;
 
-  register(initialState?: DeepPartial<ExtractState<TModel>>): void;
+  register(
+    initialState?:
+      | DeepPartial<ExtractState<TModel>>
+      | StateFactory<
+          ExtractDependencies<TModel>,
+          DeepPartial<ExtractState<TModel>>
+        >
+  ): void;
   unregister(): void;
 }
 
@@ -133,34 +146,50 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     throw new Error("namespace is already registered by other model");
   }
 
-  public register(initialState?: DeepPartial<ExtractState<TModel>>) {
+  public register(
+    initialState?:
+      | DeepPartial<ExtractState<TModel>>
+      | StateFactory<
+          ExtractDependencies<TModel>,
+          DeepPartial<ExtractState<TModel>>
+        >
+  ) {
     if (!this.canRegister) {
       throw new Error("namespace is already registered");
     }
 
+    initialState =
+      initialState !== undefined
+        ? functionWrapper(initialState)({
+            dependencies: this._storeCache.dependencies,
+            namespace: this.namespace,
+            key: this.key
+          })
+        : undefined;
+
     this._storeCache.containerById.set(this.id, this);
 
     this._storeCache.containerByNamespace.set(this.namespace, this);
-    this._storeCache.initStateNamespaces.push(this.namespace);
+    this._storeCache.pendingInitStates.push({
+      namespace: this.namespace,
+      state: initialState
+    });
 
     const epic = createEpicsReduxObservableEpic(this._storeCache, this);
 
-    if (this._storeCache.store != null) {
+    if (this._storeCache.initialized) {
       this._storeCache.addEpic$.next(epic);
+
       this._storeCache.dispatch({
         type: `${this.namespace}/${actionTypes.register}`
       });
     } else {
-      this._storeCache.initialEpics.push(epic);
+      this._storeCache.pendingInitEpics.push(epic);
     }
   }
 
   public unregister() {
     if (this.isRegistered) {
-      this._storeCache.dispatch({
-        type: `${this.namespace}/${actionTypes.beforeUnregister}`
-      });
-
       this._storeCache.containerByNamespace.delete(this.namespace);
 
       this._storeCache.dispatch({

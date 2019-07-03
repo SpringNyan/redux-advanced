@@ -61,8 +61,10 @@ export function createReduxAdvancedStore<
   const rootReducer: Reducer = createRootReduxReducer(storeCache);
 
   storeCache.addEpic$ = new BehaviorSubject(
-    combineEpics(...storeCache.initialEpics)
+    combineEpics(...storeCache.pendingInitEpics)
   );
+  storeCache.pendingInitEpics.length = 0;
+
   const rootEpic: Epic = (action$, state$, epicDependencies) =>
     storeCache.addEpic$.pipe(
       mergeMap((epic) => epic(action$, state$, epicDependencies))
@@ -89,6 +91,8 @@ export function createReduxAdvancedStore<
 
   const store = storeCache.store as ReduxAdvancedStore;
   store.getContainer = storeCache.getContainer;
+
+  storeCache.initialized = true;
 
   return store;
 }
