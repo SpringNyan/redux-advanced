@@ -359,31 +359,19 @@ var ModelBuilder =  (function () {
         if (this._isFrozen) {
             return this.clone().extend(model, namespace);
         }
-        var defaultProps = model.defaultProps;
         var state = model.state;
         var selectors = model.selectors;
         var reducers = model.reducers;
         var effects = model.effects;
         var epics = model.epics;
         if (namespace !== undefined) {
-            defaultProps = function (context) {
-                var _a;
-                return (_a = {},
-                    _a[namespace] = model.defaultProps({
-                        dependencies: context.dependencies,
-                        namespace: context.namespace,
-                        key: context.key
-                    }),
-                    _a);
-            };
             state = function (context) {
                 var _a;
                 return (_a = {},
                     _a[namespace] = model.state({
                         dependencies: context.dependencies,
                         namespace: context.namespace,
-                        key: context.key,
-                        props: context.props[namespace]
+                        key: context.key
                     }),
                     _a);
             };
@@ -459,7 +447,6 @@ var ModelBuilder =  (function () {
                 _d);
         }
         this.dependencies()
-            .props(defaultProps)
             .state(state)
             .selectors(selectors)
             .reducers(reducers)
@@ -471,37 +458,6 @@ var ModelBuilder =  (function () {
         if (this._isFrozen) {
             return this.clone().dependencies();
         }
-        return this;
-    };
-    ModelBuilder.prototype.props = function (props) {
-        if (this._isFrozen) {
-            return this.clone().props(props);
-        }
-        var oldPropsFn = this._model.defaultProps;
-        var newPropsFn = functionWrapper(props);
-        this._model.defaultProps = function (context) {
-            var oldProps = oldPropsFn(context);
-            var newProps = newPropsFn(context);
-            if (oldProps === undefined && newProps === undefined) {
-                return undefined;
-            }
-            return merge({}, oldProps, newProps);
-        };
-        return this;
-    };
-    ModelBuilder.prototype.overrideProps = function (override) {
-        if (this._isFrozen) {
-            return this.clone().overrideProps(override);
-        }
-        var oldPropsFn = this._model.defaultProps;
-        this._model.defaultProps = function (context) {
-            var oldProps = oldPropsFn(context);
-            var newProps = functionWrapper(override(oldProps))(context);
-            if (oldProps === undefined && newProps === undefined) {
-                return undefined;
-            }
-            return merge({}, oldProps, newProps);
-        };
         return this;
     };
     ModelBuilder.prototype.state = function (state) {
@@ -613,11 +569,8 @@ var ModelBuilder =  (function () {
         this._model.autoRegister = value;
         return this;
     };
-    ModelBuilder.prototype.build = function (props) {
+    ModelBuilder.prototype.build = function () {
         var model = cloneModel(this._model);
-        if (props !== undefined) {
-            model.defaultProps = functionWrapper(props);
-        }
         return model;
     };
     ModelBuilder._nextEpicId = 1;
@@ -625,7 +578,6 @@ var ModelBuilder =  (function () {
 }());
 function cloneModel(model) {
     return {
-        defaultProps: model.defaultProps,
         autoRegister: model.autoRegister,
         state: model.state,
         selectors: merge({}, model.selectors),
@@ -637,20 +589,17 @@ function cloneModel(model) {
 function isModel(obj) {
     var model = obj;
     return (model != null &&
-        model.defaultProps != null &&
         model.autoRegister != null &&
         model.state != null &&
         model.selectors != null &&
         model.reducers != null &&
         model.effects != null &&
         model.epics != null &&
-        typeof model.defaultProps === "function" &&
         typeof model.autoRegister === "boolean" &&
         typeof model.state === "function");
 }
 function createModelBuilder() {
     return new ModelBuilder({
-        defaultProps: function () { return undefined; },
         autoRegister: false,
         state: function () { return undefined; },
         selectors: {},
@@ -749,7 +698,6 @@ var ContainerImpl =  (function () {
             var cache = this._storeCache.cacheById.get(this.id);
             if (cache == null) {
                 cache = {
-                    props: this._createProps(),
                     cachedState: nil,
                     cachedGetters: undefined,
                     cachedActions: undefined
@@ -776,13 +724,6 @@ var ContainerImpl =  (function () {
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(ContainerImpl.prototype, "props", {
-        get: function () {
-            return this._cache.props;
-        },
-        enumerable: true,
-        configurable: true
-    });
     Object.defineProperty(ContainerImpl.prototype, "state", {
         get: function () {
             if (this.isRegistered) {
@@ -794,8 +735,7 @@ var ContainerImpl =  (function () {
                     cache.cachedState = this.model.state({
                         dependencies: this._storeCache.dependencies,
                         namespace: this.namespace,
-                        key: this.key,
-                        props: cache.props
+                        key: this.key
                     });
                 }
                 return cache.cachedState;
@@ -833,13 +773,11 @@ var ContainerImpl =  (function () {
         enumerable: true,
         configurable: true
     });
-    ContainerImpl.prototype.register = function (props) {
+    ContainerImpl.prototype.register = function (initialState) {
         if (!this.canRegister) {
             throw new Error("namespace is already registered");
         }
         this._storeCache.containerById.set(this.id, this);
-        var cache = this._cache;
-        cache.props = this._createProps(props);
         this._storeCache.containerByNamespace.set(this.namespace, this);
         this._storeCache.initStateNamespaces.push(this.namespace);
         var epic = createEpicsReduxObservableEpic(this._storeCache, this);
@@ -864,16 +802,6 @@ var ContainerImpl =  (function () {
             });
         }
         this._clearCache();
-    };
-    ContainerImpl.prototype._createProps = function (props) {
-        if (props === undefined) {
-            props = this.model.defaultProps;
-        }
-        return functionWrapper(props)({
-            dependencies: this._storeCache.dependencies,
-            namespace: this.namespace,
-            key: this.key
-        });
     };
     ContainerImpl.prototype._clearCache = function () {
         var _this = this;
@@ -1043,8 +971,7 @@ function createRootReduxReducer(storeCache) {
                 var initialState = _container.model.state({
                     dependencies: storeCache.dependencies,
                     namespace: _container.namespace,
-                    key: _container.key,
-                    props: _container.props
+                    key: _container.key
                 });
                 if (initialState !== undefined) {
                     if (initialRootState == null) {

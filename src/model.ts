@@ -3,7 +3,6 @@ import { StoreCache } from "./cache";
 import { ExtractDependencies } from "./dependencies";
 import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
 import { Epic, Epics, ExtractEpics, OverrideEpics } from "./epic";
-import { ExtractProps, PropsFactory } from "./props";
 import {
   ExtractReducers,
   OverrideReducers,
@@ -32,17 +31,15 @@ import {
 
 export interface Model<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
-  defaultProps: PropsFactory<TDependencies, TProps>;
   autoRegister: boolean;
 
-  state: StateFactory<TDependencies, TProps, TState>;
+  state: StateFactory<TDependencies, TState>;
   selectors: TSelectors;
   reducers: TReducers;
   effects: TEffects;
@@ -60,7 +57,6 @@ export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
 export class ModelBuilder<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
@@ -71,7 +67,6 @@ export class ModelBuilder<
 
   private readonly _model: Model<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -81,22 +76,13 @@ export class ModelBuilder<
   private _isFrozen: boolean = false;
 
   constructor(
-    model: Model<
-      TDependencies,
-      TProps,
-      TState,
-      TSelectors,
-      TReducers,
-      TEffects,
-      TEpics
-    >
+    model: Model<TDependencies, TState, TSelectors, TReducers, TEffects, TEpics>
   ) {
     this._model = cloneModel(model);
   }
 
   public freeze(): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -109,7 +95,6 @@ export class ModelBuilder<
 
   public clone(): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -125,9 +110,6 @@ export class ModelBuilder<
     TDependencies extends object
       ? TDependencies & ExtractDependencies<TModel>
       : ExtractDependencies<TModel>,
-    TProps extends object
-      ? TProps & ExtractProps<TModel>
-      : ExtractProps<TModel>,
     TState extends object
       ? TState & ExtractState<TModel>
       : ExtractState<TModel>,
@@ -143,14 +125,6 @@ export class ModelBuilder<
     TDependencies extends object
       ? TDependencies & ExtractDependencies<TModel>
       : ExtractDependencies<TModel>,
-    TProps extends object
-      ? TProps &
-          (ExtractProps<TModel> extends object
-            ? { [P in TNamespace]: ExtractProps<TModel> }
-            : {})
-      : (ExtractProps<TModel> extends object
-          ? { [P in TNamespace]: ExtractProps<TModel> }
-          : {}),
     TState extends object
       ? TState &
           (ExtractState<TModel> extends object
@@ -169,7 +143,6 @@ export class ModelBuilder<
       return this.clone().extend(model, namespace!);
     }
 
-    let defaultProps = model.defaultProps;
     let state = model.state;
     let selectors = model.selectors;
     let reducers = model.reducers;
@@ -177,21 +150,11 @@ export class ModelBuilder<
     let epics = model.epics;
 
     if (namespace !== undefined) {
-      defaultProps = (context) => ({
-        [namespace]: model.defaultProps({
-          dependencies: context.dependencies,
-          namespace: context.namespace,
-          key: context.key
-        })
-      });
-
       state = (context) => ({
         [namespace]: model.state({
           dependencies: context.dependencies,
           namespace: context.namespace,
-          key: context.key,
-
-          props: context.props[namespace]
+          key: context.key
         })
       });
 
@@ -295,7 +258,6 @@ export class ModelBuilder<
     }
 
     this.dependencies()
-      .props(defaultProps)
       .state(state)
       .selectors(selectors)
       .reducers(reducers)
@@ -307,7 +269,6 @@ export class ModelBuilder<
 
   public dependencies<T extends object>(): ModelBuilder<
     TDependencies extends object ? TDependencies & T : T,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -321,76 +282,10 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public props<T extends object>(
-    props: T | PropsFactory<TDependencies, T>
-  ): ModelBuilder<
-    TDependencies,
-    TProps extends object ? TProps & T : T,
-    TState,
-    TSelectors,
-    TReducers,
-    TEffects,
-    TEpics
-  > {
-    if (this._isFrozen) {
-      return this.clone().props(props);
-    }
-
-    const oldPropsFn = this._model.defaultProps;
-    const newPropsFn = functionWrapper(props);
-
-    this._model.defaultProps = (context) => {
-      const oldProps = oldPropsFn(context);
-      const newProps = newPropsFn(context);
-
-      if (oldProps === undefined && newProps === undefined) {
-        return undefined!;
-      }
-
-      return merge({}, oldProps, newProps);
-    };
-
-    return this as any;
-  }
-
-  public overrideProps(
-    override: (
-      base: TProps
-    ) => DeepPartial<TProps> | PropsFactory<TDependencies, DeepPartial<TProps>>
-  ): ModelBuilder<
-    TDependencies,
-    TProps,
-    TState,
-    TSelectors,
-    TReducers,
-    TEffects,
-    TEpics
-  > {
-    if (this._isFrozen) {
-      return this.clone().overrideProps(override);
-    }
-
-    const oldPropsFn = this._model.defaultProps;
-
-    this._model.defaultProps = (context) => {
-      const oldProps = oldPropsFn(context);
-      const newProps = functionWrapper(override(oldProps))(context);
-
-      if (oldProps === undefined && newProps === undefined) {
-        return undefined!;
-      }
-
-      return merge({}, oldProps, newProps);
-    };
-
-    return this as any;
-  }
-
   public state<T extends object>(
-    state: T | StateFactory<TDependencies, TProps, T>
+    state: T | StateFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState extends object ? TState & T : T,
     TSelectors,
     TReducers,
@@ -421,12 +316,9 @@ export class ModelBuilder<
   public overrideState(
     override: (
       base: TState
-    ) =>
-      | DeepPartial<TState>
-      | StateFactory<TDependencies, TProps, DeepPartial<TState>>
+    ) => DeepPartial<TState> | StateFactory<TDependencies, DeepPartial<TState>>
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -456,7 +348,6 @@ export class ModelBuilder<
   public selectors<
     T extends Selectors<
       TDependencies,
-      TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -466,7 +357,6 @@ export class ModelBuilder<
       | T
       | SelectorsFactory<
           TDependencies,
-          TProps,
           TState,
           ConvertSelectorsToGetters<TSelectors>,
           ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>,
@@ -474,7 +364,6 @@ export class ModelBuilder<
         >
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors & T,
     TReducers,
@@ -502,7 +391,6 @@ export class ModelBuilder<
           OverrideSelectors<
             TSelectors,
             TDependencies,
-            TProps,
             TState,
             ConvertSelectorsToGetters<TSelectors>,
             ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -510,7 +398,6 @@ export class ModelBuilder<
         >
       | SelectorsFactory<
           TDependencies,
-          TProps,
           TState,
           ConvertSelectorsToGetters<TSelectors>,
           ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>,
@@ -518,7 +405,6 @@ export class ModelBuilder<
             OverrideSelectors<
               TSelectors,
               TDependencies,
-              TProps,
               TState,
               ConvertSelectorsToGetters<TSelectors>,
               ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -527,12 +413,10 @@ export class ModelBuilder<
         >
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     OverrideSelectors<
       TSelectors,
       TDependencies,
-      TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -555,11 +439,10 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public reducers<T extends Reducers<TDependencies, TProps, TState>>(
+  public reducers<T extends Reducers<TDependencies, TState>>(
     reducers: T
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers & T,
@@ -578,13 +461,12 @@ export class ModelBuilder<
   public overrideReducers(
     override: (
       base: TReducers
-    ) => DeepPartial<OverrideReducers<TReducers, TDependencies, TProps, TState>>
+    ) => DeepPartial<OverrideReducers<TReducers, TDependencies, TState>>
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
-    OverrideReducers<TReducers, TDependencies, TProps, TState>,
+    OverrideReducers<TReducers, TDependencies, TState>,
     TEffects,
     TEpics
   > {
@@ -604,7 +486,6 @@ export class ModelBuilder<
   public effects<
     T extends Effects<
       TDependencies,
-      TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -613,7 +494,6 @@ export class ModelBuilder<
     effects: T
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -636,7 +516,6 @@ export class ModelBuilder<
       OverrideEffects<
         TEffects,
         TDependencies,
-        TProps,
         TState,
         ConvertSelectorsToGetters<TSelectors>,
         ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -644,14 +523,12 @@ export class ModelBuilder<
     >
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
     OverrideEffects<
       TEffects,
       TDependencies,
-      TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -674,7 +551,6 @@ export class ModelBuilder<
   public epics<
     T extends Epics<
       TDependencies,
-      TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -685,7 +561,6 @@ export class ModelBuilder<
       | Array<
           Epic<
             TDependencies,
-            TProps,
             TState,
             ConvertSelectorsToGetters<TSelectors>,
             ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -693,7 +568,6 @@ export class ModelBuilder<
         >
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -724,7 +598,6 @@ export class ModelBuilder<
       OverrideEpics<
         TEpics,
         TDependencies,
-        TProps,
         TState,
         ConvertSelectorsToGetters<TSelectors>,
         ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -732,7 +605,6 @@ export class ModelBuilder<
     >
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -740,7 +612,6 @@ export class ModelBuilder<
     OverrideEpics<
       TEpics,
       TDependencies,
-      TProps,
       TState,
       ConvertSelectorsToGetters<TSelectors>,
       ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
@@ -763,7 +634,6 @@ export class ModelBuilder<
     value: boolean = true
   ): ModelBuilder<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -779,11 +649,8 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public build(
-    props?: TProps | PropsFactory<TDependencies, TProps>
-  ): Model<
+  public build(): Model<
     TDependencies,
-    TProps,
     TState,
     TSelectors,
     TReducers,
@@ -791,9 +658,6 @@ export class ModelBuilder<
     TEpics
   > {
     const model = cloneModel(this._model);
-    if (props !== undefined) {
-      model.defaultProps = functionWrapper(props);
-    }
 
     return model;
   }
@@ -801,7 +665,6 @@ export class ModelBuilder<
 
 function cloneModel<T extends Model>(model: T): T {
   return {
-    defaultProps: model.defaultProps,
     autoRegister: model.autoRegister,
 
     state: model.state,
@@ -816,14 +679,12 @@ export function isModel(obj: any): obj is Model {
   const model = obj as Model;
   return (
     model != null &&
-    model.defaultProps != null &&
     model.autoRegister != null &&
     model.state != null &&
     model.selectors != null &&
     model.reducers != null &&
     model.effects != null &&
     model.epics != null &&
-    typeof model.defaultProps === "function" &&
     typeof model.autoRegister === "boolean" &&
     typeof model.state === "function"
   );
@@ -832,14 +693,12 @@ export function isModel(obj: any): obj is Model {
 export function createModelBuilder(): ModelBuilder<
   undefined,
   undefined,
-  undefined,
   {},
   {},
   {},
   {}
 > {
   return new ModelBuilder({
-    defaultProps: () => undefined,
     autoRegister: false,
 
     state: () => undefined,

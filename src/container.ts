@@ -1,9 +1,7 @@
 import { ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { StoreCache } from "./cache";
-import { ExtractDependencies } from "./dependencies";
 import { ExtractEffects } from "./effect";
 import { Model } from "./model";
-import { ExtractProps, PropsFactory } from "./props";
 import { ExtractReducers } from "./reducer";
 import {
   ConvertSelectorsToGetters,
@@ -11,16 +9,12 @@ import {
   SelectorInternal
 } from "./selector";
 import { ExtractState } from "./state";
+import { DeepPartial } from "./util";
 
 import { actionTypes, createActionHelpers } from "./action";
 import { createEpicsReduxObservableEpic } from "./epic";
 import { createGetters } from "./selector";
-import {
-  buildNamespace,
-  convertNamespaceToPath,
-  functionWrapper,
-  nil
-} from "./util";
+import { buildNamespace, convertNamespaceToPath, nil } from "./util";
 
 export interface Container<TModel extends Model = any> {
   namespace: string;
@@ -35,11 +29,7 @@ export interface Container<TModel extends Model = any> {
     ExtractEffects<TModel>
   >;
 
-  register(
-    props?:
-      | ExtractProps<TModel>
-      | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
-  ): void;
+  register(initialState?: DeepPartial<ExtractState<TModel>>): void;
   unregister(): void;
 }
 
@@ -72,8 +62,6 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     let cache = this._storeCache.cacheById.get(this.id);
     if (cache == null) {
       cache = {
-        props: this._createProps(),
-
         cachedState: nil,
         cachedGetters: undefined,
         cachedActions: undefined
@@ -93,10 +81,6 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     return !this._storeCache.containerByNamespace.has(this.namespace);
   }
 
-  public get props() {
-    return this._cache.props;
-  }
-
   public get state() {
     if (this.isRegistered) {
       return this._storeCache.getState()[this.path];
@@ -108,9 +92,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
         cache.cachedState = this.model.state({
           dependencies: this._storeCache.dependencies,
           namespace: this.namespace,
-          key: this.key,
-
-          props: cache.props
+          key: this.key
         });
       }
 
@@ -151,19 +133,12 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     throw new Error("namespace is already registered by other model");
   }
 
-  public register(
-    props?:
-      | ExtractProps<TModel>
-      | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
-  ) {
+  public register(initialState?: DeepPartial<ExtractState<TModel>>) {
     if (!this.canRegister) {
       throw new Error("namespace is already registered");
     }
 
     this._storeCache.containerById.set(this.id, this);
-
-    const cache = this._cache;
-    cache.props = this._createProps(props);
 
     this._storeCache.containerByNamespace.set(this.namespace, this);
     this._storeCache.initStateNamespaces.push(this.namespace);
@@ -194,22 +169,6 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
     }
 
     this._clearCache();
-  }
-
-  private _createProps(
-    props?:
-      | ExtractProps<TModel>
-      | PropsFactory<ExtractDependencies<TModel>, ExtractProps<TModel>>
-  ) {
-    if (props === undefined) {
-      props = this.model.defaultProps;
-    }
-
-    return functionWrapper(props)({
-      dependencies: this._storeCache.dependencies,
-      namespace: this.namespace,
-      key: this.key
-    });
   }
 
   private _clearCache() {

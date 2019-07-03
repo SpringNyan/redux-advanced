@@ -10,7 +10,6 @@ import { convertNamespaceToPath, parseActionType } from "./util";
 
 export interface ReducerContext<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any
 > {
   dependencies: TDependencies;
@@ -22,27 +21,24 @@ export interface ReducerContext<
 
 export type Reducer<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TPayload = any
 > = (
   state: TState,
   payload: TPayload,
-  context: ReducerContext<TDependencies, TProps, TState>
+  context: ReducerContext<TDependencies, TState>
 ) => void;
 
 export interface Reducers<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any
 > {
   [name: string]:
-    | Reducer<TDependencies, TProps, TState>
-    | Reducers<TDependencies, TProps, TState>;
+    | Reducer<TDependencies, TState>
+    | Reducers<TDependencies, TState>;
 }
 
 export type ExtractReducers<T extends Model> = T extends Model<
-  any,
   any,
   any,
   any,
@@ -56,12 +52,11 @@ export type ExtractReducers<T extends Model> = T extends Model<
 export type OverrideReducers<
   TReducers,
   TDependencies extends object | undefined,
-  TProps extends object | undefined,
   TState extends object | undefined
 > = {
   [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
-    ? Reducer<TDependencies, TProps, TState, ExtractActionPayload<TReducers[P]>>
-    : OverrideReducers<TReducers[P], TDependencies, TProps, TState>
+    ? Reducer<TDependencies, TState, ExtractActionPayload<TReducers[P]>>
+    : OverrideReducers<TReducers[P], TDependencies, TState>
 };
 
 export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
@@ -82,9 +77,7 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
         const initialState = _container.model.state({
           dependencies: storeCache.dependencies,
           namespace: _container.namespace,
-          key: _container.key,
-
-          props: _container.props
+          key: _container.key
         });
 
         if (initialState !== undefined) {

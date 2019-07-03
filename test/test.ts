@@ -19,11 +19,8 @@ describe("redux-advanced", () => {
     let setAge2Count2 = 0;
 
     const testModelBuilder = defaultModelBuilder
-      .props({
-        name: ""
-      })
-      .state(({ props }) => ({
-        name: props.name,
+      .state(() => ({
+        name: "",
         age: 0
       }))
       .selectors({
@@ -138,9 +135,11 @@ describe("redux-advanced", () => {
       ])
       .freeze();
 
-    const staticModel = testModelBuilder.build({
-      name: "nyan"
-    });
+    const staticModel = testModelBuilder
+      .overrideState(() => ({
+        name: "nyan"
+      }))
+      .build();
 
     const dynamicModel = testModelBuilder
       .selectors({

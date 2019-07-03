@@ -7,7 +7,6 @@ import { Getters } from "./selector";
 
 export interface EffectContext<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
@@ -28,37 +27,28 @@ export interface EffectContext<
 
 export type Effect<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TPayload = any,
   TResult = any
 > = (
-  context: EffectContext<
-    TDependencies,
-    TProps,
-    TState,
-    TGetters,
-    TActionHelpers
-  >,
+  context: EffectContext<TDependencies, TState, TGetters, TActionHelpers>,
   payload: TPayload
 ) => Promise<TResult>;
 
 export interface Effects<
   TDependencies extends object | undefined = any,
-  TProps extends object | undefined = any,
   TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
   [name: string]:
-    | Effect<TDependencies, TProps, TState, TGetters, TActionHelpers>
-    | Effects<TDependencies, TProps, TState, TGetters, TActionHelpers>;
+    | Effect<TDependencies, TState, TGetters, TActionHelpers>
+    | Effects<TDependencies, TState, TGetters, TActionHelpers>;
 }
 
 export type ExtractEffects<T extends Model> = T extends Model<
-  any,
   any,
   any,
   any,
@@ -75,7 +65,6 @@ export type ExtractEffectResult<T extends Effect> = T extends Effect<
   any,
   any,
   any,
-  any,
   infer TResult
 >
   ? TResult
@@ -84,7 +73,6 @@ export type ExtractEffectResult<T extends Effect> = T extends Effect<
 export type OverrideEffects<
   TEffects,
   TDependencies extends object | undefined,
-  TProps extends object | undefined,
   TState extends object | undefined,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers
@@ -92,7 +80,6 @@ export type OverrideEffects<
   [P in keyof TEffects]: TEffects[P] extends (...args: any[]) => any
     ? Effect<
         TDependencies,
-        TProps,
         TState,
         TGetters,
         TActionHelpers,
@@ -102,7 +89,6 @@ export type OverrideEffects<
     : OverrideEffects<
         TEffects[P],
         TDependencies,
-        TProps,
         TState,
         TGetters,
         TActionHelpers

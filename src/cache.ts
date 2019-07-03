@@ -6,7 +6,6 @@ import { AnyAction, ConvertReducersAndEffectsToActionHelpers } from "./action";
 import { GetContainer } from "./container";
 import { Effect, ExtractEffects } from "./effect";
 import { Model } from "./model";
-import { ExtractProps } from "./props";
 import { ExtractReducers, Reducer } from "./reducer";
 import { ConvertSelectorsToGetters, ExtractSelectors } from "./selector";
 import { ExtractState } from "./state";
@@ -46,8 +45,6 @@ export interface StoreCache {
   cacheById: Map<
     string,
     {
-      props: ExtractProps<Model> | undefined;
-
       cachedState: ExtractState<Model> | typeof nil;
       cachedGetters:
         | ConvertSelectorsToGetters<ExtractSelectors<Model>>
