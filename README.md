@@ -120,6 +120,7 @@ container.actions.setName.dispatch("nyan");
   - REMOVE: remove `willUnregister` action
   - REMOVE: remove `props` in model
   - REVERT: support epics array in `ModelBuilder` (changed in 0.10.0)
+  - CHANGE: replace `createReduxAdvancedStore` with `init`
   - IMPROVEMENT: improve reducer performance
 
 - 0.11.1

@@ -18,11 +18,10 @@ import { createMiddleware } from "./middleware";
 import { registerModels } from "./model";
 import { createRootReduxReducer } from "./reducer";
 
-export interface ReduxAdvancedStore extends Store {
-  getContainer: GetContainer;
-}
-
 export interface ReduxAdvancedOptions {
+  models: Models;
+  dependencies: any;
+
   createStore?: (
     rootReducer: Reducer,
     rootEpic: Epic,
@@ -36,17 +35,12 @@ export interface ReduxAdvancedOptions {
   ) => Observable<AnyAction>;
 }
 
-export function createReduxAdvancedStore<
-  TDependencies extends object | undefined,
-  TModels extends Models<TDependencies>
->(
-  dependencies: TDependencies,
-  models: TModels,
-  options?: ReduxAdvancedOptions
-): ReduxAdvancedStore {
-  if (options == null) {
-    options = {};
-  }
+export function init(
+  options: ReduxAdvancedOptions
+): {
+  store: Store;
+  getContainer: GetContainer;
+} {
   if (options.resolveActionName == null) {
     options.resolveActionName = (paths) => paths[paths.length - 1];
   }
@@ -54,9 +48,9 @@ export function createReduxAdvancedStore<
   const storeCache = createStoreCache();
 
   storeCache.options = options;
-  storeCache.dependencies = dependencies;
+  storeCache.dependencies = options.dependencies;
 
-  registerModels(storeCache, "", models);
+  registerModels(storeCache, "", options.models);
   storeCache.pendingInitContainers.forEach(({ container, initialState }) => {
     container.register(initialState);
   });
@@ -93,10 +87,10 @@ export function createReduxAdvancedStore<
     epicMiddleware.run(rootEpic);
   }
 
-  const store = storeCache.store as ReduxAdvancedStore;
-  store.getContainer = storeCache.getContainer;
-
   storeCache.initialized = true;
 
-  return store;
+  return {
+    store: storeCache.store,
+    getContainer: storeCache.getContainer
+  };
 }

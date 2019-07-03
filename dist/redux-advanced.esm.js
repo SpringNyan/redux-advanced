@@ -1028,17 +1028,14 @@ function createRootReduxReducer(storeCache) {
     };
 }
 
-function createReduxAdvancedStore(dependencies, models, options) {
-    if (options == null) {
-        options = {};
-    }
+function init(options) {
     if (options.resolveActionName == null) {
         options.resolveActionName = function (paths) { return paths[paths.length - 1]; };
     }
     var storeCache = createStoreCache();
     storeCache.options = options;
-    storeCache.dependencies = dependencies;
-    registerModels(storeCache, "", models);
+    storeCache.dependencies = options.dependencies;
+    registerModels(storeCache, "", options.models);
     storeCache.pendingInitContainers.forEach(function (_a) {
         var container = _a.container, initialState = _a.initialState;
         container.register(initialState);
@@ -1059,10 +1056,11 @@ function createReduxAdvancedStore(dependencies, models, options) {
         storeCache.store = createStore(rootReducer, applyMiddleware(reduxAdvancedMiddleware, epicMiddleware));
         epicMiddleware.run(rootEpic);
     }
-    var store = storeCache.store;
-    store.getContainer = storeCache.getContainer;
     storeCache.initialized = true;
-    return store;
+    return {
+        store: storeCache.store,
+        getContainer: storeCache.getContainer
+    };
 }
 
-export { actionTypes, createModelBuilder, createReduxAdvancedStore };
+export { actionTypes, createModelBuilder, init };
