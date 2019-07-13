@@ -1,12 +1,11 @@
 import { Dispatch } from "redux";
 
 import { StoreCache } from "./cache";
+import { ContainerImpl } from "./container";
 import { Effect, Effects, ExtractEffectResult, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
-
-import { ContainerImpl } from "./container";
-import { flattenNestedFunctionMap, merge, PatchedPromise } from "./util";
+import { mapObjectDeeply, merge, PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
@@ -159,26 +158,16 @@ export function createActionHelpers<TModel extends Model>(
 > {
   const actionHelpers: ActionHelpers = {};
 
-  flattenNestedFunctionMap(
-    // TODO: check conflict
-    merge({}, container.model.reducers, container.model.effects)
-  ).forEach(({ paths }) => {
-    let obj = actionHelpers;
-    paths.forEach((path, index) => {
-      if (index === paths.length - 1) {
-        obj[path] = new ActionHelperImpl(
-          storeCache,
-          container,
-          storeCache.options.resolveActionName!(paths)
-        );
-      } else {
-        if (obj[path] == null) {
-          obj[path] = {};
-        }
-        obj = obj[path] as ActionHelpers;
-      }
-    });
-  });
+  mapObjectDeeply(
+    actionHelpers,
+    merge({}, container.model.reducers, container.model.effects),
+    (obj, paths) =>
+      new ActionHelperImpl(
+        storeCache,
+        container,
+        storeCache.options.resolveActionName!(paths)
+      )
+  );
 
   return actionHelpers as any;
 }

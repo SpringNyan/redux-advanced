@@ -10,12 +10,10 @@ import { BehaviorSubject, Observable } from "rxjs";
 import { mergeMap } from "rxjs/operators";
 
 import { AnyAction } from "./action";
-import { GetContainer } from "./container";
-import { Models } from "./model";
-
 import { createStoreCache } from "./cache";
+import { GetContainer } from "./container";
 import { createMiddleware } from "./middleware";
-import { registerModels } from "./model";
+import { Models, registerModels } from "./model";
 import { createRootReduxReducer } from "./reducer";
 
 export interface ReduxAdvancedOptions {

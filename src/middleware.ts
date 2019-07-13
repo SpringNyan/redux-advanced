@@ -4,10 +4,9 @@ import { distinctUntilChanged } from "rxjs/operators";
 
 import { AnyAction } from "./action";
 import { StoreCache } from "./cache";
-import { Model } from "./model";
-
 import { ContainerImpl } from "./container";
-import { parseActionType } from "./util";
+import { Model } from "./model";
+import { splitLastPart } from "./util";
 
 export function createMiddleware(storeCache: StoreCache): Middleware {
   const rootActionSubject = new Subject<AnyAction>();
@@ -51,7 +50,7 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
               }
             };
 
-      const { namespace, actionName } = parseActionType(action.type);
+      const [namespace, actionName] = splitLastPart(action.type);
 
       const container = storeCache.getContainer(
         context.model,

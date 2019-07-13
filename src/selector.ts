@@ -1,11 +1,8 @@
 import { ActionHelpers } from "./action";
 import { StoreCache } from "./cache";
-import { GetContainer } from "./container";
+import { ContainerImpl, GetContainer } from "./container";
 import { Model } from "./model";
-import { DeepPartial } from "./util";
-
-import { ContainerImpl } from "./container";
-import { flattenNestedFunctionMap } from "./util";
+import { DeepPartial, mapObjectDeeply } from "./util";
 
 export interface SelectorContext<
   TDependencies extends object | undefined = any,
@@ -363,37 +360,29 @@ export function createGetters<TModel extends Model>(
 ): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
   const getters: Getters = {};
 
-  flattenNestedFunctionMap<SelectorInternal>(container.model.selectors).forEach(
-    ({ paths, value }) => {
-      let obj = getters;
-      paths.forEach((path, index) => {
-        if (index === paths.length - 1) {
-          Object.defineProperty(obj, path, {
-            get() {
-              return value(
-                {
-                  dependencies: storeCache.dependencies,
-                  namespace: container.namespace,
-                  key: container.key,
+  mapObjectDeeply(
+    getters,
+    container.model.selectors,
+    (selector, paths, target) => {
+      Object.defineProperty(target, paths[paths.length - 1], {
+        get() {
+          return selector(
+            {
+              dependencies: storeCache.dependencies,
+              namespace: container.namespace,
+              key: container.key,
 
-                  state: container.state,
-                  getters: container.getters,
-                  actions: container.actions,
+              state: container.state,
+              getters: container.getters,
+              actions: container.actions,
 
-                  getContainer: storeCache.getContainer
-                },
-                container.id
-              );
+              getContainer: storeCache.getContainer
             },
-            enumerable: true,
-            configurable: true
-          });
-        } else {
-          if (obj[path] == null) {
-            obj[path] = {};
-          }
-          obj = obj[path] as Getters;
-        }
+            container.id
+          );
+        },
+        enumerable: true,
+        configurable: true
       });
     }
   );

@@ -3,15 +3,18 @@ import { Epic as ReduxObservableEpic } from "redux-observable";
 import { BehaviorSubject } from "rxjs";
 
 import { AnyAction, ConvertReducersAndEffectsToActionHelpers } from "./action";
-import { Container, GetContainer } from "./container";
+import {
+  Container,
+  ContainerImpl,
+  createGetContainer,
+  GetContainer
+} from "./container";
 import { Effect, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer } from "./reducer";
 import { ConvertSelectorsToGetters, ExtractSelectors } from "./selector";
 import { ExtractState } from "./state";
 import { ReduxAdvancedOptions } from "./store";
-
-import { ContainerImpl, createGetContainer } from "./container";
 import { nil } from "./util";
 
 export interface StoreCache {

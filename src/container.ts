@@ -1,24 +1,26 @@
-import { ConvertReducersAndEffectsToActionHelpers } from "./action";
+import {
+  actionTypes,
+  ConvertReducersAndEffectsToActionHelpers,
+  createActionHelpers
+} from "./action";
 import { StoreCache } from "./cache";
 import { ExtractDependencies } from "./dependencies";
 import { ExtractEffects } from "./effect";
+import { createEpicsReduxObservableEpic } from "./epic";
 import { Model } from "./model";
 import { ExtractReducers } from "./reducer";
 import {
   ConvertSelectorsToGetters,
+  createGetters,
   ExtractSelectors,
   SelectorInternal
 } from "./selector";
 import { ExtractState, StateFactory } from "./state";
-import { DeepPartial } from "./util";
-
-import { actionTypes, createActionHelpers } from "./action";
-import { createEpicsReduxObservableEpic } from "./epic";
-import { createGetters } from "./selector";
 import {
-  buildNamespace,
   convertNamespaceToPath,
-  functionWrapper,
+  DeepPartial,
+  factoryWrapper,
+  joinLastPart,
   nil
 } from "./util";
 
@@ -67,7 +69,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
     this.id = modelContext.cacheIdByKey.get(this.key)!;
 
-    this.namespace = buildNamespace(baseNamespace, this.key);
+    this.namespace = joinLastPart(baseNamespace, this.key);
     this.path = convertNamespaceToPath(this.namespace);
   }
 
@@ -160,7 +162,7 @@ export class ContainerImpl<TModel extends Model> implements Container<TModel> {
 
     initialState =
       initialState !== undefined
-        ? functionWrapper(initialState)({
+        ? factoryWrapper(initialState)({
             dependencies: this._storeCache.dependencies,
             namespace: this.namespace,
             key: this.key

@@ -1,99 +1,101 @@
+export const nil = {} as symbol;
+
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends ((...args: any[]) => any) | any[]
     ? T[P]
     : DeepPartial<T[P]>
 };
 
-export const nil = {} as symbol;
-
-import deepmerge from "deepmerge";
-export function merge<T, U>(
-  obj1: T | null | undefined,
-  obj2: U | null | undefined
-): T & U;
-export function merge<T, U, V>(
-  obj1: T | null | undefined,
-  obj2: U | null | undefined,
-  obj3: V | null | undefined
-): T & U & V;
-export function merge(...objs: any[]): any {
-  objs = objs.map((obj) => (obj != null ? obj : {}));
-  return deepmerge.all(objs);
-}
-
-const namespaceSplitterRegExp = new RegExp("/", "g");
-export function convertNamespaceToPath(namespace: string): string {
-  return namespace.replace(namespaceSplitterRegExp, ".");
-}
-
-export function parseActionType(
-  type: string
-): { namespace: string; actionName: string } {
-  const lastSplitterIndex = type.lastIndexOf("/");
-  const namespace = type.substring(0, lastSplitterIndex);
-  const actionName = type.substring(lastSplitterIndex + 1);
-
-  return { namespace, actionName };
-}
-
-export function buildNamespace(baseNamespace: string, key: string): string {
-  if (key == null || key === "") {
-    return baseNamespace;
-  }
-
-  if (baseNamespace === "") {
-    return key;
-  }
-
-  return `${baseNamespace}/${key}`;
-}
-
-export function functionWrapper<T, U extends any[]>(
+export function factoryWrapper<T, U extends any[]>(
   obj: T | ((...args: U) => T)
 ): (...args: U) => T {
   return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
 }
 
-export function flattenNestedFunctionMap<T>(
-  obj: any,
+export function isObject(obj: any): boolean {
+  return obj != null && typeof obj === "object" && !Array.isArray(obj);
+}
+
+export function mapObjectDeeply(
+  target: any,
+  source: any,
+  func: (value: any, paths: string[], target: any) => any,
+  override: boolean = false,
   paths: string[] = []
-): Array<{ paths: string[]; value: T }> {
-  const result: Array<{ paths: string[]; value: T }> = [];
-
-  Object.keys(obj).forEach((key) => {
-    const value = obj[key];
-    if (value != null && typeof value === "object") {
-      result.push(...flattenNestedFunctionMap<T>(value, [...paths, key]));
-    } else if (typeof value === "function") {
-      result.push({
-        paths: [...paths, key],
-        value
-      });
-    }
-  });
-
-  return result;
-}
-
-export function mapNestedFunctionMap<T>(
-  obj: any,
-  callback: (value: T) => T
 ): any {
-  const result: any = {};
+  Object.keys(source).forEach((key) => {
+    const value = source[key];
 
-  Object.keys(obj).forEach((key) => {
-    const value = obj[key];
-    if (value != null && typeof value === "object") {
-      result[key] = mapNestedFunctionMap(value, callback);
-    } else if (typeof value === "function") {
-      result[key] = callback(value);
+    if (isObject(value)) {
+      let nextTarget = target[key];
+      if (nextTarget === undefined) {
+        nextTarget = {};
+        target[key] = nextTarget;
+      }
+
+      if (!isObject(nextTarget)) {
+        throw new Error(`target["${key}"] should be an object`);
+      }
+
+      mapObjectDeeply(nextTarget, value, func, override, [...paths, key]);
+    } else {
+      if (!override && target[key] !== undefined) {
+        throw new Error(`target["${key}"] already has a value`);
+      }
+
+      const result = func(value, [...paths, key], target);
+      if (result !== undefined) {
+        target[key] = result;
+      }
     }
   });
 
-  return result;
+  return target;
 }
 
-export class PatchedPromise<T> implements PromiseLike<T> {
+export function merge(target: any, ...sources: any[]): any {
+  sources.forEach((source) => {
+    if (isObject(source)) {
+      mapObjectDeeply(target, source, (value) => value, true);
+    }
+  });
+
+  return target;
+}
+
+export function convertNamespaceToPath(namespace: string): string {
+  return namespace.replace(/\//g, ".");
+}
+
+export function joinLastPart(
+  str: string,
+  lastPart: string,
+  splitter: string = "/"
+): string {
+  if (!lastPart) {
+    return str;
+  }
+
+  if (!str) {
+    return lastPart;
+  }
+
+  return `${str}${splitter}${lastPart}`;
+}
+
+export function splitLastPart(
+  str: string,
+  splitter: string = "/"
+): [string, string] {
+  const index = str.lastIndexOf(splitter);
+  return index >= 0
+    ? [str.substring(0, index), str.substring(index + 1)]
+    : [str, ""];
+}
+
+export class PatchedPromise<T> implements Promise<T> {
+  public [Symbol.toStringTag]: string;
+
   public rejectionHandled: boolean = false;
 
   private readonly _promise: Promise<T>;

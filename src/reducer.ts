@@ -1,12 +1,10 @@
 import produce from "immer";
 import { Reducer as ReduxReducer } from "redux";
 
-import { ExtractActionPayload } from "./action";
+import { actionTypes, ExtractActionPayload } from "./action";
 import { StoreCache } from "./cache";
 import { Model } from "./model";
-
-import { actionTypes } from "./action";
-import { convertNamespaceToPath, merge, parseActionType } from "./util";
+import { convertNamespaceToPath, merge, splitLastPart } from "./util";
 
 export interface ReducerContext<
   TDependencies extends object | undefined = any,
@@ -100,7 +98,7 @@ export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
       };
     }
 
-    const { namespace, actionName } = parseActionType(action.type);
+    const [namespace, actionName] = splitLastPart(action.type);
 
     if (actionName === actionTypes.unregister) {
       rootState = {

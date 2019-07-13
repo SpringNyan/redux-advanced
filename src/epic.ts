@@ -6,15 +6,12 @@ import {
 import { merge, Observable } from "rxjs";
 import { catchError, takeUntil } from "rxjs/operators";
 
-import { ActionHelpers, AnyAction } from "./action";
+import { ActionHelpers, actionTypes, AnyAction } from "./action";
 import { StoreCache } from "./cache";
-import { GetContainer } from "./container";
+import { ContainerImpl, GetContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
-
-import { actionTypes } from "./action";
-import { ContainerImpl } from "./container";
-import { flattenNestedFunctionMap } from "./util";
+import { mapObjectDeeply } from "./util";
 
 export interface EpicContext<
   TDependencies extends object | undefined = any,
@@ -84,9 +81,9 @@ export function createEpicsReduxObservableEpic(
   container: ContainerImpl<Model>
 ): ReduxObservableEpic {
   return (rootAction$, rootState$) => {
-    const outputObservables = flattenNestedFunctionMap<Epic>(
-      container.model.epics
-    ).map(({ value: epic }) => {
+    const outputObservables: Array<Observable<AnyAction>> = [];
+
+    mapObjectDeeply({}, container.model.epics, (epic) => {
       let output$ = epic({
         rootAction$,
         rootState$,
@@ -106,7 +103,7 @@ export function createEpicsReduxObservableEpic(
         output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
       }
 
-      return output$;
+      outputObservables.push(output$);
     });
 
     const takeUntil$ = rootAction$.ofType(

@@ -11,6 +11,7 @@ import {
 } from "./reducer";
 import {
   ConvertSelectorsToGetters,
+  createSelector,
   ExtractSelectors,
   OverrideSelectors,
   SelectorInternal,
@@ -18,14 +19,11 @@ import {
   SelectorsFactory
 } from "./selector";
 import { ExtractState, StateFactory } from "./state";
-import { DeepPartial } from "./util";
-
-import { createSelector } from "./selector";
 import {
-  buildNamespace,
-  flattenNestedFunctionMap,
-  functionWrapper,
-  mapNestedFunctionMap,
+  DeepPartial,
+  factoryWrapper,
+  joinLastPart,
+  mapObjectDeeply,
   merge
 } from "./util";
 
@@ -159,9 +157,10 @@ export class ModelBuilder<
       });
 
       selectors = {
-        [namespace]: mapNestedFunctionMap<SelectorInternal>(
+        [namespace]: mapObjectDeeply(
+          {},
           model.selectors,
-          (oldSelector) => {
+          (oldSelector: SelectorInternal) => {
             const newSelector: SelectorInternal = (context, cacheKey) =>
               oldSelector(
                 {
@@ -189,9 +188,10 @@ export class ModelBuilder<
       };
 
       reducers = {
-        [namespace]: mapNestedFunctionMap<Reducer>(
+        [namespace]: mapObjectDeeply(
+          {},
           model.reducers,
-          (oldReducer) => {
+          (oldReducer: Reducer) => {
             const newReducer: Reducer = (_state, payload, context) =>
               oldReducer(_state[namespace], payload, {
                 dependencies: context.dependencies,
@@ -207,35 +207,32 @@ export class ModelBuilder<
       };
 
       effects = {
-        [namespace]: mapNestedFunctionMap<Effect>(
-          model.effects,
-          (oldEffect) => {
-            const newEffect: Effect = (context, payload) =>
-              oldEffect(
-                {
-                  rootAction$: context.rootAction$,
-                  rootState$: context.rootState$,
+        [namespace]: mapObjectDeeply({}, model.effects, (oldEffect: Effect) => {
+          const newEffect: Effect = (context, payload) =>
+            oldEffect(
+              {
+                rootAction$: context.rootAction$,
+                rootState$: context.rootState$,
 
-                  dependencies: context.dependencies,
-                  namespace: context.namespace,
-                  key: context.key,
+                dependencies: context.dependencies,
+                namespace: context.namespace,
+                key: context.key,
 
-                  getState: () => context.getState()[namespace],
-                  getters: context.getters[namespace],
-                  actions: context.actions[namespace],
+                getState: () => context.getState()[namespace],
+                getters: context.getters[namespace],
+                actions: context.actions[namespace],
 
-                  getContainer: context.getContainer
-                },
-                payload
-              );
+                getContainer: context.getContainer
+              },
+              payload
+            );
 
-            return newEffect;
-          }
-        )
+          return newEffect;
+        })
       };
 
       epics = {
-        [namespace]: mapNestedFunctionMap<Epic>(model.epics, (oldEpic) => {
+        [namespace]: mapObjectDeeply({}, model.epics, (oldEpic: Epic) => {
           const newEpic: Epic = (context) =>
             oldEpic({
               rootAction$: context.rootAction$,
@@ -297,7 +294,7 @@ export class ModelBuilder<
     }
 
     const oldStateFn = this._model.state;
-    const newStateFn = functionWrapper(state);
+    const newStateFn = factoryWrapper(state);
 
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
@@ -333,7 +330,7 @@ export class ModelBuilder<
 
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
-      const newState = functionWrapper(override(oldState))(context);
+      const newState = factoryWrapper(override(oldState))(context);
 
       if (oldState === undefined && newState === undefined) {
         return undefined!;
@@ -721,28 +718,24 @@ export function registerModel<TModel extends Model>(
     }
 
     const reducerByActionName: { [name: string]: Reducer } = {};
-    flattenNestedFunctionMap<Reducer>(_model.reducers).forEach(
-      ({ paths, value }) => {
-        const actionName = storeCache.options.resolveActionName!(paths);
-        if (reducerByActionName[actionName] != null) {
-          throw new Error("action name of reducer should be unique");
-        }
-
-        reducerByActionName[actionName] = value;
+    mapObjectDeeply({}, _model.reducers, (reducer, paths) => {
+      const actionName = storeCache.options.resolveActionName!(paths);
+      if (reducerByActionName[actionName] != null) {
+        throw new Error("action name of reducer should be unique");
       }
-    );
+
+      reducerByActionName[actionName] = reducer;
+    });
 
     const effectByActionName: { [name: string]: Effect } = {};
-    flattenNestedFunctionMap<Effect>(_model.effects).forEach(
-      ({ paths, value }) => {
-        const actionName = storeCache.options.resolveActionName!(paths);
-        if (effectByActionName[actionName] != null) {
-          throw new Error("action name of effect should be unique");
-        }
-
-        effectByActionName[actionName] = value;
+    mapObjectDeeply({}, _model.effects, (effect, paths) => {
+      const actionName = storeCache.options.resolveActionName!(paths);
+      if (effectByActionName[actionName] != null) {
+        throw new Error("action name of effect should be unique");
       }
-    );
+
+      effectByActionName[actionName] = effect;
+    });
 
     storeCache.contextByModel.set(_model, {
       baseNamespace: namespace,
@@ -761,7 +754,7 @@ export function registerModels(
 ): void {
   Object.keys(models).forEach((key) => {
     const model = models[key];
-    const modelNamespace = buildNamespace(namespace, key);
+    const modelNamespace = joinLastPart(namespace, key);
 
     if (Array.isArray(model)) {
       registerModel(storeCache, modelNamespace, model);
