@@ -12,7 +12,7 @@ import {
 import { ContainerImpl } from "./container";
 import { StoreContext } from "./context";
 import { createReduxObservableEpic } from "./epic";
-import { getSubState } from "./state";
+import { getSubState, stateModelsKey } from "./state";
 import { convertNamespaceToPath, joinLastPart, splitLastPart } from "./util";
 
 export function createMiddleware(storeContext: StoreContext): Middleware {
@@ -66,7 +66,11 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
         const { baseNamespace, key, models } = modelsInfo;
         const basePath = convertNamespaceToPath(baseNamespace);
 
-        const modelIndex = getSubState(store.getState(), basePath, key);
+        const modelIndex = getSubState(
+          (store.getState() || {})[stateModelsKey],
+          basePath,
+          key
+        );
         if (modelIndex != null) {
           const model = models[modelIndex];
           container = storeContext.getContainer(model, key) as ContainerImpl;

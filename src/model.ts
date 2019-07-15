@@ -679,6 +679,14 @@ export function registerModel<TModel extends Model>(
   model: TModel | TModel[]
 ): void {
   const models = Array.isArray(model) ? model : [model];
+
+  let registeredModels = storeContext.modelsByBaseNamespace.get(namespace);
+  if (registeredModels == null) {
+    registeredModels = [];
+    storeContext.modelsByBaseNamespace.set(namespace, registeredModels);
+  }
+  registeredModels.push(...models);
+
   models.forEach((_model) => {
     if (storeContext.contextByModel.has(_model)) {
       throw new Error("model is already registered");
