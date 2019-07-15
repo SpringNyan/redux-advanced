@@ -1,5 +1,9 @@
-import { ConvertReducersAndEffectsToActionHelpers } from "./action";
-import { StoreCache } from "./cache";
+import {
+  actionTypes,
+  ExtractActionHelpersFromReducersEffects,
+  RegisterPayload
+} from "./action";
+import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
 import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
 import { Epic, Epics, ExtractEpics, OverrideEpics } from "./epic";
@@ -10,8 +14,8 @@ import {
   Reducers
 } from "./reducer";
 import {
-  ConvertSelectorsToGetters,
   createSelector,
+  ExtractGettersFromSelectors,
   ExtractSelectors,
   OverrideSelectors,
   SelectorInternal,
@@ -35,8 +39,6 @@ export interface Model<
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
-  autoRegister: boolean;
-
   state: StateFactory<TDependencies, TState>;
   selectors: TSelectors;
   reducers: TReducers;
@@ -161,7 +163,7 @@ export class ModelBuilder<
           {},
           model.selectors,
           (oldSelector: SelectorInternal) => {
-            const newSelector: SelectorInternal = (context, cacheKey) =>
+            const newSelector: SelectorInternal = (context, cacheId) =>
               oldSelector(
                 {
                   dependencies: context.dependencies,
@@ -174,12 +176,12 @@ export class ModelBuilder<
 
                   getContainer: context.getContainer
                 },
-                cacheKey
+                cacheId
               );
 
             if (oldSelector.__deleteCache != null) {
-              newSelector.__deleteCache = (cacheKey) =>
-                oldSelector.__deleteCache!(cacheKey);
+              newSelector.__deleteCache = (cacheId) =>
+                oldSelector.__deleteCache!(cacheId);
             }
 
             return newSelector;
@@ -346,8 +348,8 @@ export class ModelBuilder<
     T extends Selectors<
       TDependencies,
       TState,
-      ConvertSelectorsToGetters<TSelectors>,
-      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+      ExtractGettersFromSelectors<TSelectors>,
+      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
     >
   >(
     selectors:
@@ -355,8 +357,8 @@ export class ModelBuilder<
       | SelectorsFactory<
           TDependencies,
           TState,
-          ConvertSelectorsToGetters<TSelectors>,
-          ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>,
+          ExtractGettersFromSelectors<TSelectors>,
+          ExtractActionHelpersFromReducersEffects<TReducers, TEffects>,
           T
         >
   ): ModelBuilder<
@@ -389,22 +391,22 @@ export class ModelBuilder<
             TSelectors,
             TDependencies,
             TState,
-            ConvertSelectorsToGetters<TSelectors>,
-            ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+            ExtractGettersFromSelectors<TSelectors>,
+            ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
           >
         >
       | SelectorsFactory<
           TDependencies,
           TState,
-          ConvertSelectorsToGetters<TSelectors>,
-          ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>,
+          ExtractGettersFromSelectors<TSelectors>,
+          ExtractActionHelpersFromReducersEffects<TReducers, TEffects>,
           DeepPartial<
             OverrideSelectors<
               TSelectors,
               TDependencies,
               TState,
-              ConvertSelectorsToGetters<TSelectors>,
-              ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+              ExtractGettersFromSelectors<TSelectors>,
+              ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
             >
           >
         >
@@ -415,8 +417,8 @@ export class ModelBuilder<
       TSelectors,
       TDependencies,
       TState,
-      ConvertSelectorsToGetters<TSelectors>,
-      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+      ExtractGettersFromSelectors<TSelectors>,
+      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
     >,
     TReducers,
     TEffects,
@@ -484,8 +486,8 @@ export class ModelBuilder<
     T extends Effects<
       TDependencies,
       TState,
-      ConvertSelectorsToGetters<TSelectors>,
-      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+      ExtractGettersFromSelectors<TSelectors>,
+      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
     >
   >(
     effects: T
@@ -514,8 +516,8 @@ export class ModelBuilder<
         TEffects,
         TDependencies,
         TState,
-        ConvertSelectorsToGetters<TSelectors>,
-        ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+        ExtractGettersFromSelectors<TSelectors>,
+        ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
       >
     >
   ): ModelBuilder<
@@ -527,8 +529,8 @@ export class ModelBuilder<
       TEffects,
       TDependencies,
       TState,
-      ConvertSelectorsToGetters<TSelectors>,
-      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+      ExtractGettersFromSelectors<TSelectors>,
+      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
     >,
     TEpics
   > {
@@ -549,8 +551,8 @@ export class ModelBuilder<
     T extends Epics<
       TDependencies,
       TState,
-      ConvertSelectorsToGetters<TSelectors>,
-      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+      ExtractGettersFromSelectors<TSelectors>,
+      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
     >
   >(
     epics:
@@ -559,8 +561,8 @@ export class ModelBuilder<
           Epic<
             TDependencies,
             TState,
-            ConvertSelectorsToGetters<TSelectors>,
-            ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+            ExtractGettersFromSelectors<TSelectors>,
+            ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
           >
         >
   ): ModelBuilder<
@@ -577,7 +579,7 @@ export class ModelBuilder<
 
     if (Array.isArray(epics)) {
       epics = epics.reduce<{ [key: string]: Epic }>((obj, epic) => {
-        obj["ANONYMOUS_EPIC_" + ModelBuilder._nextEpicId] = epic;
+        obj["__ANONYMOUS_EPIC_" + ModelBuilder._nextEpicId] = epic;
         ModelBuilder._nextEpicId += 1;
         return obj;
       }, {}) as T;
@@ -596,8 +598,8 @@ export class ModelBuilder<
         TEpics,
         TDependencies,
         TState,
-        ConvertSelectorsToGetters<TSelectors>,
-        ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+        ExtractGettersFromSelectors<TSelectors>,
+        ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
       >
     >
   ): ModelBuilder<
@@ -610,8 +612,8 @@ export class ModelBuilder<
       TEpics,
       TDependencies,
       TState,
-      ConvertSelectorsToGetters<TSelectors>,
-      ConvertReducersAndEffectsToActionHelpers<TReducers, TEffects>
+      ExtractGettersFromSelectors<TSelectors>,
+      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
     >
   > {
     if (this._isFrozen) {
@@ -627,25 +629,6 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public autoRegister(
-    value: boolean = true
-  ): ModelBuilder<
-    TDependencies,
-    TState,
-    TSelectors,
-    TReducers,
-    TEffects,
-    TEpics
-  > {
-    if (this._isFrozen) {
-      return this.clone().autoRegister(value);
-    }
-
-    this._model.autoRegister = value;
-
-    return this as any;
-  }
-
   public build(): Model<
     TDependencies,
     TState,
@@ -654,16 +637,12 @@ export class ModelBuilder<
     TEffects,
     TEpics
   > {
-    const model = cloneModel(this._model);
-
-    return model;
+    return cloneModel(this._model);
   }
 }
 
 function cloneModel<T extends Model>(model: T): T {
   return {
-    autoRegister: model.autoRegister,
-
     state: model.state,
     selectors: merge({}, model.selectors),
     reducers: merge({}, model.reducers),
@@ -674,17 +653,7 @@ function cloneModel<T extends Model>(model: T): T {
 
 export function isModel(obj: any): obj is Model {
   const model = obj as Model;
-  return (
-    model != null &&
-    model.autoRegister != null &&
-    model.state != null &&
-    model.selectors != null &&
-    model.reducers != null &&
-    model.effects != null &&
-    model.epics != null &&
-    typeof model.autoRegister === "boolean" &&
-    typeof model.state === "function"
-  );
+  return model != null && typeof model.state === "function";
 }
 
 export function createModelBuilder(): ModelBuilder<
@@ -696,8 +665,6 @@ export function createModelBuilder(): ModelBuilder<
   {}
 > {
   return new ModelBuilder({
-    autoRegister: false,
-
     state: () => undefined,
     selectors: {},
     reducers: {},
@@ -707,65 +674,89 @@ export function createModelBuilder(): ModelBuilder<
 }
 
 export function registerModel<TModel extends Model>(
-  storeCache: StoreCache,
+  storeContext: StoreContext,
   namespace: string,
   model: TModel | TModel[]
 ): void {
   const models = Array.isArray(model) ? model : [model];
   models.forEach((_model) => {
-    if (storeCache.contextByModel.has(_model)) {
+    if (storeContext.contextByModel.has(_model)) {
       throw new Error("model is already registered");
     }
 
-    const reducerByActionName: { [name: string]: Reducer } = {};
+    const reducerByActionName = new Map<string, Reducer>();
     mapObjectDeeply({}, _model.reducers, (reducer, paths) => {
-      const actionName = storeCache.options.resolveActionName!(paths);
-      if (reducerByActionName[actionName] != null) {
+      const actionName = storeContext.options.resolveActionName!(paths);
+      if (reducerByActionName.has(actionName)) {
         throw new Error("action name of reducer should be unique");
       }
 
-      reducerByActionName[actionName] = reducer;
+      reducerByActionName.set(actionName, reducer);
     });
 
-    const effectByActionName: { [name: string]: Effect } = {};
+    const effectByActionName = new Map<string, Effect>();
     mapObjectDeeply({}, _model.effects, (effect, paths) => {
-      const actionName = storeCache.options.resolveActionName!(paths);
-      if (effectByActionName[actionName] != null) {
+      const actionName = storeContext.options.resolveActionName!(paths);
+      if (effectByActionName.has(actionName)) {
         throw new Error("action name of effect should be unique");
       }
 
-      effectByActionName[actionName] = effect;
+      effectByActionName.set(actionName, effect);
     });
 
-    storeCache.contextByModel.set(_model, {
+    storeContext.contextByModel.set(_model, {
       baseNamespace: namespace,
-      cacheIdByKey: new Map(),
+      isDynamic: Array.isArray(model),
 
       reducerByActionName,
-      effectByActionName
+      effectByActionName,
+
+      idByKey: new Map()
     });
   });
 }
 
 export function registerModels(
-  storeCache: StoreCache,
+  storeContext: StoreContext,
   namespace: string,
   models: Models
-): void {
+): RegisterPayload[] {
+  const payloads: RegisterPayload[] = [];
+
   Object.keys(models).forEach((key) => {
     const model = models[key];
     const modelNamespace = joinLastPart(namespace, key);
 
     if (Array.isArray(model)) {
-      registerModel(storeCache, modelNamespace, model);
+      registerModel(storeContext, modelNamespace, model);
     } else if (isModel(model)) {
-      registerModel(storeCache, modelNamespace, model);
-      storeCache.pendingInitContainers.push({
-        container: storeCache.getContainer(model),
-        initialState: undefined
+      registerModel(storeContext, modelNamespace, model);
+      payloads.push({
+        namespace: modelNamespace
       });
     } else {
-      registerModels(storeCache, modelNamespace, model as Models);
+      const childPayloads = registerModels(
+        storeContext,
+        modelNamespace,
+        model as Models
+      );
+      payloads.push(...childPayloads);
     }
   });
+
+  return payloads;
+}
+
+export type RegisterModels = (models: Models) => void;
+
+export function createRegisterModels(
+  storeContext: StoreContext
+): RegisterModels {
+  return (models) => {
+    const payloads = registerModels(storeContext, "", models);
+    storeContext.store.dispatch({
+      type: actionTypes.register,
+      payload: payloads
+    });
+  };
 }

@@ -1,10 +1,16 @@
 import produce from "immer";
 import { Reducer as ReduxReducer } from "redux";
 
-import { actionTypes, ExtractActionPayload } from "./action";
-import { StoreCache } from "./cache";
+import {
+  actionTypes,
+  ExtractActionPayload,
+  RegisterPayload,
+  UnregisterPayload
+} from "./action";
+import { StoreContext } from "./context";
 import { Model } from "./model";
-import { convertNamespaceToPath, merge, splitLastPart } from "./util";
+import { getSubState, setSubState, stateModelsKey } from "./state";
+import { convertNamespaceToPath, splitLastPart } from "./util";
 
 export interface ReducerContext<
   TDependencies extends object | undefined = any,
@@ -12,7 +18,7 @@ export interface ReducerContext<
 > {
   dependencies: TDependencies;
   namespace: string;
-  key: string;
+  key: string | undefined;
 
   originalState: TState;
 }
@@ -57,87 +63,117 @@ export type OverrideReducers<
     : OverrideReducers<TReducers[P], TDependencies, TState>
 };
 
-export function createRootReduxReducer(storeCache: StoreCache): ReduxReducer {
+export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
+  function register(rootState: any, payloads: RegisterPayload[]) {
+    payloads.forEach((payload) => {
+      const namespace = payload.namespace!;
+      const modelIndex = payload.model || 0;
+
+      const { baseNamespace, key, models } = storeContext.findModelsInfo(
+        namespace
+      )!;
+      const basePath = convertNamespaceToPath(baseNamespace);
+      const model = models[modelIndex];
+
+      const modelState = model.state({
+        dependencies: storeContext.options.dependencies,
+        namespace,
+        key
+      });
+
+      rootState = {
+        ...rootState,
+        [stateModelsKey]: setSubState(
+          rootState[stateModelsKey],
+          modelIndex,
+          basePath,
+          key
+        )
+      };
+
+      rootState = setSubState(rootState, modelState, basePath, key);
+    });
+
+    return rootState;
+  }
+
+  function unregister(rootState: any, payloads: UnregisterPayload[]) {
+    payloads.forEach((payload) => {
+      const namespace = payload.namespace!;
+
+      const { baseNamespace, key } = storeContext.findModelsInfo(namespace)!;
+      const basePath = convertNamespaceToPath(baseNamespace);
+
+      rootState = {
+        ...rootState,
+        [stateModelsKey]: setSubState(
+          rootState[stateModelsKey],
+          undefined,
+          basePath,
+          key
+        )
+      };
+
+      rootState = setSubState(rootState, undefined, basePath, key);
+    });
+
+    return rootState;
+  }
+
   return (rootState, action) => {
     if (rootState === undefined) {
       rootState = {};
     }
 
-    let initialRootState: { [namespace: string]: any } | undefined;
-
-    storeCache.pendingInitStates.forEach(
-      ({ namespace: _namespace, state: _state }) => {
-        const _container = storeCache.containerByNamespace.get(_namespace);
-        if (_container == null) {
-          return;
-        }
-
-        if (rootState[_container.path] === undefined) {
-          const initialState = _container.model.state({
-            dependencies: storeCache.dependencies,
-            namespace: _container.namespace,
-            key: _container.key
-          });
-
-          if (initialState !== undefined || _state !== undefined) {
-            if (initialRootState == null) {
-              initialRootState = {};
-            }
-
-            initialRootState[_container.path] = merge({}, initialState, _state);
-          }
-        }
-      }
-    );
-    storeCache.pendingInitStates.length = 0;
-
-    if (initialRootState != null) {
-      rootState = {
-        ...rootState,
-        ...initialRootState
-      };
-    }
-
     const [namespace, actionName] = splitLastPart(action.type);
 
-    if (actionName === actionTypes.unregister) {
-      rootState = {
-        ...rootState
-      };
-      delete rootState[convertNamespaceToPath(namespace)];
+    if (action.type === actionTypes.registered) {
+      rootState = register(rootState, action.payload || []);
+    } else if (actionName === actionTypes.registered) {
+      rootState = register(rootState, [{ ...action.payload, namespace }]);
     }
 
-    const container = storeCache.containerByNamespace.get(namespace);
-    if (container == null) {
+    if (action.type === actionTypes.unregistered) {
+      rootState = unregister(rootState, action.payload || []);
+    } else if (actionName === actionTypes.unregistered) {
+      rootState = unregister(rootState, [{ ...action.payload, namespace }]);
+    }
+
+    const modelsInfo = storeContext.findModelsInfo(namespace);
+    if (modelsInfo == null) {
       return rootState;
     }
 
-    const modelContext = storeCache.contextByModel.get(container.model);
-    const reducer = modelContext
-      ? modelContext.reducerByActionName[actionName]
-      : null;
+    const { baseNamespace, key, models } = modelsInfo;
+    const basePath = convertNamespaceToPath(baseNamespace);
+
+    const modelIndex = getSubState(rootState[stateModelsKey], basePath, key);
+    if (modelIndex == null) {
+      return rootState;
+    }
+
+    const model = models[modelIndex];
+    const modelContext = storeContext.contextByModel.get(model);
+    if (modelContext == null) {
+      return rootState;
+    }
+
+    const reducer = modelContext.reducerByActionName.get(actionName);
     if (reducer == null) {
       return rootState;
     }
 
-    const state = rootState[container.path];
+    const state = getSubState(rootState, basePath, key);
     const newState = produce(state, (draft: any) => {
       reducer(draft, action.payload, {
-        dependencies: storeCache.dependencies,
-        namespace: container.namespace,
-        key: container.key,
+        dependencies: storeContext.options.dependencies,
+        namespace,
+        key,
 
         originalState: state
       });
     });
 
-    if (newState !== state) {
-      return {
-        ...rootState,
-        [container.path]: newState
-      };
-    } else {
-      return rootState;
-    }
+    return setSubState(rootState, newState, basePath, key);
   };
 }

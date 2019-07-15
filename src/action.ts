@@ -1,16 +1,29 @@
 import { Dispatch } from "redux";
 
-import { StoreCache } from "./cache";
 import { ContainerImpl } from "./container";
+import { StoreContext } from "./context";
 import { Effect, Effects, ExtractEffectResult, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
-import { mapObjectDeeply, merge, PatchedPromise } from "./util";
+import { joinLastPart, mapObjectDeeply, merge, PatchedPromise } from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
-  unregister: "@@UNREGISTER"
+  registered: "@@REGISTERED",
+  unregister: "@@UNREGISTER",
+  unregistered: "@@UNREGISTERED"
 };
+
+export interface RegisterPayload {
+  namespace?: string;
+  model?: number;
+  args?: any;
+  state?: any;
+}
+
+export interface UnregisterPayload {
+  namespace?: string;
+}
 
 export interface AnyAction {
   type: string;
@@ -25,7 +38,7 @@ export interface ActionHelper<TPayload = any, TResult = any> {
   type: string;
   is(action: any): action is Action<TPayload>;
   create(payload: TPayload): Action<TPayload>;
-  dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult>;
+  dispatch(payload: TPayload): Promise<TResult>;
 }
 
 export interface ActionHelpers {
@@ -46,113 +59,91 @@ export type ExtractActionHelperResult<
   T extends ActionHelper
 > = T extends ActionHelper<any, infer TResult> ? TResult : never;
 
-export type ExtractActionHelperPayloadResultInfoFromReducers<
+export type ExtractActionHelperPayloadResultPairFromReducers<
   TReducers extends Reducers
 > = {
   [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
     ? [ExtractActionPayload<TReducers[P]>]
     : TReducers[P] extends {}
-    ? ExtractActionHelperPayloadResultInfoFromReducers<TReducers[P]>
+    ? ExtractActionHelperPayloadResultPairFromReducers<TReducers[P]>
     : never
 };
 
-export type ExtractActionHelperPayloadResultInfoFromEffects<
+export type ExtractActionHelperPayloadResultPairFromEffects<
   TEffects extends Effects
 > = {
   [P in keyof TEffects]: TEffects[P] extends (...args: any[]) => any
     ? [ExtractActionPayload<TEffects[P]>, ExtractEffectResult<TEffects[P]>]
     : TEffects[P] extends {}
-    ? ExtractActionHelperPayloadResultInfoFromEffects<TEffects[P]>
+    ? ExtractActionHelperPayloadResultPairFromEffects<TEffects[P]>
     : never
 };
 
-export type ConvertActionHelperPayloadResultInfoToActionHelpers<T> = {
+export type ExtractActionHelpersFromPayloadResultPairObject<T> = {
   [P in keyof T]: T[P] extends any[]
     ? ActionHelper<T[P][0], T[P][1]>
     : T[P] extends {}
-    ? ConvertActionHelperPayloadResultInfoToActionHelpers<T[P]>
+    ? ExtractActionHelpersFromPayloadResultPairObject<T[P]>
     : never
 };
 
-export type ConvertReducersAndEffectsToActionHelpers<
+export type ExtractActionHelpersFromReducersEffects<
   TReducers extends Reducers,
   TEffects extends Effects
-> = ConvertActionHelperPayloadResultInfoToActionHelpers<
-  ExtractActionHelperPayloadResultInfoFromReducers<TReducers> &
-    ExtractActionHelperPayloadResultInfoFromEffects<TEffects>
+> = ExtractActionHelpersFromPayloadResultPairObject<
+  ExtractActionHelperPayloadResultPairFromReducers<TReducers> &
+    ExtractActionHelperPayloadResultPairFromEffects<TEffects>
 >;
 
 export class ActionHelperImpl<TPayload, TResult>
   implements ActionHelper<TPayload, TResult> {
-  public readonly type: string;
-
   constructor(
-    private readonly _storeCache: StoreCache,
-    private readonly _container: ContainerImpl<Model>,
-    private readonly _actionName: string
-  ) {
-    this.type = `${this._container.namespace}/${this._actionName}`;
+    private readonly _storeContext: StoreContext,
+    public readonly type: string
+  ) {}
+
+  public is(action: any): action is Action<TPayload> {
+    return action != null && action.type === this.type;
   }
 
-  public is = (action: any): action is Action<TPayload> => {
-    return action != null && action.type === this.type;
-  };
-
-  public create = (payload: TPayload): Action<TPayload> => {
-    const action = {
+  public create(payload: TPayload): Action<TPayload> {
+    return {
       type: this.type,
       payload
     };
+  }
 
-    this._storeCache.contextByAction.set(action, {
-      model: this._container.model,
-      key: this._container.key
-    });
-
-    return action;
-  };
-
-  public dispatch = (
-    payload: TPayload,
-    dispatch?: Dispatch
-  ): Promise<TResult> => {
+  public dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult> {
     const action = this.create(payload);
-    if (dispatch == null) {
-      dispatch = this._storeCache.dispatch;
-    }
 
     const promise = new PatchedPromise<TResult>((resolve, reject) => {
-      const context = this._storeCache.contextByAction.get(action);
-      if (context != null) {
-        context.effectDeferred = {
-          resolve,
-          reject: (reason) => {
-            setTimeout(() => {
-              if (
-                !promise.rejectionHandled &&
-                this._storeCache.options.effectErrorHandler != null
-              ) {
-                this._storeCache.options.effectErrorHandler(reason);
-              }
-            }, 0);
+      this._storeContext.deferredByAction.set(action, {
+        resolve,
+        reject: (reason) => {
+          setTimeout(() => {
+            if (
+              !promise.rejectionHandled &&
+              this._storeContext.options.catchEffectError
+            ) {
+              promise.catch(this._storeContext.options.catchEffectError);
+            }
+          }, 0);
 
-            return reject(reason);
-          }
-        };
-      }
+          return reject(reason);
+        }
+      });
     });
 
-    dispatch(action);
+    (dispatch || this._storeContext.store.dispatch)(action);
 
-    // TODO: handle [Symbol.toStringTag]
-    return (promise as PromiseLike<TResult>) as Promise<TResult>;
-  };
+    return promise;
+  }
 }
 
 export function createActionHelpers<TModel extends Model>(
-  storeCache: StoreCache,
+  storeContext: StoreContext,
   container: ContainerImpl<TModel>
-): ConvertReducersAndEffectsToActionHelpers<
+): ExtractActionHelpersFromReducersEffects<
   ExtractReducers<TModel>,
   ExtractEffects<TModel>
 > {
@@ -163,9 +154,11 @@ export function createActionHelpers<TModel extends Model>(
     merge({}, container.model.reducers, container.model.effects),
     (obj, paths) =>
       new ActionHelperImpl(
-        storeCache,
-        container,
-        storeCache.options.resolveActionName!(paths)
+        storeContext,
+        joinLastPart(
+          container.namespace,
+          storeContext.options.resolveActionName!(paths)
+        )
       )
   );
 

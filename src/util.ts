@@ -20,10 +20,13 @@ export function mapObjectDeeply(
   target: any,
   source: any,
   func: (value: any, paths: string[], target: any) => any,
-  override: boolean = false,
   paths: string[] = []
 ): any {
   Object.keys(source).forEach((key) => {
+    if (key === "constructor" || key === "prototype" || key === "__proto__") {
+      throw new Error(`illegal key: "${key}"`);
+    }
+
     const value = source[key];
 
     if (isObject(value)) {
@@ -37,12 +40,8 @@ export function mapObjectDeeply(
         throw new Error(`target["${key}"] should be an object`);
       }
 
-      mapObjectDeeply(nextTarget, value, func, override, [...paths, key]);
+      mapObjectDeeply(nextTarget, value, func, [...paths, key]);
     } else {
-      if (!override && target[key] !== undefined) {
-        throw new Error(`target["${key}"] already has a value`);
-      }
-
       const result = func(value, [...paths, key], target);
       if (result !== undefined) {
         target[key] = result;
@@ -56,7 +55,7 @@ export function mapObjectDeeply(
 export function merge(target: any, ...sources: any[]): any {
   sources.forEach((source) => {
     if (isObject(source)) {
-      mapObjectDeeply(target, source, (value) => value, true);
+      mapObjectDeeply(target, source, (value) => value);
     }
   });
 
@@ -69,7 +68,7 @@ export function convertNamespaceToPath(namespace: string): string {
 
 export function joinLastPart(
   str: string,
-  lastPart: string,
+  lastPart: string | undefined,
   splitter: string = "/"
 ): string {
   if (!lastPart) {
@@ -90,7 +89,7 @@ export function splitLastPart(
   const index = str.lastIndexOf(splitter);
   return index >= 0
     ? [str.substring(0, index), str.substring(index + 1)]
-    : [str, ""];
+    : ["", str];
 }
 
 export class PatchedPromise<T> implements Promise<T> {

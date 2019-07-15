@@ -5,90 +5,74 @@ import {
   Reducer,
   Store
 } from "redux";
-import { combineEpics, createEpicMiddleware, Epic } from "redux-observable";
-import { BehaviorSubject, Observable } from "rxjs";
+import { createEpicMiddleware, Epic } from "redux-observable";
+import { Observable } from "rxjs";
 import { mergeMap } from "rxjs/operators";
 
 import { AnyAction } from "./action";
-import { createStoreCache } from "./cache";
 import { GetContainer } from "./container";
+import { createStoreContext } from "./context";
 import { createMiddleware } from "./middleware";
-import { Models, registerModels } from "./model";
-import { createRootReduxReducer } from "./reducer";
+import { createRegisterModels, RegisterModels } from "./model";
+import { createReduxReducer } from "./reducer";
 
 export interface ReduxAdvancedOptions {
-  models: Models;
   dependencies: any;
 
-  createStore?: (
-    rootReducer: Reducer,
-    rootEpic: Epic,
-    reduxAdvancedMiddleware: Middleware
-  ) => Store;
-  resolveActionName?: (paths: string[]) => string;
-  effectErrorHandler?: (error: any) => void;
-  epicErrorHandler?: (
+  createStore?: (context: {
+    reducer: Reducer;
+    epic: Epic;
+    middleware: Middleware;
+  }) => Store;
+
+  catchEffectError?: (error: any) => void;
+  catchEpicError?: (
     error: any,
     caught: Observable<AnyAction>
   ) => Observable<AnyAction>;
+
+  resolveActionName?: (paths: string[]) => string;
 }
 
-export function init(
-  options: ReduxAdvancedOptions
-): {
+export interface ReduxAdvancedContext {
   store: Store;
   getContainer: GetContainer;
-} {
+  registerModels: RegisterModels;
+}
+
+export function init(options: ReduxAdvancedOptions): ReduxAdvancedContext {
   if (options.resolveActionName == null) {
-    options.resolveActionName = (paths) => paths[paths.length - 1];
+    options.resolveActionName = (paths) => paths.join(".");
   }
 
-  const storeCache = createStoreCache();
+  const storeContext = createStoreContext();
+  storeContext.options = options;
 
-  storeCache.options = options;
-  storeCache.dependencies = options.dependencies;
-
-  registerModels(storeCache, "", options.models);
-  storeCache.pendingInitContainers.forEach(({ container, initialState }) => {
-    container.register(initialState);
-  });
-  storeCache.pendingInitContainers.length = 0;
-
-  const rootReducer: Reducer = createRootReduxReducer(storeCache);
-
-  storeCache.addEpic$ = new BehaviorSubject(
-    combineEpics(...storeCache.pendingInitEpics)
-  );
-  storeCache.pendingInitEpics.length = 0;
-
-  const rootEpic: Epic = (action$, state$, epicDependencies) =>
-    storeCache.addEpic$.pipe(
-      mergeMap((epic) => epic(action$, state$, epicDependencies))
+  const rootReducer: Reducer = createReduxReducer(storeContext);
+  const rootEpic: Epic = (action$, state$, ...rest) =>
+    storeContext.addEpic$.pipe(
+      mergeMap((epic) => epic(action$, state$, ...rest))
     );
-
-  const reduxAdvancedMiddleware = createMiddleware(storeCache);
+  const middleware = createMiddleware(storeContext);
 
   if (options.createStore != null) {
-    storeCache.store = options.createStore(
-      rootReducer,
-      rootEpic,
-      reduxAdvancedMiddleware
-    );
+    storeContext.store = options.createStore({
+      reducer: rootReducer,
+      epic: rootEpic,
+      middleware
+    });
   } else {
     const epicMiddleware = createEpicMiddleware();
-
-    storeCache.store = createStore(
+    storeContext.store = createStore(
       rootReducer,
-      applyMiddleware(reduxAdvancedMiddleware, epicMiddleware)
+      applyMiddleware(middleware, epicMiddleware)
     );
-
     epicMiddleware.run(rootEpic);
   }
 
-  storeCache.initialized = true;
-
   return {
-    store: storeCache.store,
-    getContainer: storeCache.getContainer
+    store: storeContext.store,
+    getContainer: storeContext.getContainer,
+    registerModels: createRegisterModels(storeContext)
   };
 }

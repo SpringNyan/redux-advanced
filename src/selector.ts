@@ -1,6 +1,6 @@
 import { ActionHelpers } from "./action";
-import { StoreCache } from "./cache";
 import { ContainerImpl, GetContainer } from "./container";
+import { StoreContext } from "./context";
 import { Model } from "./model";
 import { DeepPartial, mapObjectDeeply } from "./util";
 
@@ -12,7 +12,7 @@ export interface SelectorContext<
 > {
   dependencies: TDependencies;
   namespace: string;
-  key: string;
+  key: string | undefined;
 
   state: TState;
   getters: TGetters;
@@ -40,10 +40,10 @@ export interface SelectorInternal<
 > {
   (
     context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-    cacheKey?: string
+    cacheId?: number
   ): TResult;
 
-  __deleteCache?(cacheKey: string): void;
+  __deleteCache?(cacheId: number): void;
 }
 
 export interface Selectors<
@@ -88,11 +88,11 @@ export type ExtractSelectorResult<T extends Selector> = T extends Selector<
   ? TResult
   : never;
 
-export type ConvertSelectorsToGetters<TSelectors extends Selectors> = {
+export type ExtractGettersFromSelectors<TSelectors extends Selectors> = {
   [P in keyof TSelectors]: TSelectors[P] extends (...args: any[]) => any
     ? ExtractSelectorResult<TSelectors[P]>
     : TSelectors[P] extends {}
-    ? ConvertSelectorsToGetters<TSelectors[P]>
+    ? ExtractGettersFromSelectors<TSelectors[P]>
     : never
 };
 
@@ -306,23 +306,23 @@ export const createSelector: CreateSelector = ((...args: any[]) => {
   // tslint:disable-next-line:ban-types
   const combiner: Function = args[args.length - 1];
 
-  const cacheByKey: Map<
-    string,
+  const cacheById: Map<
+    number,
     { lastParams: any[] | undefined; lastResult: any }
   > = new Map();
 
-  const resultSelector = (context: SelectorContext, cacheKey: string) => {
-    if (cacheKey == null) {
-      cacheKey = "";
+  const resultSelector = (context: SelectorContext, cacheId: number) => {
+    if (cacheId == null) {
+      cacheId = -1;
     }
 
-    let cache = cacheByKey.get(cacheKey);
+    let cache = cacheById.get(cacheId);
     if (cache == null) {
       cache = {
         lastParams: undefined,
         lastResult: undefined
       };
-      cacheByKey.set(cacheKey, cache);
+      cacheById.set(cacheId, cache);
     }
 
     let needUpdate = cache.lastParams == null;
@@ -347,17 +347,17 @@ export const createSelector: CreateSelector = ((...args: any[]) => {
 
     return cache.lastResult;
   };
-  resultSelector.__deleteCache = (cacheKey: string) => {
-    cacheByKey.delete(cacheKey);
+  resultSelector.__deleteCache = (cacheId: number) => {
+    cacheById.delete(cacheId);
   };
 
   return resultSelector;
 }) as any;
 
 export function createGetters<TModel extends Model>(
-  storeCache: StoreCache,
+  storeContext: StoreContext,
   container: ContainerImpl<TModel>
-): ConvertSelectorsToGetters<ExtractSelectors<TModel>> {
+): ExtractGettersFromSelectors<ExtractSelectors<TModel>> {
   const getters: Getters = {};
 
   mapObjectDeeply(
@@ -368,7 +368,7 @@ export function createGetters<TModel extends Model>(
         get() {
           return selector(
             {
-              dependencies: storeCache.dependencies,
+              dependencies: storeContext.options.dependencies,
               namespace: container.namespace,
               key: container.key,
 
@@ -376,7 +376,7 @@ export function createGetters<TModel extends Model>(
               getters: container.getters,
               actions: container.actions,
 
-              getContainer: storeCache.getContainer
+              getContainer: storeContext.getContainer
             },
             container.id
           );

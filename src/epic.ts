@@ -4,14 +4,20 @@ import {
   StateObservable
 } from "redux-observable";
 import { merge, Observable } from "rxjs";
-import { catchError, takeUntil } from "rxjs/operators";
+import { catchError, filter, takeUntil } from "rxjs/operators";
 
-import { ActionHelpers, actionTypes, AnyAction } from "./action";
-import { StoreCache } from "./cache";
+import {
+  Action,
+  ActionHelpers,
+  actionTypes,
+  AnyAction,
+  UnregisterPayload
+} from "./action";
 import { ContainerImpl, GetContainer } from "./container";
+import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
-import { mapObjectDeeply } from "./util";
+import { joinLastPart, mapObjectDeeply } from "./util";
 
 export interface EpicContext<
   TDependencies extends object | undefined = any,
@@ -20,11 +26,11 @@ export interface EpicContext<
   TActionHelpers extends ActionHelpers = any
 > {
   rootAction$: ActionsObservable<AnyAction>;
-  rootState$: StateObservable<unknown>;
+  rootState$: StateObservable<any>;
 
   dependencies: TDependencies;
   namespace: string;
-  key: string;
+  key: string | undefined;
 
   getState: () => TState;
   getters: TGetters;
@@ -76,9 +82,9 @@ export type OverrideEpics<
     : OverrideEpics<TEpics[P], TDependencies, TState, TGetters, TActionHelpers>
 };
 
-export function createEpicsReduxObservableEpic(
-  storeCache: StoreCache,
-  container: ContainerImpl<Model>
+export function createReduxObservableEpic(
+  storeContext: StoreContext,
+  container: ContainerImpl
 ): ReduxObservableEpic {
   return (rootAction$, rootState$) => {
     const outputObservables: Array<Observable<AnyAction>> = [];
@@ -88,7 +94,7 @@ export function createEpicsReduxObservableEpic(
         rootAction$,
         rootState$,
 
-        dependencies: storeCache.dependencies,
+        dependencies: storeContext.options.dependencies,
         namespace: container.namespace,
         key: container.key,
 
@@ -96,18 +102,36 @@ export function createEpicsReduxObservableEpic(
         getters: container.getters,
         actions: container.actions,
 
-        getContainer: storeCache.getContainer
+        getContainer: storeContext.getContainer
       });
 
-      if (storeCache.options.epicErrorHandler != null) {
-        output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
+      if (storeContext.options.catchEpicError != null) {
+        output$ = output$.pipe(catchError(storeContext.options.catchEpicError));
       }
 
       outputObservables.push(output$);
     });
 
-    const takeUntil$ = rootAction$.ofType(
-      `${container.namespace}/${actionTypes.unregister}`
+    const unregisteredActionType = joinLastPart(
+      container.namespace,
+      actionTypes.unregistered
+    );
+
+    const takeUntil$ = rootAction$.pipe(
+      filter((action: Action) => {
+        if (action.type === unregisteredActionType) {
+          return true;
+        }
+
+        if (action.type === actionTypes.unregistered) {
+          const payloads = (action.payload || []) as UnregisterPayload[];
+          return payloads.some(
+            (payload) => payload.namespace === container.namespace
+          );
+        }
+
+        return false;
+      })
     );
 
     return merge(...outputObservables).pipe(takeUntil(takeUntil$));
