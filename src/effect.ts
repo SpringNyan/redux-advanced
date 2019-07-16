@@ -59,6 +59,7 @@ export type ExtractEffects<T extends Model> = T extends Model<
   any,
   any,
   any,
+  any,
   infer TEffects,
   any
 >

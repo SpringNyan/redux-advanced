@@ -47,6 +47,7 @@ export type ExtractReducers<T extends Model> = T extends Model<
   any,
   any,
   any,
+  any,
   infer TReducers,
   any,
   any
@@ -69,18 +70,14 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
     payloads.forEach((payload) => {
       const namespace = payload.namespace!;
       const modelIndex = payload.model || 0;
+      const args = payload.args;
+      const state = payload.state;
 
       const { baseNamespace, key, models } = storeContext.findModelsInfo(
         namespace
       )!;
       const basePath = convertNamespaceToPath(baseNamespace);
       const model = models[modelIndex];
-
-      const modelState = model.state({
-        dependencies: storeContext.options.dependencies,
-        namespace,
-        key
-      });
 
       rootState = {
         ...rootState,
@@ -92,7 +89,19 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
         )
       };
 
-      rootState = setSubState(rootState, modelState, basePath, key);
+      if (state !== undefined) {
+        rootState = setSubState(rootState, state, basePath, key);
+      } else {
+        const modelState = model.state({
+          dependencies: storeContext.options.dependencies,
+          namespace,
+          key,
+
+          args
+        });
+
+        rootState = setSubState(rootState, modelState, basePath, key);
+      }
     });
 
     return rootState;

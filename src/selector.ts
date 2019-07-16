@@ -99,6 +99,7 @@ export type ExtractGettersFromSelectors<TSelectors extends Selectors> = {
 export type ExtractSelectors<T extends Model> = T extends Model<
   any,
   any,
+  any,
   infer TSelectors,
   any,
   any,

@@ -8,15 +8,15 @@ import { catchError, filter, takeUntil } from "rxjs/operators";
 
 import {
   ActionHelpers,
-  actionTypes,
   AnyAction,
-  batchUnregisterActionHelper
+  batchUnregisterActionHelper,
+  createUnregisterActionHelper
 } from "./action";
 import { ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
-import { joinLastPart, mapObjectDeeply } from "./util";
+import { mapObjectDeeply } from "./util";
 
 export interface EpicContext<
   TDependencies extends object | undefined = any,
@@ -59,6 +59,7 @@ export interface Epics<
 }
 
 export type ExtractEpics<T extends Model> = T extends Model<
+  any,
   any,
   any,
   any,
@@ -111,10 +112,9 @@ export function createReduxObservableEpic(
       outputObservables.push(output$);
     });
 
-    const unregisterActionType = joinLastPart(
-      container.namespace,
-      actionTypes.unregister
-    );
+    const unregisterActionType = createUnregisterActionHelper(
+      container.namespace
+    ).type;
 
     const takeUntil$ = rootAction$.pipe(
       filter((action: AnyAction) => {

@@ -97,7 +97,7 @@ describe("redux-advanced", () => {
           payload: string
         ) => {
           await timer(50).toPromise();
-          getState(); // should throw error if container is unregistered
+          getState();
           await dispatch(actions.setName, payload);
         },
         setAgeAsync: async ({ getContainer }, payload: number) => {
@@ -145,6 +145,9 @@ describe("redux-advanced", () => {
       .build();
 
     const dynamicModel = testModelBuilder
+      .args<{
+        name: string;
+      }>()
       .selectors({
         staticSummary: ({ getContainer }) =>
           getContainer(staticModel).getters.summary
@@ -239,10 +242,9 @@ describe("redux-advanced", () => {
     expect(dynamicModel1Container.isRegistered).eq(false);
     expect(dynamicModel1Container.namespace).eq("dynamicModels/1");
 
-    // dynamicModel1Container.register({
-    //   name: "hahaha"
-    // });
-    dynamicModel1Container.register();
+    dynamicModel1Container.register({
+      name: "hahaha"
+    });
     dynamicModel1Container.actions.setName.dispatch("hahaha");
     expect(dynamicModel1Container.isRegistered).eq(true);
     expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
@@ -253,10 +255,9 @@ describe("redux-advanced", () => {
     expect(dynamicModel2Container.isRegistered).eq(false);
     expect(dynamicModel2Container.namespace).eq("dynamicModels/2");
 
-    // dynamicModel2Container.register({
-    //   name: "zzzzzz"
-    // });
-    dynamicModel2Container.register();
+    dynamicModel2Container.register({
+      name: "zzzzzz"
+    });
     dynamicModel2Container.actions.setName.dispatch("zzzzzz");
     expect(dynamicModel2Container.isRegistered).eq(true);
     expect(dynamicModel2Container.getters.summary).eq("zzzzzz - 0");

@@ -246,3 +246,23 @@ export function parseBatchUnregisterPayloads(
 
   return null;
 }
+
+export function createRegisterActionHelper(
+  namespace: string
+): ActionHelper<RegisterPayload, void> {
+  return new ActionHelperImpl(
+    undefined!,
+    undefined!,
+    joinLastPart(namespace, actionTypes.register)
+  );
+}
+
+export function createUnregisterActionHelper(
+  namespace: string
+): ActionHelper<UnregisterPayload, void> {
+  return new ActionHelperImpl(
+    undefined!,
+    undefined!,
+    joinLastPart(namespace, actionTypes.unregister)
+  );
+}

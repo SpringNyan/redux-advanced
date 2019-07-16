@@ -2,18 +2,25 @@ import { Model } from "./model";
 
 export const stateModelsKey = "__models";
 
-export interface StateContext<TDependencies extends object | undefined = any> {
+export interface StateContext<
+  TDependencies extends object | undefined = any,
+  TArgs extends object | undefined = any
+> {
   dependencies: TDependencies;
   namespace: string;
   key: string | undefined;
+
+  args: TArgs;
 }
 
 export type StateFactory<
   TDependencies extends object | undefined,
+  TArgs extends object | undefined,
   TState extends object | undefined
-> = (context: StateContext<TDependencies>) => TState;
+> = (context: StateContext<TDependencies, TArgs>) => TState;
 
 export type ExtractState<T extends Model> = T extends Model<
+  any,
   any,
   infer TState,
   any,

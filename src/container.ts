@@ -1,10 +1,12 @@
 import {
   ActionHelperDispatch,
-  actionTypes,
   createActionHelperDispatch,
   createActionHelpers,
+  createRegisterActionHelper,
+  createUnregisterActionHelper,
   ExtractActionHelpersFromReducersEffects
 } from "./action";
+import { ExtractArgs } from "./args";
 import { StoreContext } from "./context";
 import { ExtractEffects } from "./effect";
 import { Model } from "./model";
@@ -37,7 +39,7 @@ export interface Container<TModel extends Model = any> {
     ExtractEffects<TModel>
   >;
 
-  register(): void;
+  register(args?: ExtractArgs<TModel>): void;
   unregister(): void;
 }
 
@@ -53,6 +55,8 @@ export class ContainerImpl<TModel extends Model = Model>
   public readonly id: number;
 
   public readonly namespace: string;
+
+  public readonly baseNamespace: string;
   public readonly basePath: string;
 
   constructor(
@@ -61,12 +65,12 @@ export class ContainerImpl<TModel extends Model = Model>
     public readonly key: string | undefined
   ) {
     const modelContext = this._storeContext.contextByModel.get(this.model)!;
-    const baseNamespace = modelContext.baseNamespace;
+    this.baseNamespace = modelContext.baseNamespace;
 
     this.id = modelContext.idByKey.get(this.key)!;
 
-    this.namespace = joinLastPart(baseNamespace, this.key);
-    this.basePath = convertNamespaceToPath(baseNamespace);
+    this.namespace = joinLastPart(this.baseNamespace, this.key);
+    this.basePath = convertNamespaceToPath(this.baseNamespace);
   }
 
   public get cache() {
@@ -110,7 +114,9 @@ export class ContainerImpl<TModel extends Model = Model>
         cache.cachedState = this.model.state({
           dependencies: this._storeContext.options.dependencies,
           namespace: this.namespace,
-          key: this.key
+          key: this.key,
+
+          args: undefined
         });
       }
 
@@ -168,21 +174,29 @@ export class ContainerImpl<TModel extends Model = Model>
     throw new Error("namespace is already registered by other container");
   }
 
-  public register() {
+  public register(args?: ExtractArgs<TModel>) {
     if (!this.canRegister) {
       throw new Error("namespace is already registered");
     }
 
-    this._storeContext.store.dispatch({
-      type: joinLastPart(this.namespace, actionTypes.register)
-    });
+    const models = this._storeContext.modelsByBaseNamespace.get(
+      this.baseNamespace
+    )!;
+    const modelIndex = models.indexOf(this.model);
+
+    this._storeContext.store.dispatch(
+      createRegisterActionHelper(this.namespace).create({
+        model: modelIndex,
+        args
+      })
+    );
   }
 
   public unregister() {
     if (this.isRegistered) {
-      this._storeContext.store.dispatch({
-        type: joinLastPart(this.namespace, actionTypes.unregister)
-      });
+      this._storeContext.store.dispatch(
+        createUnregisterActionHelper(this.namespace).create({})
+      );
     } else {
       this.clearCache();
     }

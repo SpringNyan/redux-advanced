@@ -1,8 +1,9 @@
 import {
-  actionTypes,
+  batchRegisterActionHelper,
   ExtractActionHelpersFromReducersEffects,
   RegisterPayload
 } from "./action";
+import { ExtractArgs } from "./args";
 import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
 import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
@@ -33,13 +34,14 @@ import {
 
 export interface Model<
   TDependencies extends object | undefined = any,
+  TArgs extends object | undefined = any,
   TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
-  state: StateFactory<TDependencies, TState>;
+  state: StateFactory<TDependencies, TArgs, TState>;
   selectors: TSelectors;
   reducers: TReducers;
   effects: TEffects;
@@ -57,6 +59,7 @@ export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
 export class ModelBuilder<
   TDependencies extends object | undefined = any,
+  TArgs extends object | undefined = any,
   TState extends object | undefined = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
@@ -67,6 +70,7 @@ export class ModelBuilder<
 
   private readonly _model: Model<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -76,13 +80,22 @@ export class ModelBuilder<
   private _isFrozen: boolean = false;
 
   constructor(
-    model: Model<TDependencies, TState, TSelectors, TReducers, TEffects, TEpics>
+    model: Model<
+      TDependencies,
+      TArgs,
+      TState,
+      TSelectors,
+      TReducers,
+      TEffects,
+      TEpics
+    >
   ) {
     this._model = cloneModel(model);
   }
 
   public freeze(): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -95,6 +108,7 @@ export class ModelBuilder<
 
   public clone(): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -110,6 +124,7 @@ export class ModelBuilder<
     TDependencies extends object
       ? TDependencies & ExtractDependencies<TModel>
       : ExtractDependencies<TModel>,
+    TArgs extends object ? TArgs & ExtractArgs<TModel> : ExtractArgs<TModel>,
     TState extends object
       ? TState & ExtractState<TModel>
       : ExtractState<TModel>,
@@ -125,6 +140,14 @@ export class ModelBuilder<
     TDependencies extends object
       ? TDependencies & ExtractDependencies<TModel>
       : ExtractDependencies<TModel>,
+    TArgs extends object
+      ? TArgs &
+          (ExtractArgs<TModel> extends object
+            ? { [P in TNamespace]: ExtractArgs<TModel> }
+            : {})
+      : (ExtractArgs<TModel> extends object
+          ? { [P in TNamespace]: ExtractArgs<TModel> }
+          : {}),
     TState extends object
       ? TState &
           (ExtractState<TModel> extends object
@@ -154,7 +177,9 @@ export class ModelBuilder<
         [namespace]: model.state({
           dependencies: context.dependencies,
           namespace: context.namespace,
-          key: context.key
+          key: context.key,
+
+          args: (context.args || {})[namespace]
         })
       });
 
@@ -258,6 +283,7 @@ export class ModelBuilder<
     }
 
     this.dependencies()
+      .args()
       .state(state)
       .selectors(selectors)
       .reducers(reducers)
@@ -269,6 +295,7 @@ export class ModelBuilder<
 
   public dependencies<T extends object>(): ModelBuilder<
     TDependencies extends object ? TDependencies & T : T,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -282,10 +309,27 @@ export class ModelBuilder<
     return this as any;
   }
 
+  public args<T extends object>(): ModelBuilder<
+    TDependencies,
+    TArgs extends object ? TArgs & T : T,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects,
+    TEpics
+  > {
+    if (this._isFrozen) {
+      return this.clone().args<T>();
+    }
+
+    return this as any;
+  }
+
   public state<T extends object>(
-    state: T | StateFactory<TDependencies, T>
+    state: T | StateFactory<TDependencies, TArgs, T>
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState extends object ? TState & T : T,
     TSelectors,
     TReducers,
@@ -316,9 +360,12 @@ export class ModelBuilder<
   public overrideState(
     override: (
       base: TState
-    ) => DeepPartial<TState> | StateFactory<TDependencies, DeepPartial<TState>>
+    ) =>
+      | DeepPartial<TState>
+      | StateFactory<TDependencies, TArgs, DeepPartial<TState>>
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -364,6 +411,7 @@ export class ModelBuilder<
         >
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors & T,
     TReducers,
@@ -413,6 +461,7 @@ export class ModelBuilder<
         >
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     OverrideSelectors<
       TSelectors,
@@ -443,6 +492,7 @@ export class ModelBuilder<
     reducers: T
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers & T,
@@ -464,6 +514,7 @@ export class ModelBuilder<
     ) => DeepPartial<OverrideReducers<TReducers, TDependencies, TState>>
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     OverrideReducers<TReducers, TDependencies, TState>,
@@ -494,6 +545,7 @@ export class ModelBuilder<
     effects: T
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -523,6 +575,7 @@ export class ModelBuilder<
     >
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -568,6 +621,7 @@ export class ModelBuilder<
         >
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -605,6 +659,7 @@ export class ModelBuilder<
     >
   ): ModelBuilder<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -632,6 +687,7 @@ export class ModelBuilder<
 
   public build(): Model<
     TDependencies,
+    TArgs,
     TState,
     TSelectors,
     TReducers,
@@ -658,6 +714,7 @@ export function isModel(obj: any): obj is Model {
 }
 
 export function createModelBuilder(): ModelBuilder<
+  undefined,
   undefined,
   undefined,
   {},
@@ -763,9 +820,6 @@ export function createRegisterModels(
 ): RegisterModels {
   return (models) => {
     const payloads = registerModels(storeContext, "", models);
-    storeContext.store.dispatch({
-      type: actionTypes.register,
-      payload: payloads
-    });
+    storeContext.store.dispatch(batchRegisterActionHelper.create(payloads));
   };
 }

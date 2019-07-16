@@ -195,6 +195,12 @@ function parseBatchUnregisterPayloads(action) {
     }
     return null;
 }
+function createRegisterActionHelper(namespace) {
+    return new ActionHelperImpl(undefined, undefined, joinLastPart(namespace, actionTypes.register));
+}
+function createUnregisterActionHelper(namespace) {
+    return new ActionHelperImpl(undefined, undefined, joinLastPart(namespace, actionTypes.unregister));
+}
 
 var createSelector = (function () {
     var args = [];
@@ -292,7 +298,8 @@ var ModelBuilder =  (function () {
                     _a[namespace] = model.state({
                         dependencies: context.dependencies,
                         namespace: context.namespace,
-                        key: context.key
+                        key: context.key,
+                        args: (context.args || {})[namespace]
                     }),
                     _a);
             };
@@ -369,6 +376,7 @@ var ModelBuilder =  (function () {
                 _d);
         }
         this.dependencies()
+            .args()
             .state(state)
             .selectors(selectors)
             .reducers(reducers)
@@ -379,6 +387,12 @@ var ModelBuilder =  (function () {
     ModelBuilder.prototype.dependencies = function () {
         if (this._isFrozen) {
             return this.clone().dependencies();
+        }
+        return this;
+    };
+    ModelBuilder.prototype.args = function () {
+        if (this._isFrozen) {
+            return this.clone().args();
         }
         return this;
     };
@@ -572,10 +586,7 @@ function registerModels(storeContext, namespace, models) {
 function createRegisterModels(storeContext) {
     return function (models) {
         var payloads = registerModels(storeContext, "", models);
-        storeContext.store.dispatch({
-            type: actionTypes.register,
-            payload: payloads
-        });
+        storeContext.store.dispatch(batchRegisterActionHelper.create(payloads));
     };
 }
 
@@ -627,10 +638,10 @@ var ContainerImpl =  (function () {
         this.model = model;
         this.key = key;
         var modelContext = this._storeContext.contextByModel.get(this.model);
-        var baseNamespace = modelContext.baseNamespace;
+        this.baseNamespace = modelContext.baseNamespace;
         this.id = modelContext.idByKey.get(this.key);
-        this.namespace = joinLastPart(baseNamespace, this.key);
-        this.basePath = convertNamespaceToPath(baseNamespace);
+        this.namespace = joinLastPart(this.baseNamespace, this.key);
+        this.basePath = convertNamespaceToPath(this.baseNamespace);
     }
     Object.defineProperty(ContainerImpl.prototype, "cache", {
         get: function () {
@@ -675,7 +686,8 @@ var ContainerImpl =  (function () {
                     cache.cachedState = this.model.state({
                         dependencies: this._storeContext.options.dependencies,
                         namespace: this.namespace,
-                        key: this.key
+                        key: this.key,
+                        args: undefined
                     });
                 }
                 return cache.cachedState;
@@ -727,19 +739,20 @@ var ContainerImpl =  (function () {
         enumerable: true,
         configurable: true
     });
-    ContainerImpl.prototype.register = function () {
+    ContainerImpl.prototype.register = function (args) {
         if (!this.canRegister) {
             throw new Error("namespace is already registered");
         }
-        this._storeContext.store.dispatch({
-            type: joinLastPart(this.namespace, actionTypes.register)
-        });
+        var models = this._storeContext.modelsByBaseNamespace.get(this.baseNamespace);
+        var modelIndex = models.indexOf(this.model);
+        this._storeContext.store.dispatch(createRegisterActionHelper(this.namespace).create({
+            model: modelIndex,
+            args: args
+        }));
     };
     ContainerImpl.prototype.unregister = function () {
         if (this.isRegistered) {
-            this._storeContext.store.dispatch({
-                type: joinLastPart(this.namespace, actionTypes.unregister)
-            });
+            this._storeContext.store.dispatch(createUnregisterActionHelper(this.namespace).create({}));
         }
         else {
             this.clearCache();
@@ -840,7 +853,7 @@ function createReduxObservableEpic(storeContext, container) {
             }
             outputObservables.push(output$);
         });
-        var unregisterActionType = joinLastPart(container.namespace, actionTypes.unregister);
+        var unregisterActionType = createUnregisterActionHelper(container.namespace).type;
         var takeUntil$ = rootAction$.pipe(filter(function (action) {
             if (action.type === unregisterActionType) {
                 return true;
@@ -961,16 +974,24 @@ function createReduxReducer(storeContext) {
             var _a;
             var namespace = payload.namespace;
             var modelIndex = payload.model || 0;
+            var args = payload.args;
+            var state = payload.state;
             var _b = storeContext.findModelsInfo(namespace), baseNamespace = _b.baseNamespace, key = _b.key, models = _b.models;
             var basePath = convertNamespaceToPath(baseNamespace);
             var model = models[modelIndex];
-            var modelState = model.state({
-                dependencies: storeContext.options.dependencies,
-                namespace: namespace,
-                key: key
-            });
             rootState = __assign({}, rootState, (_a = {}, _a[stateModelsKey] = setSubState(rootState[stateModelsKey], modelIndex, basePath, key), _a));
-            rootState = setSubState(rootState, modelState, basePath, key);
+            if (state !== undefined) {
+                rootState = setSubState(rootState, state, basePath, key);
+            }
+            else {
+                var modelState = model.state({
+                    dependencies: storeContext.options.dependencies,
+                    namespace: namespace,
+                    key: key,
+                    args: args
+                });
+                rootState = setSubState(rootState, modelState, basePath, key);
+            }
         });
         return rootState;
     }
