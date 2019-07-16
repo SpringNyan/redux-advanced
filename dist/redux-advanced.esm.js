@@ -1,8 +1,19 @@
 import { createStore, applyMiddleware } from 'redux';
-import { combineEpics, createEpicMiddleware } from 'redux-observable';
-import { merge as merge$1, Subject, BehaviorSubject } from 'rxjs';
-import { takeUntil, catchError, distinctUntilChanged, mergeMap } from 'rxjs/operators';
+import { createEpicMiddleware } from 'redux-observable';
+import { catchError, filter, takeUntil, distinctUntilChanged, mergeMap } from 'rxjs/operators';
+import { Subject, merge as merge$1 } from 'rxjs';
 import produce from 'immer';
+
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 
 var nil = {};
 function factoryWrapper(obj) {
@@ -11,10 +22,12 @@ function factoryWrapper(obj) {
 function isObject(obj) {
     return obj != null && typeof obj === "object" && !Array.isArray(obj);
 }
-function mapObjectDeeply(target, source, func, override, paths) {
-    if (override === void 0) { override = false; }
+function mapObjectDeeply(target, source, func, paths) {
     if (paths === void 0) { paths = []; }
     Object.keys(source).forEach(function (key) {
+        if (key === "constructor" || key === "prototype" || key === "__proto__") {
+            throw new Error("illegal key: \"" + key + "\"");
+        }
         var value = source[key];
         if (isObject(value)) {
             var nextTarget = target[key];
@@ -25,12 +38,9 @@ function mapObjectDeeply(target, source, func, override, paths) {
             if (!isObject(nextTarget)) {
                 throw new Error("target[\"" + key + "\"] should be an object");
             }
-            mapObjectDeeply(nextTarget, value, func, override, paths.concat([key]));
+            mapObjectDeeply(nextTarget, value, func, paths.concat([key]));
         }
         else {
-            if (!override && target[key] !== undefined) {
-                throw new Error("target[\"" + key + "\"] already has a value");
-            }
             var result = func(value, paths.concat([key]), target);
             if (result !== undefined) {
                 target[key] = result;
@@ -46,7 +56,7 @@ function merge(target) {
     }
     sources.forEach(function (source) {
         if (isObject(source)) {
-            mapObjectDeeply(target, source, function (value) { return value; }, true);
+            mapObjectDeeply(target, source, function (value) { return value; });
         }
     });
     return target;
@@ -69,7 +79,7 @@ function splitLastPart(str, splitter) {
     var index = str.lastIndexOf(splitter);
     return index >= 0
         ? [str.substring(0, index), str.substring(index + 1)]
-        : [str, ""];
+        : ["", str];
 }
 var PatchedPromise =  (function () {
     function PatchedPromise(executor) {
@@ -102,60 +112,73 @@ var actionTypes = {
     unregister: "@@UNREGISTER"
 };
 var ActionHelperImpl =  (function () {
-    function ActionHelperImpl(_storeCache, _container, _actionName) {
-        var _this = this;
-        this._storeCache = _storeCache;
+    function ActionHelperImpl(_storeContext, _container, type) {
+        this._storeContext = _storeContext;
         this._container = _container;
-        this._actionName = _actionName;
-        this.is = function (action) {
-            return action != null && action.type === _this.type;
+        this.type = type;
+    }
+    ActionHelperImpl.prototype.is = function (action) {
+        return action != null && action.type === this.type;
+    };
+    ActionHelperImpl.prototype.create = function (payload) {
+        return {
+            type: this.type,
+            payload: payload
         };
-        this.create = function (payload) {
-            var action = {
-                type: _this.type,
-                payload: payload
-            };
-            _this._storeCache.contextByAction.set(action, {
-                model: _this._container.model,
-                key: _this._container.key
-            });
-            return action;
-        };
-        this.dispatch = function (payload, dispatch) {
-            var action = _this.create(payload);
-            if (dispatch == null) {
-                dispatch = _this._storeCache.dispatch;
-            }
-            var promise = new PatchedPromise(function (resolve, reject) {
-                var context = _this._storeCache.contextByAction.get(action);
-                if (context != null) {
-                    context.effectDeferred = {
-                        resolve: resolve,
-                        reject: function (reason) {
-                            setTimeout(function () {
-                                if (!promise.rejectionHandled &&
-                                    _this._storeCache.options.effectErrorHandler != null) {
-                                    _this._storeCache.options.effectErrorHandler(reason);
-                                }
-                            }, 0);
-                            return reject(reason);
-                        }
-                    };
+    };
+    ActionHelperImpl.prototype.dispatch = function (payload, dispatch) {
+        var _this = this;
+        var action = this.create(payload);
+        var promise = new PatchedPromise(function (resolve, reject) {
+            _this._storeContext.contextByAction.set(action, {
+                container: _this._container,
+                deferred: {
+                    resolve: resolve,
+                    reject: function (reason) {
+                        setTimeout(function () {
+                            if (!promise.rejectionHandled &&
+                                _this._storeContext.options.catchEffectError) {
+                                promise.catch(_this._storeContext.options.catchEffectError);
+                            }
+                        }, 0);
+                        return reject(reason);
+                    }
                 }
             });
-            dispatch(action);
-            return promise;
-        };
-        this.type = this._container.namespace + "/" + this._actionName;
-    }
+        });
+        (dispatch || this._storeContext.store.dispatch)(action);
+        return promise;
+    };
     return ActionHelperImpl;
 }());
-function createActionHelpers(storeCache, container) {
+function createActionHelpers(storeContext, container) {
     var actionHelpers = {};
     mapObjectDeeply(actionHelpers, merge({}, container.model.reducers, container.model.effects), function (obj, paths) {
-        return new ActionHelperImpl(storeCache, container, storeCache.options.resolveActionName(paths));
+        return new ActionHelperImpl(storeContext, container, joinLastPart(container.namespace, storeContext.options.resolveActionName(paths)));
     });
     return actionHelpers;
+}
+var batchRegisterActionHelper = new ActionHelperImpl(undefined, undefined, actionTypes.register);
+var batchUnregisterActionHelper = new ActionHelperImpl(undefined, undefined, actionTypes.unregister);
+function parseBatchRegisterPayloads(action) {
+    if (batchRegisterActionHelper.is(action)) {
+        return action.payload || [];
+    }
+    var _a = splitLastPart(action.type), namespace = _a[0], actionName = _a[1];
+    if (actionName === actionTypes.register) {
+        return [__assign({}, action.payload, { namespace: namespace })];
+    }
+    return null;
+}
+function parseBatchUnregisterPayloads(action) {
+    if (batchUnregisterActionHelper.is(action)) {
+        return action.payload || [];
+    }
+    var _a = splitLastPart(action.type), namespace = _a[0], actionName = _a[1];
+    if (actionName === actionTypes.unregister) {
+        return [__assign({}, action.payload, { namespace: namespace })];
+    }
+    return null;
 }
 
 var createSelector = (function () {
@@ -168,18 +191,18 @@ var createSelector = (function () {
         ? args[0]
         : args.slice(0, args.length - 1);
     var combiner = args[args.length - 1];
-    var cacheByKey = new Map();
-    var resultSelector = function (context, cacheKey) {
-        if (cacheKey == null) {
-            cacheKey = "";
+    var cacheById = new Map();
+    var resultSelector = function (context, cacheId) {
+        if (cacheId == null) {
+            cacheId = -1;
         }
-        var cache = cacheByKey.get(cacheKey);
+        var cache = cacheById.get(cacheId);
         if (cache == null) {
             cache = {
                 lastParams: undefined,
                 lastResult: undefined
             };
-            cacheByKey.set(cacheKey, cache);
+            cacheById.set(cacheId, cache);
         }
         var needUpdate = cache.lastParams == null;
         var params = [];
@@ -198,24 +221,24 @@ var createSelector = (function () {
         }
         return cache.lastResult;
     };
-    resultSelector.__deleteCache = function (cacheKey) {
-        cacheByKey.delete(cacheKey);
+    resultSelector.__deleteCache = function (cacheId) {
+        cacheById.delete(cacheId);
     };
     return resultSelector;
 });
-function createGetters(storeCache, container) {
+function createGetters(storeContext, container) {
     var getters = {};
     mapObjectDeeply(getters, container.model.selectors, function (selector, paths, target) {
         Object.defineProperty(target, paths[paths.length - 1], {
             get: function () {
                 return selector({
-                    dependencies: storeCache.dependencies,
+                    dependencies: storeContext.options.dependencies,
                     namespace: container.namespace,
                     key: container.key,
                     state: container.state,
                     getters: container.getters,
                     actions: container.actions,
-                    getContainer: storeCache.getContainer
+                    getContainer: storeContext.getContainer
                 }, container.id);
             },
             enumerable: true,
@@ -260,7 +283,7 @@ var ModelBuilder =  (function () {
             };
             selectors = (_a = {},
                 _a[namespace] = mapObjectDeeply({}, model.selectors, function (oldSelector) {
-                    var newSelector = function (context, cacheKey) {
+                    var newSelector = function (context, cacheId) {
                         return oldSelector({
                             dependencies: context.dependencies,
                             namespace: context.namespace,
@@ -269,11 +292,11 @@ var ModelBuilder =  (function () {
                             getters: context.getters[namespace],
                             actions: context.actions[namespace],
                             getContainer: context.getContainer
-                        }, cacheKey);
+                        }, cacheId);
                     };
                     if (oldSelector.__deleteCache != null) {
-                        newSelector.__deleteCache = function (cacheKey) {
-                            return oldSelector.__deleteCache(cacheKey);
+                        newSelector.__deleteCache = function (cacheId) {
+                            return oldSelector.__deleteCache(cacheId);
                         };
                     }
                     return newSelector;
@@ -429,7 +452,7 @@ var ModelBuilder =  (function () {
         }
         if (Array.isArray(epics)) {
             epics = epics.reduce(function (obj, epic) {
-                obj["ANONYMOUS_EPIC_" + ModelBuilder._nextEpicId] = epic;
+                obj["__ANONYMOUS_EPIC_" + ModelBuilder._nextEpicId] = epic;
                 ModelBuilder._nextEpicId += 1;
                 return obj;
             }, {});
@@ -444,24 +467,14 @@ var ModelBuilder =  (function () {
         this._model.epics = merge({}, this._model.epics, override(this._model.epics));
         return this;
     };
-    ModelBuilder.prototype.autoRegister = function (value) {
-        if (value === void 0) { value = true; }
-        if (this._isFrozen) {
-            return this.clone().autoRegister(value);
-        }
-        this._model.autoRegister = value;
-        return this;
-    };
     ModelBuilder.prototype.build = function () {
-        var model = cloneModel(this._model);
-        return model;
+        return cloneModel(this._model);
     };
     ModelBuilder._nextEpicId = 1;
     return ModelBuilder;
 }());
 function cloneModel(model) {
     return {
-        autoRegister: model.autoRegister,
         state: model.state,
         selectors: merge({}, model.selectors),
         reducers: merge({}, model.reducers),
@@ -471,19 +484,10 @@ function cloneModel(model) {
 }
 function isModel(obj) {
     var model = obj;
-    return (model != null &&
-        model.autoRegister != null &&
-        model.state != null &&
-        model.selectors != null &&
-        model.reducers != null &&
-        model.effects != null &&
-        model.epics != null &&
-        typeof model.autoRegister === "boolean" &&
-        typeof model.state === "function");
+    return model != null && typeof model.state === "function";
 }
 function createModelBuilder() {
     return new ModelBuilder({
-        autoRegister: false,
         state: function () { return undefined; },
         selectors: {},
         reducers: {},
@@ -491,102 +495,137 @@ function createModelBuilder() {
         epics: {}
     });
 }
-function registerModel(storeCache, namespace, model) {
+function registerModel(storeContext, namespace, model) {
     var models = Array.isArray(model) ? model : [model];
+    var registeredModels = storeContext.modelsByBaseNamespace.get(namespace);
+    if (registeredModels == null) {
+        registeredModels = [];
+        storeContext.modelsByBaseNamespace.set(namespace, registeredModels);
+    }
+    registeredModels.push.apply(registeredModels, models);
     models.forEach(function (_model) {
-        if (storeCache.contextByModel.has(_model)) {
+        if (storeContext.contextByModel.has(_model)) {
             throw new Error("model is already registered");
         }
-        var reducerByActionName = {};
+        var reducerByActionName = new Map();
         mapObjectDeeply({}, _model.reducers, function (reducer, paths) {
-            var actionName = storeCache.options.resolveActionName(paths);
-            if (reducerByActionName[actionName] != null) {
+            var actionName = storeContext.options.resolveActionName(paths);
+            if (reducerByActionName.has(actionName)) {
                 throw new Error("action name of reducer should be unique");
             }
-            reducerByActionName[actionName] = reducer;
+            reducerByActionName.set(actionName, reducer);
         });
-        var effectByActionName = {};
+        var effectByActionName = new Map();
         mapObjectDeeply({}, _model.effects, function (effect, paths) {
-            var actionName = storeCache.options.resolveActionName(paths);
-            if (effectByActionName[actionName] != null) {
+            var actionName = storeContext.options.resolveActionName(paths);
+            if (effectByActionName.has(actionName)) {
                 throw new Error("action name of effect should be unique");
             }
-            effectByActionName[actionName] = effect;
+            effectByActionName.set(actionName, effect);
         });
-        storeCache.contextByModel.set(_model, {
+        storeContext.contextByModel.set(_model, {
             baseNamespace: namespace,
-            cacheIdByKey: new Map(),
+            isDynamic: Array.isArray(model),
             reducerByActionName: reducerByActionName,
-            effectByActionName: effectByActionName
+            effectByActionName: effectByActionName,
+            idByKey: new Map()
         });
     });
 }
-function registerModels(storeCache, namespace, models) {
+function registerModels(storeContext, namespace, models) {
+    var payloads = [];
     Object.keys(models).forEach(function (key) {
         var model = models[key];
         var modelNamespace = joinLastPart(namespace, key);
         if (Array.isArray(model)) {
-            registerModel(storeCache, modelNamespace, model);
+            registerModel(storeContext, modelNamespace, model);
         }
         else if (isModel(model)) {
-            registerModel(storeCache, modelNamespace, model);
-            storeCache.pendingInitContainers.push({
-                container: storeCache.getContainer(model),
-                initialState: undefined
+            registerModel(storeContext, modelNamespace, model);
+            payloads.push({
+                namespace: modelNamespace
             });
         }
         else {
-            registerModels(storeCache, modelNamespace, model);
+            var childPayloads = registerModels(storeContext, modelNamespace, model);
+            payloads.push.apply(payloads, childPayloads);
         }
     });
+    return payloads;
 }
-
-function createEpicsReduxObservableEpic(storeCache, container) {
-    return function (rootAction$, rootState$) {
-        var outputObservables = [];
-        mapObjectDeeply({}, container.model.epics, function (epic) {
-            var output$ = epic({
-                rootAction$: rootAction$,
-                rootState$: rootState$,
-                dependencies: storeCache.dependencies,
-                namespace: container.namespace,
-                key: container.key,
-                getState: function () { return container.state; },
-                getters: container.getters,
-                actions: container.actions,
-                getContainer: storeCache.getContainer
-            });
-            if (storeCache.options.epicErrorHandler != null) {
-                output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
-            }
-            outputObservables.push(output$);
+function createRegisterModels(storeContext) {
+    return function (models) {
+        var payloads = registerModels(storeContext, "", models);
+        storeContext.store.dispatch({
+            type: actionTypes.register,
+            payload: payloads
         });
-        var takeUntil$ = rootAction$.ofType(container.namespace + "/" + actionTypes.unregister);
-        return merge$1.apply(void 0, outputObservables).pipe(takeUntil(takeUntil$));
     };
 }
 
+var stateModelsKey = "__models";
+function getSubState(rootState, basePath, key) {
+    if (rootState == null) {
+        return undefined;
+    }
+    var state = rootState[basePath];
+    if (key === undefined) {
+        return state;
+    }
+    if (state == null) {
+        return undefined;
+    }
+    state = state[key];
+    return state;
+}
+function setSubState(rootState, value, basePath, key) {
+    var _a;
+    if (rootState == null) {
+        rootState = {};
+    }
+    if (key === undefined) {
+        if (rootState[basePath] === value) {
+            return rootState;
+        }
+        rootState = __assign({}, rootState);
+        if (value === undefined) {
+            delete rootState[basePath];
+        }
+        else {
+            rootState[basePath] = value;
+        }
+        return rootState;
+    }
+    else {
+        var state = setSubState(rootState[basePath], value, key, undefined);
+        if (rootState[basePath] === state) {
+            return rootState;
+        }
+        return __assign({}, rootState, (_a = {}, _a[basePath] = state, _a));
+    }
+}
+
 var ContainerImpl =  (function () {
-    function ContainerImpl(_storeCache, model, key) {
-        this._storeCache = _storeCache;
+    function ContainerImpl(_storeContext, model, key) {
+        this._storeContext = _storeContext;
         this.model = model;
         this.key = key;
-        var modelContext = this._storeCache.contextByModel.get(this.model);
+        var modelContext = this._storeContext.contextByModel.get(this.model);
         var baseNamespace = modelContext.baseNamespace;
-        this.id = modelContext.cacheIdByKey.get(this.key);
+        this.id = modelContext.idByKey.get(this.key);
         this.namespace = joinLastPart(baseNamespace, this.key);
-        this.path = convertNamespaceToPath(this.namespace);
+        this.basePath = convertNamespaceToPath(baseNamespace);
     }
     Object.defineProperty(ContainerImpl.prototype, "_cache", {
         get: function () {
-            var cache = this._storeCache.cacheById.get(this.id);
+            var cache = this._storeContext.cacheById.get(this.id);
             if (cache == null) {
                 cache = {
                     cachedState: nil,
                     cachedGetters: undefined,
                     cachedActions: undefined
                 };
-                this._storeCache.cacheById.set(this.id, cache);
+                this._storeContext.cacheById.set(this.id, cache);
             }
             return cache;
         },
@@ -595,7 +634,7 @@ var ContainerImpl =  (function () {
     });
     Object.defineProperty(ContainerImpl.prototype, "isRegistered", {
         get: function () {
-            var container = this._storeCache.containerByNamespace.get(this.namespace);
+            var container = this._storeContext.containerByNamespace.get(this.namespace);
             return container != null && container.model === this.model;
         },
         enumerable: true,
@@ -603,7 +642,7 @@ var ContainerImpl =  (function () {
     });
     Object.defineProperty(ContainerImpl.prototype, "canRegister", {
         get: function () {
-            return !this._storeCache.containerByNamespace.has(this.namespace);
+            return !this._storeContext.containerByNamespace.has(this.namespace);
         },
         enumerable: true,
         configurable: true
@@ -611,20 +650,20 @@ var ContainerImpl =  (function () {
     Object.defineProperty(ContainerImpl.prototype, "state", {
         get: function () {
             if (this.isRegistered) {
-                return this._storeCache.getState()[this.path];
+                return getSubState(this._storeContext.store.getState(), this.basePath, this.key);
             }
             if (this.canRegister) {
                 var cache = this._cache;
                 if (cache.cachedState === nil) {
                     cache.cachedState = this.model.state({
-                        dependencies: this._storeCache.dependencies,
+                        dependencies: this._storeContext.options.dependencies,
                         namespace: this.namespace,
                         key: this.key
                     });
                 }
                 return cache.cachedState;
             }
-            throw new Error("namespace is already registered by other model");
+            throw new Error("namespace is already registered by other container");
         },
         enumerable: true,
         configurable: true
@@ -634,11 +673,11 @@ var ContainerImpl =  (function () {
             if (this.isRegistered || this.canRegister) {
                 var cache = this._cache;
                 if (cache.cachedGetters === undefined) {
-                    cache.cachedGetters = createGetters(this._storeCache, this);
+                    cache.cachedGetters = createGetters(this._storeContext, this);
                 }
                 return cache.cachedGetters;
             }
-            throw new Error("namespace is already registered by other model");
+            throw new Error("namespace is already registered by other container");
         },
         enumerable: true,
         configurable: true
@@ -648,306 +687,346 @@ var ContainerImpl =  (function () {
             if (this.isRegistered || this.canRegister) {
                 var cache = this._cache;
                 if (cache.cachedActions === undefined) {
-                    cache.cachedActions = createActionHelpers(this._storeCache, this);
+                    cache.cachedActions = createActionHelpers(this._storeContext, this);
                 }
                 return cache.cachedActions;
             }
-            throw new Error("namespace is already registered by other model");
+            throw new Error("namespace is already registered by other container");
         },
         enumerable: true,
         configurable: true
     });
-    ContainerImpl.prototype.register = function (initialState) {
+    ContainerImpl.prototype.register = function () {
         if (!this.canRegister) {
             throw new Error("namespace is already registered");
         }
-        initialState =
-            initialState !== undefined
-                ? factoryWrapper(initialState)({
-                    dependencies: this._storeCache.dependencies,
-                    namespace: this.namespace,
-                    key: this.key
-                })
-                : undefined;
-        this._storeCache.containerById.set(this.id, this);
-        this._storeCache.containerByNamespace.set(this.namespace, this);
-        this._storeCache.pendingInitStates.push({
-            namespace: this.namespace,
-            state: initialState
+        this._storeContext.store.dispatch({
+            type: joinLastPart(this.namespace, actionTypes.register)
         });
-        var epic = createEpicsReduxObservableEpic(this._storeCache, this);
-        if (this._storeCache.initialized) {
-            this._storeCache.addEpic$.next(epic);
-            this._storeCache.dispatch({
-                type: this.namespace + "/" + actionTypes.register
-            });
-        }
-        else {
-            this._storeCache.pendingInitEpics.push(epic);
-        }
     };
     ContainerImpl.prototype.unregister = function () {
         if (this.isRegistered) {
-            this._storeCache.containerByNamespace.delete(this.namespace);
-            if (this._storeCache.initialized) {
-                this._storeCache.dispatch({
-                    type: this.namespace + "/" + actionTypes.unregister
-                });
-            }
+            this._storeContext.store.dispatch({
+                type: joinLastPart(this.namespace, actionTypes.unregister)
+            });
         }
-        this._clearCache();
+        this.clearCache();
     };
-    ContainerImpl.prototype._clearCache = function () {
+    ContainerImpl.prototype.clearCache = function () {
         var _this = this;
-        Object.keys(this.model.selectors).forEach(function (key) {
-            var selector = _this.model.selectors[key];
-            if (selector.__deleteCache != null) {
+        mapObjectDeeply({}, this.model.selectors, function (selector) {
+            if (selector.__deleteCache) {
                 selector.__deleteCache(_this.id);
             }
         });
-        this._storeCache.containerById.delete(this.id);
-        this._storeCache.cacheById.delete(this.id);
+        this._storeContext.containerById.delete(this.id);
+        this._storeContext.cacheById.delete(this.id);
     };
+    ContainerImpl.nextId = 1;
     return ContainerImpl;
 }());
-function createGetContainer(storeCache) {
+function createGetContainer(storeContext) {
     return function (model, key) {
-        var modelContext = storeCache.contextByModel.get(model);
+        var modelContext = storeContext.contextByModel.get(model);
         if (modelContext == null) {
             throw new Error("model is not registered yet");
         }
-        if (key == null) {
-            key = "";
+        if (key === undefined && modelContext.isDynamic) {
+            throw new Error("key should be provided for dynamic model");
         }
-        var cacheId = modelContext.cacheIdByKey.get(key);
-        if (cacheId == null) {
-            cacheId = "" + storeCache.nextCacheId;
-            storeCache.nextCacheId += 1;
-            modelContext.cacheIdByKey.set(key, cacheId);
+        if (key !== undefined && !modelContext.isDynamic) {
+            throw new Error("key should not be provided for static model");
         }
-        var container = storeCache.containerById.get(cacheId);
+        var id = modelContext.idByKey.get(key);
+        if (id == null) {
+            id = ContainerImpl.nextId;
+            ContainerImpl.nextId += 1;
+            modelContext.idByKey.set(key, id);
+        }
+        var container = storeContext.containerById.get(id);
         if (container == null) {
-            container = new ContainerImpl(storeCache, model, key);
-            storeCache.containerById.set(cacheId, container);
+            container = new ContainerImpl(storeContext, model, key);
+            storeContext.containerById.set(id, container);
         }
         return container;
     };
 }
 
-function createStoreCache() {
-    var storeCache = {
-        initialized: false,
+function createStoreContext() {
+    var storeContext = {
         store: undefined,
         options: undefined,
-        dependencies: undefined,
         getContainer: undefined,
-        addEpic$: undefined,
-        getState: function () {
-            var _a;
-            var args = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                args[_i] = arguments[_i];
-            }
-            return (_a = storeCache.store).getState.apply(_a, args);
-        },
-        dispatch: function () {
-            var _a;
-            var args = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                args[_i] = arguments[_i];
-            }
-            return (_a = storeCache.store).dispatch.apply(_a, args);
-        },
-        pendingInitContainers: [],
-        pendingInitStates: [],
-        pendingInitEpics: [],
-        nextCacheId: 1,
-        cacheById: new Map(),
-        containerById: new Map(),
-        containerByNamespace: new Map(),
+        addEpic$: new Subject(),
         contextByModel: new Map(),
-        contextByAction: new WeakMap()
+        modelsByBaseNamespace: new Map(),
+        containerByNamespace: new Map(),
+        containerById: new Map(),
+        cacheById: new Map(),
+        contextByAction: new WeakMap(),
+        findModelsInfo: function (namespace) {
+            var _a;
+            var baseNamespace = namespace;
+            var key;
+            var models = storeContext.modelsByBaseNamespace.get(namespace);
+            if (models == null) {
+                _a = splitLastPart(namespace), baseNamespace = _a[0], key = _a[1];
+                models = storeContext.modelsByBaseNamespace.get(baseNamespace);
+            }
+            if (models == null) {
+                return null;
+            }
+            return {
+                baseNamespace: baseNamespace,
+                key: key,
+                models: models
+            };
+        }
     };
-    storeCache.getContainer = createGetContainer(storeCache);
-    return storeCache;
+    storeContext.getContainer = createGetContainer(storeContext);
+    return storeContext;
 }
 
-function createMiddleware(storeCache) {
+function createReduxObservableEpic(storeContext, container) {
+    return function (rootAction$, rootState$) {
+        var outputObservables = [];
+        mapObjectDeeply({}, container.model.epics, function (epic) {
+            var output$ = epic({
+                rootAction$: rootAction$,
+                rootState$: rootState$,
+                dependencies: storeContext.options.dependencies,
+                namespace: container.namespace,
+                key: container.key,
+                getState: function () { return container.state; },
+                getters: container.getters,
+                actions: container.actions,
+                getContainer: storeContext.getContainer
+            });
+            if (storeContext.options.catchEpicError != null) {
+                output$ = output$.pipe(catchError(storeContext.options.catchEpicError));
+            }
+            outputObservables.push(output$);
+        });
+        var unregisterActionType = joinLastPart(container.namespace, actionTypes.unregister);
+        var takeUntil$ = rootAction$.pipe(filter(function (action) {
+            if (action.type === unregisterActionType) {
+                return true;
+            }
+            if (batchUnregisterActionHelper.is(action)) {
+                return (action.payload || []).some(function (payload) { return payload.namespace === container.namespace; });
+            }
+            return false;
+        }));
+        return merge$1.apply(void 0, outputObservables).pipe(takeUntil(takeUntil$));
+    };
+}
+
+function createMiddleware(storeContext) {
     var rootActionSubject = new Subject();
     var rootAction$ = rootActionSubject;
     var rootStateSubject = new Subject();
     var rootState$ = rootStateSubject.pipe(distinctUntilChanged());
+    function register(payloads) {
+        payloads.forEach(function (payload) {
+            var namespace = payload.namespace;
+            var modelIndex = payload.model || 0;
+            var _a = storeContext.findModelsInfo(namespace), key = _a.key, models = _a.models;
+            var model = models[modelIndex];
+            var container = storeContext.getContainer(model, key);
+            storeContext.containerById.set(container.id, container);
+            storeContext.containerByNamespace.set(namespace, container);
+            var epic = createReduxObservableEpic(storeContext, container);
+            storeContext.addEpic$.next(epic);
+        });
+    }
+    function unregister(payloads) {
+        payloads.forEach(function (payload) {
+            var namespace = payload.namespace;
+            var container = storeContext.containerByNamespace.get(namespace);
+            container.clearCache();
+            storeContext.containerByNamespace.delete(namespace);
+        });
+    }
     return function (store) { return function (next) { return function (action) {
-        var context = storeCache.contextByAction.get(action);
-        if (context != null && context.model.autoRegister) {
-            var container = storeCache.getContainer(context.model, context.key);
-            if (container.canRegister) {
-                container.register();
+        var container;
+        var _a = splitLastPart(action.type), namespace = _a[0], actionName = _a[1];
+        var actionContext = storeContext.contextByAction.get(action);
+        var batchRegisterPayloads = parseBatchRegisterPayloads(action);
+        if (batchRegisterPayloads) {
+            register(batchRegisterPayloads);
+        }
+        var batchUnregisterPayloads = parseBatchUnregisterPayloads(action);
+        if (batchUnregisterPayloads) {
+            unregister(batchUnregisterPayloads);
+        }
+        if (!batchRegisterPayloads && !batchUnregisterPayloads) {
+            var modelsInfo = storeContext.findModelsInfo(namespace);
+            if (modelsInfo != null) {
+                var baseNamespace = modelsInfo.baseNamespace, key = modelsInfo.key, models = modelsInfo.models;
+                var basePath = convertNamespaceToPath(baseNamespace);
+                var modelIndex = getSubState((store.getState() || {})[stateModelsKey], basePath, key);
+                if (modelIndex != null) {
+                    var model = models[modelIndex];
+                    container = storeContext.getContainer(model, key);
+                }
+            }
+            if (actionContext && actionContext.container.canRegister) {
+                actionContext.container.register();
             }
         }
         var result = next(action);
         rootStateSubject.next(store.getState());
         rootActionSubject.next(action);
-        if (context != null) {
-            var effectDeferred_1 = context.effectDeferred != null
-                ? context.effectDeferred
-                : {
-                    resolve: function () {
-                        return;
-                    },
-                    reject: function (reason) {
-                        setTimeout(function () {
-                            if (storeCache.options.effectErrorHandler != null) {
-                                storeCache.options.effectErrorHandler(reason);
-                            }
-                        }, 0);
-                    }
-                };
-            var _a = splitLastPart(action.type), namespace = _a[0], actionName = _a[1];
-            var container_1 = storeCache.getContainer(context.model, context.key);
-            if (container_1.isRegistered) {
-                var modelContext = storeCache.contextByModel.get(container_1.model);
-                var effect = modelContext
-                    ? modelContext.effectByActionName[actionName]
-                    : null;
+        var hasEffect = false;
+        if (actionContext) {
+            var deferred_1 = actionContext.deferred;
+            if (container && container.isRegistered) {
+                var modelContext = storeContext.contextByModel.get(container.model);
+                var effect = modelContext.effectByActionName.get(actionName);
                 if (effect != null) {
+                    hasEffect = true;
                     var promise = effect({
                         rootAction$: rootAction$,
                         rootState$: rootState$,
-                        dependencies: storeCache.dependencies,
-                        namespace: namespace,
-                        key: container_1.key,
-                        getState: function () { return container_1.state; },
-                        getters: container_1.getters,
-                        actions: container_1.actions,
-                        getContainer: storeCache.getContainer
+                        dependencies: storeContext.options.dependencies,
+                        namespace: container.namespace,
+                        key: container.key,
+                        getState: function () { return container.state; },
+                        getters: container.getters,
+                        actions: container.actions,
+                        getContainer: storeContext.getContainer
                     }, action.payload);
                     promise.then(function (value) {
-                        effectDeferred_1.resolve(value);
+                        if (deferred_1) {
+                            deferred_1.resolve(value);
+                        }
                     }, function (reason) {
-                        effectDeferred_1.reject(reason);
+                        if (deferred_1) {
+                            deferred_1.reject(reason);
+                        }
+                        else if (storeContext.options.catchEffectError) {
+                            storeContext.options.catchEffectError(reason);
+                        }
+                        else {
+                            throw reason;
+                        }
                     });
                 }
-                else {
-                    effectDeferred_1.resolve(undefined);
-                }
             }
-            else {
-                effectDeferred_1.resolve(undefined);
+            if (!hasEffect && deferred_1) {
+                deferred_1.resolve(undefined);
             }
         }
         return result;
     }; }; };
 }
 
-var __assign = function() {
-    __assign = Object.assign || function __assign(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-
-function createRootReduxReducer(storeCache) {
+function createReduxReducer(storeContext) {
+    function register(rootState, payloads) {
+        payloads.forEach(function (payload) {
+            var _a;
+            var namespace = payload.namespace;
+            var modelIndex = payload.model || 0;
+            var _b = storeContext.findModelsInfo(namespace), baseNamespace = _b.baseNamespace, key = _b.key, models = _b.models;
+            var basePath = convertNamespaceToPath(baseNamespace);
+            var model = models[modelIndex];
+            var modelState = model.state({
+                dependencies: storeContext.options.dependencies,
+                namespace: namespace,
+                key: key
+            });
+            rootState = __assign({}, rootState, (_a = {}, _a[stateModelsKey] = setSubState(rootState[stateModelsKey], modelIndex, basePath, key), _a));
+            rootState = setSubState(rootState, modelState, basePath, key);
+        });
+        return rootState;
+    }
+    function unregister(rootState, payloads) {
+        payloads.forEach(function (payload) {
+            var _a;
+            var namespace = payload.namespace;
+            var _b = storeContext.findModelsInfo(namespace), baseNamespace = _b.baseNamespace, key = _b.key;
+            var basePath = convertNamespaceToPath(baseNamespace);
+            rootState = __assign({}, rootState, (_a = {}, _a[stateModelsKey] = setSubState(rootState[stateModelsKey], undefined, basePath, key), _a));
+            rootState = setSubState(rootState, undefined, basePath, key);
+        });
+        return rootState;
+    }
     return function (rootState, action) {
-        var _a;
         if (rootState === undefined) {
             rootState = {};
         }
-        var initialRootState;
-        storeCache.pendingInitStates.forEach(function (_a) {
-            var _namespace = _a.namespace, _state = _a.state;
-            var _container = storeCache.containerByNamespace.get(_namespace);
-            if (_container == null) {
-                return;
-            }
-            if (rootState[_container.path] === undefined) {
-                var initialState = _container.model.state({
-                    dependencies: storeCache.dependencies,
-                    namespace: _container.namespace,
-                    key: _container.key
-                });
-                if (initialState !== undefined || _state !== undefined) {
-                    if (initialRootState == null) {
-                        initialRootState = {};
-                    }
-                    initialRootState[_container.path] = merge({}, initialState, _state);
-                }
-            }
-        });
-        storeCache.pendingInitStates.length = 0;
-        if (initialRootState != null) {
-            rootState = __assign({}, rootState, initialRootState);
+        var _a = splitLastPart(action.type), namespace = _a[0], actionName = _a[1];
+        var batchRegisterPayloads = parseBatchRegisterPayloads(action);
+        if (batchRegisterPayloads) {
+            rootState = register(rootState, batchRegisterPayloads);
         }
-        var _b = splitLastPart(action.type), namespace = _b[0], actionName = _b[1];
-        if (actionName === actionTypes.unregister) {
-            rootState = __assign({}, rootState);
-            delete rootState[convertNamespaceToPath(namespace)];
+        var batchUnregisterPayloads = parseBatchUnregisterPayloads(action);
+        if (batchUnregisterPayloads) {
+            rootState = unregister(rootState, batchUnregisterPayloads);
         }
-        var container = storeCache.containerByNamespace.get(namespace);
-        if (container == null) {
+        var modelsInfo = storeContext.findModelsInfo(namespace);
+        if (modelsInfo == null) {
             return rootState;
         }
-        var modelContext = storeCache.contextByModel.get(container.model);
-        var reducer = modelContext
-            ? modelContext.reducerByActionName[actionName]
-            : null;
+        var baseNamespace = modelsInfo.baseNamespace, key = modelsInfo.key, models = modelsInfo.models;
+        var basePath = convertNamespaceToPath(baseNamespace);
+        var modelIndex = getSubState(rootState[stateModelsKey], basePath, key);
+        if (modelIndex == null) {
+            return rootState;
+        }
+        var model = models[modelIndex];
+        var modelContext = storeContext.contextByModel.get(model);
+        if (modelContext == null) {
+            return rootState;
+        }
+        var reducer = modelContext.reducerByActionName.get(actionName);
         if (reducer == null) {
             return rootState;
         }
-        var state = rootState[container.path];
+        var state = getSubState(rootState, basePath, key);
         var newState = produce(state, function (draft) {
             reducer(draft, action.payload, {
-                dependencies: storeCache.dependencies,
-                namespace: container.namespace,
-                key: container.key,
+                dependencies: storeContext.options.dependencies,
+                namespace: namespace,
+                key: key,
                 originalState: state
             });
         });
-        if (newState !== state) {
-            return __assign({}, rootState, (_a = {}, _a[container.path] = newState, _a));
-        }
-        else {
-            return rootState;
-        }
+        return setSubState(rootState, newState, basePath, key);
     };
 }
 
 function init(options) {
     if (options.resolveActionName == null) {
-        options.resolveActionName = function (paths) { return paths[paths.length - 1]; };
+        options.resolveActionName = function (paths) { return paths.join("."); };
     }
-    var storeCache = createStoreCache();
-    storeCache.options = options;
-    storeCache.dependencies = options.dependencies;
-    registerModels(storeCache, "", options.models);
-    storeCache.pendingInitContainers.forEach(function (_a) {
-        var container = _a.container, initialState = _a.initialState;
-        container.register(initialState);
-    });
-    storeCache.pendingInitContainers.length = 0;
-    var rootReducer = createRootReduxReducer(storeCache);
-    storeCache.addEpic$ = new BehaviorSubject(combineEpics.apply(void 0, storeCache.pendingInitEpics));
-    storeCache.pendingInitEpics.length = 0;
-    var rootEpic = function (action$, state$, epicDependencies) {
-        return storeCache.addEpic$.pipe(mergeMap(function (epic) { return epic(action$, state$, epicDependencies); }));
+    var storeContext = createStoreContext();
+    storeContext.options = options;
+    var rootReducer = createReduxReducer(storeContext);
+    var rootEpic = function (action$, state$) {
+        var rest = [];
+        for (var _i = 2; _i < arguments.length; _i++) {
+            rest[_i - 2] = arguments[_i];
+        }
+        return storeContext.addEpic$.pipe(mergeMap(function (epic) { return epic.apply(void 0, [action$, state$].concat(rest)); }));
     };
-    var reduxAdvancedMiddleware = createMiddleware(storeCache);
+    var middleware = createMiddleware(storeContext);
     if (options.createStore != null) {
-        storeCache.store = options.createStore(rootReducer, rootEpic, reduxAdvancedMiddleware);
+        storeContext.store = options.createStore({
+            reducer: rootReducer,
+            epic: rootEpic,
+            middleware: middleware
+        });
     }
     else {
         var epicMiddleware = createEpicMiddleware();
-        storeCache.store = createStore(rootReducer, applyMiddleware(reduxAdvancedMiddleware, epicMiddleware));
+        storeContext.store = createStore(rootReducer, applyMiddleware(middleware, epicMiddleware));
         epicMiddleware.run(rootEpic);
     }
-    storeCache.initialized = true;
     return {
-        store: storeCache.store,
-        getContainer: storeCache.getContainer
+        store: storeContext.store,
+        getContainer: storeContext.getContainer,
+        registerModels: createRegisterModels(storeContext)
     };
 }
 

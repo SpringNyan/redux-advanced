@@ -2,8 +2,9 @@ import produce from "immer";
 import { Reducer as ReduxReducer } from "redux";
 
 import {
-  actionTypes,
   ExtractActionPayload,
+  parseBatchRegisterPayloads,
+  parseBatchUnregisterPayloads,
   RegisterPayload,
   UnregisterPayload
 } from "./action";
@@ -127,16 +128,14 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
     const [namespace, actionName] = splitLastPart(action.type);
 
-    if (action.type === actionTypes.registered) {
-      rootState = register(rootState, action.payload || []);
-    } else if (actionName === actionTypes.registered) {
-      rootState = register(rootState, [{ ...action.payload, namespace }]);
+    const batchRegisterPayloads = parseBatchRegisterPayloads(action);
+    if (batchRegisterPayloads) {
+      rootState = register(rootState, batchRegisterPayloads);
     }
 
-    if (action.type === actionTypes.unregistered) {
-      rootState = unregister(rootState, action.payload || []);
-    } else if (actionName === actionTypes.unregistered) {
-      rootState = unregister(rootState, [{ ...action.payload, namespace }]);
+    const batchUnregisterPayloads = parseBatchUnregisterPayloads(action);
+    if (batchUnregisterPayloads) {
+      rootState = unregister(rootState, batchUnregisterPayloads);
     }
 
     const modelsInfo = storeContext.findModelsInfo(namespace);

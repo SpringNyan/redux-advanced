@@ -7,11 +7,10 @@ import { merge, Observable } from "rxjs";
 import { catchError, filter, takeUntil } from "rxjs/operators";
 
 import {
-  Action,
   ActionHelpers,
   actionTypes,
   AnyAction,
-  UnregisterPayload
+  batchUnregisterActionHelper
 } from "./action";
 import { ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
@@ -112,20 +111,19 @@ export function createReduxObservableEpic(
       outputObservables.push(output$);
     });
 
-    const unregisteredActionType = joinLastPart(
+    const unregisterActionType = joinLastPart(
       container.namespace,
-      actionTypes.unregistered
+      actionTypes.unregister
     );
 
     const takeUntil$ = rootAction$.pipe(
-      filter((action: Action) => {
-        if (action.type === unregisteredActionType) {
+      filter((action: AnyAction) => {
+        if (action.type === unregisterActionType) {
           return true;
         }
 
-        if (action.type === actionTypes.unregistered) {
-          const payloads = (action.payload || []) as UnregisterPayload[];
-          return payloads.some(
+        if (batchUnregisterActionHelper.is(action)) {
+          return (action.payload || []).some(
             (payload) => payload.namespace === container.namespace
           );
         }

@@ -148,23 +148,24 @@ describe("redux-advanced", () => {
       })
       .build();
 
-    const autoRegisteredDynamicModel = testModelBuilder.autoRegister().build();
+    const autoRegisteredDynamicModel = testModelBuilder.build();
 
     const appDependencies: IDependencies = { appId: 233 };
 
     let unhandledEffectErrorCount = 0;
-    const { getContainer: storeGetContainer } = init({
-      models: {
-        staticModel,
-        dynamicModels: [dynamicModel],
-        autoRegisteredDynamicModel: [autoRegisteredDynamicModel]
-      },
+    const { getContainer: storeGetContainer, registerModels } = init({
       dependencies: appDependencies,
 
-      effectErrorHandler: () => {
+      catchEffectError: () => {
         unhandledEffectErrorCount += 1;
       }
     });
+    registerModels({
+      staticModel,
+      dynamicModels: [dynamicModel],
+      autoRegisteredDynamicModel: [autoRegisteredDynamicModel]
+    });
+
     const staticModelContainer = storeGetContainer(staticModel);
     expect(staticModelContainer.namespace).eq("staticModel");
 
@@ -227,17 +228,19 @@ describe("redux-advanced", () => {
     // await timer(10).toPromise();
     // expect(unhandledEffectErrorCount).eq(1);
 
-    const dynamicModelContainer = storeGetContainer(dynamicModel);
-    expect(dynamicModelContainer.isRegistered).eq(false);
-    expect(dynamicModelContainer.namespace).eq("dynamicModels");
+    // const dynamicModelContainer = storeGetContainer(dynamicModel);
+    // expect(dynamicModelContainer.isRegistered).eq(false);
+    // expect(dynamicModelContainer.namespace).eq("dynamicModels");
 
     const dynamicModel1Container = storeGetContainer(dynamicModel, "1");
     expect(dynamicModel1Container.isRegistered).eq(false);
     expect(dynamicModel1Container.namespace).eq("dynamicModels/1");
 
-    dynamicModel1Container.register({
-      name: "hahaha"
-    });
+    // dynamicModel1Container.register({
+    //   name: "hahaha"
+    // });
+    dynamicModel1Container.register();
+    dynamicModel1Container.actions.setName.dispatch("hahaha");
     expect(dynamicModel1Container.isRegistered).eq(true);
     expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
     expect(dynamicModel1Container.getters.summary2).eq("hahaha - 0");
@@ -247,9 +250,11 @@ describe("redux-advanced", () => {
     expect(dynamicModel2Container.isRegistered).eq(false);
     expect(dynamicModel2Container.namespace).eq("dynamicModels/2");
 
-    dynamicModel2Container.register({
-      name: "zzzzzz"
-    });
+    // dynamicModel2Container.register({
+    //   name: "zzzzzz"
+    // });
+    dynamicModel2Container.register();
+    dynamicModel2Container.actions.setName.dispatch("zzzzzz");
     expect(dynamicModel2Container.isRegistered).eq(true);
     expect(dynamicModel2Container.getters.summary).eq("zzzzzz - 0");
     expect(dynamicModel2Container.getters.summary2).eq("zzzzzz - 0");
@@ -260,7 +265,7 @@ describe("redux-advanced", () => {
     dynamicModel2Container.unregister();
     expect(dynamicModel2Container.isRegistered).eq(false);
     await dynamicModel2SetNamePromise;
-    expect(dynamicModel2Container.state.name).eq(""); // setName is not applied after unregister
+    expect(dynamicModel2Container.state.name).eq("Orz"); // setName is not applied after unregister
 
     const autoRegisteredDynamicContainer = storeGetContainer(
       autoRegisteredDynamicModel,

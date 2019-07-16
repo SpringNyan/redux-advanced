@@ -44,11 +44,14 @@ export interface StoreContext {
     }
   >;
 
-  deferredByAction: WeakMap<
+  contextByAction: WeakMap<
     AnyAction,
     {
-      resolve: (value: any) => void;
-      reject: (err: any) => void;
+      container: ContainerImpl;
+      deferred: {
+        resolve: (value: any) => void;
+        reject: (err: any) => void;
+      };
     }
   >;
 
@@ -78,7 +81,7 @@ export function createStoreContext(): StoreContext {
     containerById: new Map(),
     cacheById: new Map(),
 
-    deferredByAction: new WeakMap(),
+    contextByAction: new WeakMap(),
 
     findModelsInfo: (namespace) => {
       let baseNamespace: string = namespace;

@@ -5,28 +5,22 @@ import { StoreContext } from "./context";
 import { Effect, Effects, ExtractEffectResult, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
-import { joinLastPart, mapObjectDeeply, merge, PatchedPromise } from "./util";
+import {
+  joinLastPart,
+  mapObjectDeeply,
+  merge,
+  PatchedPromise,
+  splitLastPart
+} from "./util";
 
 export const actionTypes = {
   register: "@@REGISTER",
-  registered: "@@REGISTERED",
-  unregister: "@@UNREGISTER",
-  unregistered: "@@UNREGISTERED"
+  unregister: "@@UNREGISTER"
 };
-
-export interface RegisterPayload {
-  namespace?: string;
-  model?: number;
-  args?: any;
-  state?: any;
-}
-
-export interface UnregisterPayload {
-  namespace?: string;
-}
 
 export interface AnyAction {
   type: string;
+  payload?: any;
 }
 
 export interface Action<TPayload = any> {
@@ -99,6 +93,7 @@ export class ActionHelperImpl<TPayload, TResult>
   implements ActionHelper<TPayload, TResult> {
   constructor(
     private readonly _storeContext: StoreContext,
+    private readonly _container: ContainerImpl,
     public readonly type: string
   ) {}
 
@@ -117,19 +112,22 @@ export class ActionHelperImpl<TPayload, TResult>
     const action = this.create(payload);
 
     const promise = new PatchedPromise<TResult>((resolve, reject) => {
-      this._storeContext.deferredByAction.set(action, {
-        resolve,
-        reject: (reason) => {
-          setTimeout(() => {
-            if (
-              !promise.rejectionHandled &&
-              this._storeContext.options.catchEffectError
-            ) {
-              promise.catch(this._storeContext.options.catchEffectError);
-            }
-          }, 0);
+      this._storeContext.contextByAction.set(action, {
+        container: this._container,
+        deferred: {
+          resolve,
+          reject: (reason) => {
+            setTimeout(() => {
+              if (
+                !promise.rejectionHandled &&
+                this._storeContext.options.catchEffectError
+              ) {
+                promise.catch(this._storeContext.options.catchEffectError);
+              }
+            }, 0);
 
-          return reject(reason);
+            return reject(reason);
+          }
         }
       });
     });
@@ -155,6 +153,7 @@ export function createActionHelpers<TModel extends Model>(
     (obj, paths) =>
       new ActionHelperImpl(
         storeContext,
+        container,
         joinLastPart(
           container.namespace,
           storeContext.options.resolveActionName!(paths)
@@ -163,4 +162,55 @@ export function createActionHelpers<TModel extends Model>(
   );
 
   return actionHelpers as any;
+}
+
+export interface RegisterPayload {
+  namespace?: string;
+  model?: number;
+  args?: any;
+  state?: any;
+}
+
+export interface UnregisterPayload {
+  namespace?: string;
+}
+
+export const batchRegisterActionHelper = new ActionHelperImpl<
+  RegisterPayload[],
+  void
+>(undefined!, undefined!, actionTypes.register);
+
+export const batchUnregisterActionHelper = new ActionHelperImpl<
+  UnregisterPayload[],
+  void
+>(undefined!, undefined!, actionTypes.unregister);
+
+export function parseBatchRegisterPayloads(
+  action: AnyAction
+): RegisterPayload[] | null {
+  if (batchRegisterActionHelper.is(action)) {
+    return action.payload || [];
+  }
+
+  const [namespace, actionName] = splitLastPart(action.type);
+  if (actionName === actionTypes.register) {
+    return [{ ...action.payload, namespace }];
+  }
+
+  return null;
+}
+
+export function parseBatchUnregisterPayloads(
+  action: AnyAction
+): UnregisterPayload[] | null {
+  if (batchUnregisterActionHelper.is(action)) {
+    return action.payload || [];
+  }
+
+  const [namespace, actionName] = splitLastPart(action.type);
+  if (actionName === actionTypes.unregister) {
+    return [{ ...action.payload, namespace }];
+  }
+
+  return null;
 }
