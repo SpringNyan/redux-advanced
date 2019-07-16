@@ -26,7 +26,7 @@ function mapObjectDeeply(target, source, func, paths) {
     if (paths === void 0) { paths = []; }
     Object.keys(source).forEach(function (key) {
         if (key === "constructor" || key === "prototype" || key === "__proto__") {
-            throw new Error("illegal key: \"" + key + "\"");
+            throw new Error("illegal object key");
         }
         var value = source[key];
         if (isObject(value)) {
@@ -36,7 +36,7 @@ function mapObjectDeeply(target, source, func, paths) {
                 target[key] = nextTarget;
             }
             if (!isObject(nextTarget)) {
-                throw new Error("target[\"" + key + "\"] should be an object");
+                throw new Error("only object can be merged");
             }
             mapObjectDeeply(nextTarget, value, func, paths.concat([key]));
         }

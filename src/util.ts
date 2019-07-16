@@ -24,7 +24,7 @@ export function mapObjectDeeply(
 ): any {
   Object.keys(source).forEach((key) => {
     if (key === "constructor" || key === "prototype" || key === "__proto__") {
-      throw new Error(`illegal key: "${key}"`);
+      throw new Error("illegal object key");
     }
 
     const value = source[key];
@@ -37,7 +37,7 @@ export function mapObjectDeeply(
       }
 
       if (!isObject(nextTarget)) {
-        throw new Error(`target["${key}"] should be an object`);
+        throw new Error("only object can be merged");
       }
 
       mapObjectDeeply(nextTarget, value, func, [...paths, key]);
