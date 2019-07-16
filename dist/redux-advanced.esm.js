@@ -906,6 +906,9 @@ function createMiddleware(storeContext) {
             unregister(batchUnregisterPayloads);
         }
         if (!batchRegisterPayloads && !batchUnregisterPayloads) {
+            if (actionContext && actionContext.container.canRegister) {
+                actionContext.container.register();
+            }
             var modelsInfo = storeContext.findModelsInfo(namespace);
             if (modelsInfo != null) {
                 var baseNamespace = modelsInfo.baseNamespace, key = modelsInfo.key, models = modelsInfo.models;
@@ -915,9 +918,6 @@ function createMiddleware(storeContext) {
                     var model = models[modelIndex];
                     container = storeContext.getContainer(model, key);
                 }
-            }
-            if (actionContext && actionContext.container.canRegister) {
-                actionContext.container.register();
             }
         }
         var result = next(action);

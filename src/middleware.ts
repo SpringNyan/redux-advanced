@@ -68,6 +68,11 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
     }
 
     if (!batchRegisterPayloads && !batchUnregisterPayloads) {
+      // try to auto register container
+      if (actionContext && actionContext.container.canRegister) {
+        actionContext.container.register();
+      }
+
       // try to get container
       const modelsInfo = storeContext.findModelsInfo(namespace);
       if (modelsInfo != null) {
@@ -83,11 +88,6 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
           const model = models[modelIndex];
           container = storeContext.getContainer(model, key) as ContainerImpl;
         }
-      }
-
-      // try to auto register container
-      if (actionContext && actionContext.container.canRegister) {
-        actionContext.container.register();
       }
     }
 
