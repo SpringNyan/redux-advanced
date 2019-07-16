@@ -224,7 +224,8 @@ export class ModelBuilder<
                 getters: context.getters[namespace],
                 actions: context.actions[namespace],
 
-                getContainer: context.getContainer
+                getContainer: context.getContainer,
+                dispatch: context.dispatch
               },
               payload
             );

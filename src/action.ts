@@ -89,7 +89,7 @@ export type ExtractActionHelpersFromReducersEffects<
     ExtractActionHelperPayloadResultPairFromEffects<TEffects>
 >;
 
-export class ActionHelperImpl<TPayload, TResult>
+export class ActionHelperImpl<TPayload = any, TResult = any>
   implements ActionHelper<TPayload, TResult> {
   constructor(
     private readonly _storeContext: StoreContext,
@@ -162,6 +162,38 @@ export function createActionHelpers<TModel extends Model>(
   );
 
   return actionHelpers as any;
+}
+
+export type ActionHelperDispatch = <TActionHelper extends ActionHelper>(
+  actionHelper: TActionHelper,
+  payload: ExtractActionPayload<TActionHelper>
+) => Promise<ExtractActionHelperResult<TActionHelper>>;
+
+export function createActionHelperDispatch(
+  storeContext: StoreContext,
+  container: ContainerImpl
+): ActionHelperDispatch {
+  const dispatch: Dispatch = (action) => {
+    if (actionHelperDispatch === container.cache.cachedDispatch) {
+      storeContext.store.dispatch(action);
+    } else {
+      throw new Error("container is already unregistered");
+    }
+
+    return action;
+  };
+
+  const actionHelperDispatch: ActionHelperDispatch = (
+    actionHelper,
+    payload
+  ) => {
+    return ((actionHelper as any) as ActionHelperImpl).dispatch(
+      payload,
+      dispatch
+    );
+  };
+
+  return actionHelperDispatch;
 }
 
 export interface RegisterPayload {

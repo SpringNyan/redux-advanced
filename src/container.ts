@@ -1,5 +1,7 @@
 import {
+  ActionHelperDispatch,
   actionTypes,
+  createActionHelperDispatch,
   createActionHelpers,
   ExtractActionHelpersFromReducersEffects
 } from "./action";
@@ -67,13 +69,14 @@ export class ContainerImpl<TModel extends Model = Model>
     this.basePath = convertNamespaceToPath(baseNamespace);
   }
 
-  private get _cache() {
+  public get cache() {
     let cache = this._storeContext.cacheById.get(this.id);
     if (cache == null) {
       cache = {
         cachedState: nil,
         cachedGetters: undefined,
-        cachedActions: undefined
+        cachedActions: undefined,
+        cachedDispatch: undefined
       };
       this._storeContext.cacheById.set(this.id, cache);
     }
@@ -102,7 +105,7 @@ export class ContainerImpl<TModel extends Model = Model>
     }
 
     if (this.canRegister) {
-      const cache = this._cache;
+      const cache = this.cache;
       if (cache.cachedState === nil) {
         cache.cachedState = this.model.state({
           dependencies: this._storeContext.options.dependencies,
@@ -119,7 +122,7 @@ export class ContainerImpl<TModel extends Model = Model>
 
   public get getters(): ExtractGettersFromSelectors<ExtractSelectors<TModel>> {
     if (this.isRegistered || this.canRegister) {
-      const cache = this._cache;
+      const cache = this.cache;
 
       if (cache.cachedGetters === undefined) {
         cache.cachedGetters = createGetters(this._storeContext, this);
@@ -136,13 +139,30 @@ export class ContainerImpl<TModel extends Model = Model>
     ExtractEffects<TModel>
   > {
     if (this.isRegistered || this.canRegister) {
-      const cache = this._cache;
+      const cache = this.cache;
 
       if (cache.cachedActions === undefined) {
         cache.cachedActions = createActionHelpers(this._storeContext, this);
       }
 
       return cache.cachedActions;
+    }
+
+    throw new Error("namespace is already registered by other container");
+  }
+
+  public get dispatch(): ActionHelperDispatch {
+    if (this.isRegistered || this.canRegister) {
+      const cache = this.cache;
+
+      if (cache.cachedDispatch === undefined) {
+        cache.cachedDispatch = createActionHelperDispatch(
+          this._storeContext,
+          this
+        );
+      }
+
+      return cache.cachedDispatch;
     }
 
     throw new Error("namespace is already registered by other container");
@@ -163,9 +183,9 @@ export class ContainerImpl<TModel extends Model = Model>
       this._storeContext.store.dispatch({
         type: joinLastPart(this.namespace, actionTypes.unregister)
       });
+    } else {
+      this.clearCache();
     }
-
-    this.clearCache();
   }
 
   public clearCache() {

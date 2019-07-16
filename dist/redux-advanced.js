@@ -164,6 +164,21 @@ function createActionHelpers(storeContext, container) {
     });
     return actionHelpers;
 }
+function createActionHelperDispatch(storeContext, container) {
+    var dispatch = function (action) {
+        if (actionHelperDispatch === container.cache.cachedDispatch) {
+            storeContext.store.dispatch(action);
+        }
+        else {
+            throw new Error("container is already unregistered");
+        }
+        return action;
+    };
+    var actionHelperDispatch = function (actionHelper, payload) {
+        return actionHelper.dispatch(payload, dispatch);
+    };
+    return actionHelperDispatch;
+}
 var batchRegisterActionHelper = new ActionHelperImpl(undefined, undefined, actionTypes.register);
 var batchUnregisterActionHelper = new ActionHelperImpl(undefined, undefined, actionTypes.unregister);
 function parseBatchRegisterPayloads(action) {
@@ -333,7 +348,8 @@ var ModelBuilder =  (function () {
                             getState: function () { return context.getState()[namespace]; },
                             getters: context.getters[namespace],
                             actions: context.actions[namespace],
-                            getContainer: context.getContainer
+                            getContainer: context.getContainer,
+                            dispatch: context.dispatch
                         }, payload);
                     };
                     return newEffect;
@@ -622,14 +638,15 @@ var ContainerImpl =  (function () {
         this.namespace = joinLastPart(baseNamespace, this.key);
         this.basePath = convertNamespaceToPath(baseNamespace);
     }
-    Object.defineProperty(ContainerImpl.prototype, "_cache", {
+    Object.defineProperty(ContainerImpl.prototype, "cache", {
         get: function () {
             var cache = this._storeContext.cacheById.get(this.id);
             if (cache == null) {
                 cache = {
                     cachedState: nil,
                     cachedGetters: undefined,
-                    cachedActions: undefined
+                    cachedActions: undefined,
+                    cachedDispatch: undefined
                 };
                 this._storeContext.cacheById.set(this.id, cache);
             }
@@ -659,7 +676,7 @@ var ContainerImpl =  (function () {
                 return getSubState(this._storeContext.store.getState(), this.basePath, this.key);
             }
             if (this.canRegister) {
-                var cache = this._cache;
+                var cache = this.cache;
                 if (cache.cachedState === nil) {
                     cache.cachedState = this.model.state({
                         dependencies: this._storeContext.options.dependencies,
@@ -677,7 +694,7 @@ var ContainerImpl =  (function () {
     Object.defineProperty(ContainerImpl.prototype, "getters", {
         get: function () {
             if (this.isRegistered || this.canRegister) {
-                var cache = this._cache;
+                var cache = this.cache;
                 if (cache.cachedGetters === undefined) {
                     cache.cachedGetters = createGetters(this._storeContext, this);
                 }
@@ -691,11 +708,25 @@ var ContainerImpl =  (function () {
     Object.defineProperty(ContainerImpl.prototype, "actions", {
         get: function () {
             if (this.isRegistered || this.canRegister) {
-                var cache = this._cache;
+                var cache = this.cache;
                 if (cache.cachedActions === undefined) {
                     cache.cachedActions = createActionHelpers(this._storeContext, this);
                 }
                 return cache.cachedActions;
+            }
+            throw new Error("namespace is already registered by other container");
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ContainerImpl.prototype, "dispatch", {
+        get: function () {
+            if (this.isRegistered || this.canRegister) {
+                var cache = this.cache;
+                if (cache.cachedDispatch === undefined) {
+                    cache.cachedDispatch = createActionHelperDispatch(this._storeContext, this);
+                }
+                return cache.cachedDispatch;
             }
             throw new Error("namespace is already registered by other container");
         },
@@ -716,7 +747,9 @@ var ContainerImpl =  (function () {
                 type: joinLastPart(this.namespace, actionTypes.unregister)
             });
         }
-        this.clearCache();
+        else {
+            this.clearCache();
+        }
     };
     ContainerImpl.prototype.clearCache = function () {
         var _this = this;
@@ -900,7 +933,8 @@ function createMiddleware(storeContext) {
                         getState: function () { return container.state; },
                         getters: container.getters,
                         actions: container.actions,
-                        getContainer: storeContext.getContainer
+                        getContainer: storeContext.getContainer,
+                        dispatch: container.dispatch
                     }, action.payload);
                     promise.then(function (value) {
                         if (deferred_1) {

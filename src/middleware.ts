@@ -123,7 +123,8 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
               getters: container.getters,
               actions: container.actions,
 
-              getContainer: storeContext.getContainer
+              getContainer: storeContext.getContainer,
+              dispatch: container.dispatch
             },
             action.payload
           );

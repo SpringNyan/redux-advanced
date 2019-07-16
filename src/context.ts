@@ -41,6 +41,7 @@ export interface StoreContext {
       cachedState: any;
       cachedGetters: any;
       cachedActions: any;
+      cachedDispatch: any;
     }
   >;
 
