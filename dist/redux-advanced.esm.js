@@ -295,26 +295,13 @@ var ModelBuilder =  (function () {
             state = function (context) {
                 var _a;
                 return (_a = {},
-                    _a[namespace] = model.state({
-                        dependencies: context.dependencies,
-                        namespace: context.namespace,
-                        key: context.key,
-                        args: (context.args || {})[namespace]
-                    }),
+                    _a[namespace] = model.state(__assign({}, context, { args: (context.args || {})[namespace] })),
                     _a);
             };
             selectors = (_a = {},
                 _a[namespace] = mapObjectDeeply({}, model.selectors, function (oldSelector) {
                     var newSelector = function (context, cacheId) {
-                        return oldSelector({
-                            dependencies: context.dependencies,
-                            namespace: context.namespace,
-                            key: context.key,
-                            state: context.state[namespace],
-                            getters: context.getters[namespace],
-                            actions: context.actions[namespace],
-                            getContainer: context.getContainer
-                        }, cacheId);
+                        return oldSelector(__assign({}, context, { state: (context.state || {})[namespace], getters: context.getters[namespace], actions: context.actions[namespace] }), cacheId);
                     };
                     if (oldSelector.__deleteCache != null) {
                         newSelector.__deleteCache = function (cacheId) {
@@ -327,12 +314,7 @@ var ModelBuilder =  (function () {
             reducers = (_b = {},
                 _b[namespace] = mapObjectDeeply({}, model.reducers, function (oldReducer) {
                     var newReducer = function (_state, payload, context) {
-                        return oldReducer(_state[namespace], payload, {
-                            dependencies: context.dependencies,
-                            namespace: context.namespace,
-                            key: context.key,
-                            originalState: context.originalState[namespace]
-                        });
+                        return oldReducer(_state[namespace], payload, __assign({}, context, { originalState: (context.originalState || {})[namespace] }));
                     };
                     return newReducer;
                 }),
@@ -340,18 +322,7 @@ var ModelBuilder =  (function () {
             effects = (_c = {},
                 _c[namespace] = mapObjectDeeply({}, model.effects, function (oldEffect) {
                     var newEffect = function (context, payload) {
-                        return oldEffect({
-                            rootAction$: context.rootAction$,
-                            rootState$: context.rootState$,
-                            dependencies: context.dependencies,
-                            namespace: context.namespace,
-                            key: context.key,
-                            getState: function () { return context.getState()[namespace]; },
-                            getters: context.getters[namespace],
-                            actions: context.actions[namespace],
-                            getContainer: context.getContainer,
-                            dispatch: context.dispatch
-                        }, payload);
+                        return oldEffect(__assign({}, context, { getState: function () { return (context.getState() || {})[namespace]; }, getters: context.getters[namespace], actions: context.actions[namespace] }), payload);
                     };
                     return newEffect;
                 }),
@@ -359,17 +330,7 @@ var ModelBuilder =  (function () {
             epics = (_d = {},
                 _d[namespace] = mapObjectDeeply({}, model.epics, function (oldEpic) {
                     var newEpic = function (context) {
-                        return oldEpic({
-                            rootAction$: context.rootAction$,
-                            rootState$: context.rootState$,
-                            dependencies: context.dependencies,
-                            namespace: context.namespace,
-                            key: context.key,
-                            getState: function () { return context.getState()[namespace]; },
-                            getters: context.getters[namespace],
-                            actions: context.actions[namespace],
-                            getContainer: context.getContainer
-                        });
+                        return oldEpic(__assign({}, context, { getState: function () { return (context.getState() || {})[namespace]; }, getters: context.getters[namespace], actions: context.actions[namespace] }));
                     };
                     return newEpic;
                 }),

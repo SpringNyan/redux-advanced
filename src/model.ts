@@ -175,10 +175,7 @@ export class ModelBuilder<
     if (namespace !== undefined) {
       state = (context) => ({
         [namespace]: model.state({
-          dependencies: context.dependencies,
-          namespace: context.namespace,
-          key: context.key,
-
+          ...context,
           args: (context.args || {})[namespace]
         })
       });
@@ -191,15 +188,10 @@ export class ModelBuilder<
             const newSelector: SelectorInternal = (context, cacheId) =>
               oldSelector(
                 {
-                  dependencies: context.dependencies,
-                  namespace: context.namespace,
-                  key: context.key,
-
-                  state: context.state[namespace],
+                  ...context,
+                  state: (context.state || {})[namespace],
                   getters: context.getters[namespace],
-                  actions: context.actions[namespace],
-
-                  getContainer: context.getContainer
+                  actions: context.actions[namespace]
                 },
                 cacheId
               );
@@ -221,11 +213,8 @@ export class ModelBuilder<
           (oldReducer: Reducer) => {
             const newReducer: Reducer = (_state, payload, context) =>
               oldReducer(_state[namespace], payload, {
-                dependencies: context.dependencies,
-                namespace: context.namespace,
-                key: context.key,
-
-                originalState: context.originalState[namespace]
+                ...context,
+                originalState: (context.originalState || {})[namespace]
               });
 
             return newReducer;
@@ -238,19 +227,10 @@ export class ModelBuilder<
           const newEffect: Effect = (context, payload) =>
             oldEffect(
               {
-                rootAction$: context.rootAction$,
-                rootState$: context.rootState$,
-
-                dependencies: context.dependencies,
-                namespace: context.namespace,
-                key: context.key,
-
-                getState: () => context.getState()[namespace],
+                ...context,
+                getState: () => (context.getState() || {})[namespace],
                 getters: context.getters[namespace],
-                actions: context.actions[namespace],
-
-                getContainer: context.getContainer,
-                dispatch: context.dispatch
+                actions: context.actions[namespace]
               },
               payload
             );
@@ -263,18 +243,10 @@ export class ModelBuilder<
         [namespace]: mapObjectDeeply({}, model.epics, (oldEpic: Epic) => {
           const newEpic: Epic = (context) =>
             oldEpic({
-              rootAction$: context.rootAction$,
-              rootState$: context.rootState$,
-
-              dependencies: context.dependencies,
-              namespace: context.namespace,
-              key: context.key,
-
-              getState: () => context.getState()[namespace],
+              ...context,
+              getState: () => (context.getState() || {})[namespace],
               getters: context.getters[namespace],
-              actions: context.actions[namespace],
-
-              getContainer: context.getContainer
+              actions: context.actions[namespace]
             });
 
           return newEpic;
