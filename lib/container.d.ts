@@ -17,7 +17,7 @@ export interface Container<TModel extends Model = any> {
     register(args?: ExtractArgs<TModel>): void;
     unregister(): void;
 }
-export declare type GetContainer = <TModel extends Model>(model: TModel, key?: string) => Container<TModel>;
+export declare type GetContainer = (<TModel extends Model>(model: TModel) => Container<TModel>) & (<TModel extends Model>(model: TModel, key: string) => Container<TModel>);
 export declare class ContainerImpl<TModel extends Model = Model> implements Container<TModel> {
     private readonly _storeContext;
     readonly model: TModel;
@@ -29,6 +29,7 @@ export declare class ContainerImpl<TModel extends Model = Model> implements Cont
     readonly basePath: string;
     constructor(_storeContext: StoreContext, model: TModel, key: string | undefined);
     readonly cache: {
+        cachedArgs: any;
         cachedState: any;
         cachedGetters: any;
         cachedActions: any;

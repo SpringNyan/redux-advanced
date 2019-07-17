@@ -648,6 +648,7 @@ var ContainerImpl =  (function () {
             var cache = this._storeContext.cacheById.get(this.id);
             if (cache == null) {
                 cache = {
+                    cachedArgs: undefined,
                     cachedState: nil,
                     cachedGetters: undefined,
                     cachedActions: undefined,
@@ -687,7 +688,7 @@ var ContainerImpl =  (function () {
                         dependencies: this._storeContext.options.dependencies,
                         namespace: this.namespace,
                         key: this.key,
-                        args: undefined
+                        args: cache.cachedArgs
                     });
                 }
                 return cache.cachedState;
@@ -743,6 +744,9 @@ var ContainerImpl =  (function () {
         if (!this.canRegister) {
             throw new Error("namespace is already registered");
         }
+        var cache = this.cache;
+        cache.cachedArgs = args;
+        cache.cachedState = nil;
         var models = this._storeContext.modelsByBaseNamespace.get(this.baseNamespace);
         var modelIndex = models.indexOf(this.model);
         this._storeContext.store.dispatch(createRegisterActionHelper(this.namespace).create({

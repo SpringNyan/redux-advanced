@@ -23,6 +23,7 @@ export interface StoreContext {
     containerByNamespace: Map<string, ContainerImpl>;
     containerById: Map<number, ContainerImpl>;
     cacheById: Map<number, {
+        cachedArgs: any;
         cachedState: any;
         cachedGetters: any;
         cachedActions: any;

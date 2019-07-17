@@ -4,7 +4,7 @@ export interface StateContext<TDependencies extends object | undefined = any, TA
     dependencies: TDependencies;
     namespace: string;
     key: string | undefined;
-    args: TArgs;
+    args: TArgs | undefined;
 }
 export declare type StateFactory<TDependencies extends object | undefined, TArgs extends object | undefined, TState extends object | undefined> = (context: StateContext<TDependencies, TArgs>) => TState;
 export declare type ExtractState<T extends Model> = T extends Model<any, any, infer TState, any, any, any, any> ? TState : never;
