@@ -34,6 +34,7 @@ export declare class ContainerImpl<TModel extends Model = Model> implements Cont
         cachedGetters: any;
         cachedActions: any;
         cachedDispatch: any;
+        selectorCacheByPath: Map<string, import("./selector").SelectorCache>;
     };
     readonly isRegistered: boolean;
     readonly canRegister: boolean;

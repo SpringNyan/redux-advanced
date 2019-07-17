@@ -218,19 +218,7 @@ var createSelector = (function () {
         ? args[0]
         : args.slice(0, args.length - 1);
     var combiner = args[args.length - 1];
-    var cacheById = new Map();
-    var resultSelector = function (context, cacheId) {
-        if (cacheId == null) {
-            cacheId = -1;
-        }
-        var cache = cacheById.get(cacheId);
-        if (cache == null) {
-            cache = {
-                lastParams: undefined,
-                lastResult: undefined
-            };
-            cacheById.set(cacheId, cache);
-        }
+    var resultSelector = function (context, cache) {
         var needUpdate = cache.lastParams == null;
         var params = [];
         for (var i = 0; i < selectors.length; ++i) {
@@ -248,16 +236,20 @@ var createSelector = (function () {
         }
         return cache.lastResult;
     };
-    resultSelector.__deleteCache = function (cacheId) {
-        cacheById.delete(cacheId);
-    };
     return resultSelector;
 });
 function createGetters(storeContext, container) {
     var getters = {};
     mapObjectDeeply(getters, container.model.selectors, function (selector, paths, target) {
+        var fullPath = paths.join(".");
         Object.defineProperty(target, paths[paths.length - 1], {
             get: function () {
+                var selectorCacheByPath = container.cache.selectorCacheByPath;
+                var cache = selectorCacheByPath.get(fullPath);
+                if (cache == null) {
+                    cache = {};
+                    selectorCacheByPath.set(fullPath, cache);
+                }
                 return selector({
                     dependencies: storeContext.options.dependencies,
                     namespace: container.namespace,
@@ -266,7 +258,7 @@ function createGetters(storeContext, container) {
                     getters: container.getters,
                     actions: container.actions,
                     getContainer: storeContext.getContainer
-                }, container.id);
+                }, cache);
             },
             enumerable: true,
             configurable: true
@@ -306,14 +298,9 @@ var ModelBuilder =  (function () {
             };
             selectors = (_a = {},
                 _a[namespace] = mapObjectDeeply({}, model.selectors, function (oldSelector) {
-                    var newSelector = function (context, cacheId) {
-                        return oldSelector(__assign({}, context, { state: (context.state || {})[namespace], getters: context.getters[namespace], actions: context.actions[namespace] }), cacheId);
+                    var newSelector = function (context, cache) {
+                        return oldSelector(__assign({}, context, { state: (context.state || {})[namespace], getters: context.getters[namespace], actions: context.actions[namespace] }), cache);
                     };
-                    if (oldSelector.__deleteCache != null) {
-                        newSelector.__deleteCache = function (cacheId) {
-                            return oldSelector.__deleteCache(cacheId);
-                        };
-                    }
                     return newSelector;
                 }),
                 _a);
@@ -619,7 +606,8 @@ var ContainerImpl =  (function () {
                     cachedState: nil,
                     cachedGetters: undefined,
                     cachedActions: undefined,
-                    cachedDispatch: undefined
+                    cachedDispatch: undefined,
+                    selectorCacheByPath: new Map()
                 };
                 this._storeContext.cacheById.set(this.id, cache);
             }
@@ -730,12 +718,6 @@ var ContainerImpl =  (function () {
         }
     };
     ContainerImpl.prototype.clearCache = function () {
-        var _this = this;
-        mapObjectDeeply({}, this.model.selectors, function (selector) {
-            if (selector.__deleteCache) {
-                selector.__deleteCache(_this.id);
-            }
-        });
         this._storeContext.containerById.delete(this.id);
         this._storeContext.cacheById.delete(this.id);
     };

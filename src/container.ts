@@ -81,7 +81,9 @@ export class ContainerImpl<TModel extends Model = Model>
         cachedState: nil,
         cachedGetters: undefined,
         cachedActions: undefined,
-        cachedDispatch: undefined
+        cachedDispatch: undefined,
+
+        selectorCacheByPath: new Map()
       };
       this._storeContext.cacheById.set(this.id, cache);
     }
@@ -208,12 +210,6 @@ export class ContainerImpl<TModel extends Model = Model>
   }
 
   public clearCache() {
-    mapObjectDeeply({}, this.model.selectors, (selector: SelectorInternal) => {
-      if (selector.__deleteCache) {
-        selector.__deleteCache(this.id);
-      }
-    });
-
     this._storeContext.containerById.delete(this.id);
     this._storeContext.cacheById.delete(this.id);
   }

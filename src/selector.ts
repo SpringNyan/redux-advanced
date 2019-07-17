@@ -31,20 +31,21 @@ export type Selector<
   context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
 ) => TResult;
 
-export interface SelectorInternal<
+export interface SelectorCache {
+  lastParams?: any[];
+  lastResult?: any;
+}
+
+export type SelectorInternal<
   TDependencies extends object | undefined = any,
   TState extends object | undefined = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
-> {
-  (
-    context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-    cacheId?: number
-  ): TResult;
-
-  __deleteCache?(cacheId: number): void;
-}
+> = (
+  context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+  cache: SelectorCache
+) => TResult;
 
 export interface Selectors<
   TDependencies extends object | undefined = any,
@@ -307,25 +308,7 @@ export const createSelector: CreateSelector = ((...args: any[]) => {
   // tslint:disable-next-line:ban-types
   const combiner: Function = args[args.length - 1];
 
-  const cacheById: Map<
-    number,
-    { lastParams: any[] | undefined; lastResult: any }
-  > = new Map();
-
-  const resultSelector = (context: SelectorContext, cacheId: number) => {
-    if (cacheId == null) {
-      cacheId = -1;
-    }
-
-    let cache = cacheById.get(cacheId);
-    if (cache == null) {
-      cache = {
-        lastParams: undefined,
-        lastResult: undefined
-      };
-      cacheById.set(cacheId, cache);
-    }
-
+  const resultSelector = (context: SelectorContext, cache: SelectorCache) => {
     let needUpdate = cache.lastParams == null;
 
     const params: any[] = [];
@@ -348,9 +331,6 @@ export const createSelector: CreateSelector = ((...args: any[]) => {
 
     return cache.lastResult;
   };
-  resultSelector.__deleteCache = (cacheId: number) => {
-    cacheById.delete(cacheId);
-  };
 
   return resultSelector;
 }) as any;
@@ -365,8 +345,17 @@ export function createGetters<TModel extends Model>(
     getters,
     container.model.selectors,
     (selector, paths, target) => {
+      const fullPath = paths.join(".");
+
       Object.defineProperty(target, paths[paths.length - 1], {
         get() {
+          const selectorCacheByPath = container.cache.selectorCacheByPath;
+          let cache = selectorCacheByPath.get(fullPath);
+          if (cache == null) {
+            cache = {};
+            selectorCacheByPath.set(fullPath, cache);
+          }
+
           return selector(
             {
               dependencies: storeContext.options.dependencies,
@@ -379,7 +368,7 @@ export function createGetters<TModel extends Model>(
 
               getContainer: storeContext.getContainer
             },
-            container.id
+            cache
           );
         },
         enumerable: true,

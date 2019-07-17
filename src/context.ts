@@ -7,6 +7,7 @@ import { ContainerImpl, createGetContainer, GetContainer } from "./container";
 import { Effect } from "./effect";
 import { Model } from "./model";
 import { Reducer } from "./reducer";
+import { SelectorCache } from "./selector";
 import { ReduxAdvancedOptions } from "./store";
 import { splitLastPart } from "./util";
 
@@ -43,6 +44,8 @@ export interface StoreContext {
       cachedGetters: any;
       cachedActions: any;
       cachedDispatch: any;
+
+      selectorCacheByPath: Map<string, SelectorCache>;
     }
   >;
 

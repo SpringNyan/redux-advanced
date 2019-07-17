@@ -13,10 +13,11 @@ export interface SelectorContext<TDependencies extends object | undefined = any,
     getContainer: GetContainer;
 }
 export declare type Selector<TDependencies extends object | undefined = any, TState extends object | undefined = any, TGetters extends Getters = any, TActionHelpers extends ActionHelpers = any, TResult = any> = (context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>) => TResult;
-export interface SelectorInternal<TDependencies extends object | undefined = any, TState extends object | undefined = any, TGetters extends Getters = any, TActionHelpers extends ActionHelpers = any, TResult = any> {
-    (context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>, cacheId?: number): TResult;
-    __deleteCache?(cacheId: number): void;
+export interface SelectorCache {
+    lastParams?: any[];
+    lastResult?: any;
 }
+export declare type SelectorInternal<TDependencies extends object | undefined = any, TState extends object | undefined = any, TGetters extends Getters = any, TActionHelpers extends ActionHelpers = any, TResult = any> = (context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>, cache: SelectorCache) => TResult;
 export interface Selectors<TDependencies extends object | undefined = any, TState extends object | undefined = any, TGetters extends Getters = any, TActionHelpers extends ActionHelpers = any> {
     [name: string]: Selector<TDependencies, TState, TGetters, TActionHelpers> | Selectors<TDependencies, TState, TGetters, TActionHelpers>;
 }

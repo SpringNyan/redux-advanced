@@ -185,7 +185,7 @@ export class ModelBuilder<
           {},
           model.selectors,
           (oldSelector: SelectorInternal) => {
-            const newSelector: SelectorInternal = (context, cacheId) =>
+            const newSelector: SelectorInternal = (context, cache) =>
               oldSelector(
                 {
                   ...context,
@@ -193,13 +193,8 @@ export class ModelBuilder<
                   getters: context.getters[namespace],
                   actions: context.actions[namespace]
                 },
-                cacheId
+                cache
               );
-
-            if (oldSelector.__deleteCache != null) {
-              newSelector.__deleteCache = (cacheId) =>
-                oldSelector.__deleteCache!(cacheId);
-            }
 
             return newSelector;
           }

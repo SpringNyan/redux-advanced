@@ -6,6 +6,7 @@ import { ContainerImpl, GetContainer } from "./container";
 import { Effect } from "./effect";
 import { Model } from "./model";
 import { Reducer } from "./reducer";
+import { SelectorCache } from "./selector";
 import { ReduxAdvancedOptions } from "./store";
 export interface StoreContext {
     store: Store;
@@ -28,6 +29,7 @@ export interface StoreContext {
         cachedGetters: any;
         cachedActions: any;
         cachedDispatch: any;
+        selectorCacheByPath: Map<string, SelectorCache>;
     }>;
     contextByAction: WeakMap<AnyAction, {
         container: ContainerImpl;
