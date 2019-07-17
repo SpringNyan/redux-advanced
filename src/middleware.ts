@@ -30,7 +30,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
       const { key, models } = storeContext.findModelsInfo(namespace)!;
       const model = models[modelIndex];
 
-      const container = storeContext.getContainer(model, key) as ContainerImpl;
+      const container = storeContext.getContainer(model, key!) as ContainerImpl;
 
       storeContext.containerById.set(container.id, container);
       storeContext.containerByNamespace.set(namespace, container);
@@ -86,7 +86,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
         );
         if (modelIndex != null) {
           const model = models[modelIndex];
-          container = storeContext.getContainer(model, key) as ContainerImpl;
+          container = storeContext.getContainer(model, key!) as ContainerImpl;
         }
       }
     }

@@ -38,6 +38,7 @@ export interface StoreContext {
   cacheById: Map<
     number,
     {
+      cachedArgs: any;
       cachedState: any;
       cachedGetters: any;
       cachedActions: any;

@@ -43,10 +43,10 @@ export interface Container<TModel extends Model = any> {
   unregister(): void;
 }
 
-export type GetContainer = <TModel extends Model>(
-  model: TModel,
-  key?: string
-) => Container<TModel>;
+export type GetContainer = (<TModel extends Model>(
+  model: TModel
+) => Container<TModel>) &
+  (<TModel extends Model>(model: TModel, key: string) => Container<TModel>);
 
 export class ContainerImpl<TModel extends Model = Model>
   implements Container<TModel> {
@@ -77,6 +77,7 @@ export class ContainerImpl<TModel extends Model = Model>
     let cache = this._storeContext.cacheById.get(this.id);
     if (cache == null) {
       cache = {
+        cachedArgs: undefined,
         cachedState: nil,
         cachedGetters: undefined,
         cachedActions: undefined,
@@ -116,7 +117,7 @@ export class ContainerImpl<TModel extends Model = Model>
           namespace: this.namespace,
           key: this.key,
 
-          args: undefined
+          args: cache.cachedArgs
         });
       }
 
@@ -179,6 +180,10 @@ export class ContainerImpl<TModel extends Model = Model>
       throw new Error("namespace is already registered");
     }
 
+    const cache = this.cache;
+    cache.cachedArgs = args;
+    cache.cachedState = nil;
+
     const models = this._storeContext.modelsByBaseNamespace.get(
       this.baseNamespace
     )!;
@@ -215,7 +220,7 @@ export class ContainerImpl<TModel extends Model = Model>
 }
 
 export function createGetContainer(storeContext: StoreContext): GetContainer {
-  return (model, key) => {
+  return (model: Model, key?: string) => {
     const modelContext = storeContext.contextByModel.get(model);
     if (modelContext == null) {
       throw new Error("model is not registered yet");
