@@ -1,4 +1,4 @@
-export declare const nil: symbol;
+export declare const nil: unique symbol;
 export declare type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends ((...args: any[]) => any) | any[] ? T[P] : DeepPartial<T[P]>;
 };
@@ -11,11 +11,10 @@ export declare function joinLastPart(str: string, lastPart: string | undefined, 
 export declare function splitLastPart(str: string, splitter?: string): [string, string];
 export declare class PatchedPromise<T> implements Promise<T> {
     [Symbol.toStringTag]: string;
-    rejectionHandled: boolean;
+    hasRejectionHandler: boolean;
     private readonly _promise;
     constructor(executor: (resolve: (value?: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void);
     then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): Promise<TResult1 | TResult2>;
     catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): Promise<T | TResult>;
     finally(onfinally?: (() => void) | undefined | null): Promise<T>;
-    private _patchOnRejected;
 }

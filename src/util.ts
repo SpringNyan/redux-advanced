@@ -1,4 +1,4 @@
-export const nil = {} as symbol;
+export const nil: unique symbol = `__nil_${Date.now()}` as any;
 
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends ((...args: any[]) => any) | any[]
@@ -95,7 +95,7 @@ export function splitLastPart(
 export class PatchedPromise<T> implements Promise<T> {
   public [Symbol.toStringTag]: string;
 
-  public rejectionHandled: boolean = false;
+  public hasRejectionHandler: boolean = false;
 
   private readonly _promise: Promise<T>;
 
@@ -118,7 +118,11 @@ export class PatchedPromise<T> implements Promise<T> {
       | undefined
       | null
   ): Promise<TResult1 | TResult2> {
-    return this._promise.then(onfulfilled, this._patchOnRejected(onrejected));
+    if (onrejected) {
+      this.hasRejectionHandler = true;
+    }
+
+    return this._promise.then(onfulfilled, onrejected);
   }
 
   public catch<TResult = never>(
@@ -127,24 +131,14 @@ export class PatchedPromise<T> implements Promise<T> {
       | undefined
       | null
   ): Promise<T | TResult> {
-    return this._promise.catch(this._patchOnRejected(onrejected));
+    if (onrejected) {
+      this.hasRejectionHandler = true;
+    }
+
+    return this._promise.catch(onrejected);
   }
 
   public finally(onfinally?: (() => void) | undefined | null): Promise<T> {
     return this._promise.finally(onfinally);
-  }
-
-  private _patchOnRejected<TResult = never>(
-    onrejected?:
-      | ((reason: any) => TResult | PromiseLike<TResult>)
-      | undefined
-      | null
-  ) {
-    return onrejected != null
-      ? (reason: any) => {
-          this.rejectionHandled = true;
-          return onrejected(reason);
-        }
-      : onrejected;
   }
 }

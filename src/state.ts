@@ -10,7 +10,7 @@ export interface StateContext<
   namespace: string;
   key: string | undefined;
 
-  args: TArgs | undefined;
+  args: TArgs;
 }
 
 export type StateFactory<

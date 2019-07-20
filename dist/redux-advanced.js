@@ -21,7 +21,7 @@ var __assign = function() {
     return __assign.apply(this, arguments);
 };
 
-var nil = {};
+var nil = "__nil_" + Date.now();
 function factoryWrapper(obj) {
     return typeof obj === "function" ? obj : function () { return obj; };
 }
@@ -89,26 +89,23 @@ function splitLastPart(str, splitter) {
 }
 var PatchedPromise =  (function () {
     function PatchedPromise(executor) {
-        this.rejectionHandled = false;
+        this.hasRejectionHandler = false;
         this._promise = new Promise(executor);
     }
     PatchedPromise.prototype.then = function (onfulfilled, onrejected) {
-        return this._promise.then(onfulfilled, this._patchOnRejected(onrejected));
+        if (onrejected) {
+            this.hasRejectionHandler = true;
+        }
+        return this._promise.then(onfulfilled, onrejected);
     };
     PatchedPromise.prototype.catch = function (onrejected) {
-        return this._promise.catch(this._patchOnRejected(onrejected));
+        if (onrejected) {
+            this.hasRejectionHandler = true;
+        }
+        return this._promise.catch(onrejected);
     };
     PatchedPromise.prototype.finally = function (onfinally) {
         return this._promise.finally(onfinally);
-    };
-    PatchedPromise.prototype._patchOnRejected = function (onrejected) {
-        var _this = this;
-        return onrejected != null
-            ? function (reason) {
-                _this.rejectionHandled = true;
-                return onrejected(reason);
-            }
-            : onrejected;
     };
     return PatchedPromise;
 }());
@@ -141,13 +138,13 @@ var ActionHelperImpl =  (function () {
                 deferred: {
                     resolve: resolve,
                     reject: function (reason) {
-                        setTimeout(function () {
-                            if (!promise.rejectionHandled &&
+                        reject(reason);
+                        Promise.resolve().then(function () {
+                            if (!promise.hasRejectionHandler &&
                                 _this._storeContext.options.catchEffectError) {
                                 promise.catch(_this._storeContext.options.catchEffectError);
                             }
-                        }, 0);
-                        return reject(reason);
+                        });
                     }
                 }
             });

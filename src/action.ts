@@ -117,16 +117,15 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
         deferred: {
           resolve,
           reject: (reason) => {
-            setTimeout(() => {
+            reject(reason);
+            Promise.resolve().then(() => {
               if (
-                !promise.rejectionHandled &&
+                !promise.hasRejectionHandler &&
                 this._storeContext.options.catchEffectError
               ) {
                 promise.catch(this._storeContext.options.catchEffectError);
               }
-            }, 0);
-
-            return reject(reason);
+            });
           }
         }
       });

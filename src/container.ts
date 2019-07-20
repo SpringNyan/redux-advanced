@@ -14,8 +14,7 @@ import { ExtractReducers } from "./reducer";
 import {
   createGetters,
   ExtractGettersFromSelectors,
-  ExtractSelectors,
-  SelectorInternal
+  ExtractSelectors
 } from "./selector";
 import { ExtractState, getSubState } from "./state";
 import {
