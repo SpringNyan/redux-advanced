@@ -305,14 +305,14 @@ export class ModelBuilder<
     const newArgsFn = factoryWrapper(args);
 
     this._model.args = (context) => {
-      const oldProps = oldArgsFn(context);
-      const newProps = newArgsFn(context);
+      const oldArgs = oldArgsFn(context);
+      const newArgs = newArgsFn(context);
 
-      if (oldProps === undefined && newProps === undefined) {
+      if (oldArgs === undefined && newArgs === undefined) {
         return undefined!;
       }
 
-      return merge({}, oldProps, newProps);
+      return merge({}, oldArgs, newArgs);
     };
 
     return this as any;
@@ -338,14 +338,14 @@ export class ModelBuilder<
     const oldArgsFn = this._model.args;
 
     this._model.args = (context) => {
-      const oldProps = oldArgsFn(context);
-      const newProps = factoryWrapper(override(oldProps))(context);
+      const oldArgs = oldArgsFn(context);
+      const newArgs = factoryWrapper(override(oldArgs))(context);
 
-      if (oldProps === undefined && newProps === undefined) {
+      if (oldArgs === undefined && newArgs === undefined) {
         return undefined!;
       }
 
-      return merge({}, oldProps, newProps);
+      return merge({}, oldArgs, newArgs);
     };
 
     return this as any;
