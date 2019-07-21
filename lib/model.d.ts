@@ -1,5 +1,5 @@
 import { ExtractActionHelpersFromReducersEffects, RegisterPayload } from "./action";
-import { ExtractArgs } from "./args";
+import { ArgsFactory, ExtractArgs, ToArgs } from "./args";
 import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
 import { Effects, ExtractEffects, OverrideEffects } from "./effect";
@@ -9,6 +9,8 @@ import { ExtractGettersFromSelectors, ExtractSelectors, OverrideSelectors, Selec
 import { ExtractState, StateFactory } from "./state";
 import { DeepPartial } from "./util";
 export interface Model<TDependencies extends object | undefined = any, TArgs extends object | undefined = any, TState extends object | undefined = any, TSelectors extends Selectors = any, TReducers extends Reducers = any, TEffects extends Effects = any, TEpics extends Epics = any> {
+    autoRegister: boolean;
+    args: ArgsFactory<TDependencies, TArgs>;
     state: StateFactory<TDependencies, TArgs, TState>;
     selectors: TSelectors;
     reducers: TReducers;
@@ -45,7 +47,8 @@ export declare class ModelBuilder<TDependencies extends object | undefined = any
         [P in TNamespace]: ExtractEpics<TModel>;
     }>;
     dependencies<T extends object>(): ModelBuilder<TDependencies extends object ? TDependencies & T : T, TArgs, TState, TSelectors, TReducers, TEffects, TEpics>;
-    args<T extends object>(): ModelBuilder<TDependencies, TArgs extends object ? TArgs & T : T, TState, TSelectors, TReducers, TEffects, TEpics>;
+    args<T extends object>(args: T | ArgsFactory<TDependencies, T>): ModelBuilder<TDependencies, TArgs extends object ? TArgs & ToArgs<T> : ToArgs<T>, TState, TSelectors, TReducers, TEffects, TEpics>;
+    overrideArgs(override: (base: TArgs) => DeepPartial<TArgs> | ArgsFactory<TDependencies, DeepPartial<TArgs>>): ModelBuilder<TDependencies, TArgs, TState, TSelectors, TReducers, TEffects, TEpics>;
     state<T extends object>(state: T | StateFactory<TDependencies, TArgs, T>): ModelBuilder<TDependencies, TArgs, TState extends object ? TState & T : T, TSelectors, TReducers, TEffects, TEpics>;
     overrideState(override: (base: TState) => DeepPartial<TState> | StateFactory<TDependencies, TArgs, DeepPartial<TState>>): ModelBuilder<TDependencies, TArgs, TState, TSelectors, TReducers, TEffects, TEpics>;
     selectors<T extends Selectors<TDependencies, TState, ExtractGettersFromSelectors<TSelectors>, ExtractActionHelpersFromReducersEffects<TReducers, TEffects>>>(selectors: T | SelectorsFactory<TDependencies, TState, ExtractGettersFromSelectors<TSelectors>, ExtractActionHelpersFromReducersEffects<TReducers, TEffects>, T>): ModelBuilder<TDependencies, TArgs, TState, TSelectors & T, TReducers, TEffects, TEpics>;
@@ -56,6 +59,7 @@ export declare class ModelBuilder<TDependencies extends object | undefined = any
     overrideEffects(override: (base: TEffects) => DeepPartial<OverrideEffects<TEffects, TDependencies, TState, ExtractGettersFromSelectors<TSelectors>, ExtractActionHelpersFromReducersEffects<TReducers, TEffects>>>): ModelBuilder<TDependencies, TArgs, TState, TSelectors, TReducers, OverrideEffects<TEffects, TDependencies, TState, ExtractGettersFromSelectors<TSelectors>, ExtractActionHelpersFromReducersEffects<TReducers, TEffects>>, TEpics>;
     epics<T extends Epics<TDependencies, TState, ExtractGettersFromSelectors<TSelectors>, ExtractActionHelpersFromReducersEffects<TReducers, TEffects>>>(epics: T | Array<Epic<TDependencies, TState, ExtractGettersFromSelectors<TSelectors>, ExtractActionHelpersFromReducersEffects<TReducers, TEffects>>>): ModelBuilder<TDependencies, TArgs, TState, TSelectors, TReducers, TEffects, TEpics & T>;
     overrideEpics(override: (base: TEpics) => DeepPartial<OverrideEpics<TEpics, TDependencies, TState, ExtractGettersFromSelectors<TSelectors>, ExtractActionHelpersFromReducersEffects<TReducers, TEffects>>>): ModelBuilder<TDependencies, TArgs, TState, TSelectors, TReducers, TEffects, OverrideEpics<TEpics, TDependencies, TState, ExtractGettersFromSelectors<TSelectors>, ExtractActionHelpersFromReducersEffects<TReducers, TEffects>>>;
+    autoRegister(value?: boolean): ModelBuilder<TDependencies, TArgs, TState, TSelectors, TReducers, TEffects, TEpics>;
     build(): Model<TDependencies, TArgs, TState, TSelectors, TReducers, TEffects, TEpics>;
 }
 export declare function isModel(obj: any): obj is Model;

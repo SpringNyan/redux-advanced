@@ -1,7 +1,7 @@
-import { ActionHelperDispatch, ExtractActionHelpersFromReducersEffects } from "./action";
+import { ExtractActionHelpersFromReducersEffects } from "./action";
 import { ExtractArgs } from "./args";
 import { StoreContext } from "./context";
-import { ExtractEffects } from "./effect";
+import { EffectDispatch, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers } from "./reducer";
 import { ExtractGettersFromSelectors, ExtractSelectors } from "./selector";
@@ -41,7 +41,7 @@ export declare class ContainerImpl<TModel extends Model = Model> implements Cont
     readonly state: any;
     readonly getters: ExtractGettersFromSelectors<ExtractSelectors<TModel>>;
     readonly actions: ExtractActionHelpersFromReducersEffects<ExtractReducers<TModel>, ExtractEffects<TModel>>;
-    readonly dispatch: ActionHelperDispatch;
+    readonly dispatch: EffectDispatch;
     register(args?: ExtractArgs<TModel>): void;
     unregister(): void;
     clearCache(): void;

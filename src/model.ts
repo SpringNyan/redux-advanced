@@ -3,7 +3,7 @@ import {
   ExtractActionHelpersFromReducersEffects,
   RegisterPayload
 } from "./action";
-import { ExtractArgs } from "./args";
+import { ArgsFactory, argsRequired, ExtractArgs, ToArgs } from "./args";
 import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
 import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
@@ -41,6 +41,9 @@ export interface Model<
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
+  autoRegister: boolean;
+
+  args: ArgsFactory<TDependencies, TArgs>;
   state: StateFactory<TDependencies, TArgs, TState>;
   selectors: TSelectors;
   reducers: TReducers;
@@ -166,6 +169,7 @@ export class ModelBuilder<
       return this.clone().extend(model, namespace!);
     }
 
+    let args = model.args;
     let state = model.state;
     let selectors = model.selectors;
     let reducers = model.reducers;
@@ -173,6 +177,12 @@ export class ModelBuilder<
     let epics = model.epics;
 
     if (namespace !== undefined) {
+      args = (context) => ({
+        [namespace]: model.args({
+          ...context
+        })
+      });
+
       state = (context) => ({
         [namespace]: model.state({
           ...context,
@@ -250,7 +260,7 @@ export class ModelBuilder<
     }
 
     this.dependencies()
-      .args()
+      .args(args)
       .state(state)
       .selectors(selectors)
       .reducers(reducers)
@@ -276,9 +286,11 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public args<T extends object>(): ModelBuilder<
+  public args<T extends object>(
+    args: T | ArgsFactory<TDependencies, T>
+  ): ModelBuilder<
     TDependencies,
-    TArgs extends object ? TArgs & T : T,
+    TArgs extends object ? TArgs & ToArgs<T> : ToArgs<T>,
     TState,
     TSelectors,
     TReducers,
@@ -286,8 +298,55 @@ export class ModelBuilder<
     TEpics
   > {
     if (this._isFrozen) {
-      return this.clone().args<T>();
+      return this.clone().args(args);
     }
+
+    const oldArgsFn = this._model.args;
+    const newArgsFn = factoryWrapper(args);
+
+    this._model.args = (context) => {
+      const oldProps = oldArgsFn(context);
+      const newProps = newArgsFn(context);
+
+      if (oldProps === undefined && newProps === undefined) {
+        return undefined!;
+      }
+
+      return merge({}, oldProps, newProps);
+    };
+
+    return this as any;
+  }
+
+  public overrideArgs(
+    override: (
+      base: TArgs
+    ) => DeepPartial<TArgs> | ArgsFactory<TDependencies, DeepPartial<TArgs>>
+  ): ModelBuilder<
+    TDependencies,
+    TArgs,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects,
+    TEpics
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideArgs(override);
+    }
+
+    const oldArgsFn = this._model.args;
+
+    this._model.args = (context) => {
+      const oldProps = oldArgsFn(context);
+      const newProps = factoryWrapper(override(oldProps))(context);
+
+      if (oldProps === undefined && newProps === undefined) {
+        return undefined!;
+      }
+
+      return merge({}, oldProps, newProps);
+    };
 
     return this as any;
   }
@@ -652,6 +711,26 @@ export class ModelBuilder<
     return this as any;
   }
 
+  public autoRegister(
+    value: boolean = true
+  ): ModelBuilder<
+    TDependencies,
+    TArgs,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects,
+    TEpics
+  > {
+    if (this._isFrozen) {
+      return this.clone().autoRegister(value);
+    }
+
+    this._model.autoRegister = value;
+
+    return this as any;
+  }
+
   public build(): Model<
     TDependencies,
     TArgs,
@@ -667,6 +746,9 @@ export class ModelBuilder<
 
 function cloneModel<T extends Model>(model: T): T {
   return {
+    autoRegister: model.autoRegister,
+
+    args: model.args,
     state: model.state,
     selectors: merge({}, model.selectors),
     reducers: merge({}, model.reducers),
@@ -690,6 +772,9 @@ export function createModelBuilder(): ModelBuilder<
   {}
 > {
   return new ModelBuilder({
+    autoRegister: false,
+
+    args: () => undefined,
     state: () => undefined,
     selectors: {},
     reducers: {},

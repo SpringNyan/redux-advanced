@@ -20,7 +20,7 @@ export interface ActionHelper<TPayload = any, TResult = any> {
     type: string;
     is(action: any): action is Action<TPayload>;
     create(payload: TPayload): Action<TPayload>;
-    dispatch(payload: TPayload): Promise<TResult>;
+    dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult>;
 }
 export interface ActionHelpers {
     [name: string]: ActionHelper | ActionHelpers;
@@ -47,8 +47,6 @@ export declare class ActionHelperImpl<TPayload = any, TResult = any> implements 
     dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult>;
 }
 export declare function createActionHelpers<TModel extends Model>(storeContext: StoreContext, container: ContainerImpl<TModel>): ExtractActionHelpersFromReducersEffects<ExtractReducers<TModel>, ExtractEffects<TModel>>;
-export declare type ActionHelperDispatch = <TActionHelper extends ActionHelper>(actionHelper: TActionHelper, payload: ExtractActionPayload<TActionHelper>) => Promise<ExtractActionHelperResult<TActionHelper>>;
-export declare function createActionHelperDispatch(storeContext: StoreContext, container: ContainerImpl): ActionHelperDispatch;
 export interface RegisterPayload {
     namespace?: string;
     model?: number;

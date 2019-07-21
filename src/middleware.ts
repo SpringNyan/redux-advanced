@@ -69,7 +69,11 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
     if (!batchRegisterPayloads && !batchUnregisterPayloads) {
       // try to auto register container
-      if (actionContext && actionContext.container.canRegister) {
+      if (
+        actionContext &&
+        actionContext.container.model.autoRegister &&
+        actionContext.container.canRegister
+      ) {
         actionContext.container.register();
       }
 

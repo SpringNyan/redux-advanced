@@ -145,16 +145,16 @@ describe("redux-advanced", () => {
       .build();
 
     const dynamicModel = testModelBuilder
-      .args<{
-        name: string;
-      }>()
+      .args(({ required }) => ({
+        name: required("fake")
+      }))
       .selectors({
         staticSummary: ({ getContainer }) =>
           getContainer(staticModel).getters.summary
       })
       .build();
 
-    const autoRegisteredDynamicModel = testModelBuilder.build();
+    const autoRegisteredDynamicModel = testModelBuilder.autoRegister().build();
 
     const appDependencies: IDependencies = { appId: 233 };
 
@@ -162,7 +162,7 @@ describe("redux-advanced", () => {
     const { getContainer: storeGetContainer, registerModels } = init({
       dependencies: appDependencies,
 
-      catchEffectError: () => {
+      defaultEffectErrorHandler: () => {
         unhandledEffectErrorCount += 1;
       }
     });

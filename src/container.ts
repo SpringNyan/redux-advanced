@@ -4,7 +4,7 @@ import {
   createUnregisterActionHelper,
   ExtractActionHelpersFromReducersEffects
 } from "./action";
-import { ExtractArgs } from "./args";
+import { argsRequired, ExtractArgs, isRequiredArg } from "./args";
 import { StoreContext } from "./context";
 import { createEffectDispatch, EffectDispatch, ExtractEffects } from "./effect";
 import { Model } from "./model";
@@ -15,7 +15,13 @@ import {
   ExtractSelectors
 } from "./selector";
 import { ExtractState, getSubState } from "./state";
-import { convertNamespaceToPath, joinLastPart, nil } from "./util";
+import {
+  convertNamespaceToPath,
+  joinLastPart,
+  mapObjectDeeply,
+  merge,
+  nil
+} from "./util";
 
 export interface Container<TModel extends Model = any> {
   namespace: string;
@@ -68,8 +74,23 @@ export class ContainerImpl<TModel extends Model = Model>
   public get cache() {
     let cache = this._storeContext.cacheById.get(this.id);
     if (cache == null) {
+      const args = this.model.args({
+        dependencies: this._storeContext.options.dependencies,
+        namespace: this.namespace,
+        key: this.key,
+
+        required: argsRequired
+      });
+      if (args !== undefined) {
+        mapObjectDeeply(args, args, (value) => {
+          if (isRequiredArg(value)) {
+            return value[2];
+          }
+        });
+      }
+
       cache = {
-        cachedArgs: undefined,
+        cachedArgs: args,
         cachedState: nil,
         cachedGetters: undefined,
         cachedActions: undefined,
@@ -171,8 +192,28 @@ export class ContainerImpl<TModel extends Model = Model>
       throw new Error("namespace is already registered");
     }
 
+    const regArgs = this.model.args({
+      dependencies: this._storeContext.options.dependencies,
+      namespace: this.namespace,
+      key: this.key,
+
+      required: argsRequired
+    });
+
+    if (regArgs !== undefined) {
+      if (args !== undefined) {
+        merge(regArgs, args);
+      }
+
+      mapObjectDeeply({}, regArgs, (value) => {
+        if (isRequiredArg(value)) {
+          throw new Error("arg is required");
+        }
+      });
+    }
+
     const cache = this.cache;
-    cache.cachedArgs = args;
+    cache.cachedArgs = regArgs;
     cache.cachedState = nil;
 
     const models = this._storeContext.modelsByBaseNamespace.get(
@@ -183,7 +224,7 @@ export class ContainerImpl<TModel extends Model = Model>
     this._storeContext.store.dispatch(
       createRegisterActionHelper(this.namespace).create({
         model: modelIndex,
-        args
+        args: regArgs
       })
     );
   }

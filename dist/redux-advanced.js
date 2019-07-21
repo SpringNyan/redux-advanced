@@ -141,8 +141,8 @@ var ActionHelperImpl =  (function () {
                         reject(reason);
                         Promise.resolve().then(function () {
                             if (!promise.hasRejectionHandler &&
-                                _this._storeContext.options.catchEffectError) {
-                                promise.catch(_this._storeContext.options.catchEffectError);
+                                _this._storeContext.options.defaultEffectErrorHandler) {
+                                promise.catch(_this._storeContext.options.defaultEffectErrorHandler);
                             }
                         });
                     }
@@ -160,21 +160,6 @@ function createActionHelpers(storeContext, container) {
         return new ActionHelperImpl(storeContext, container, joinLastPart(container.namespace, storeContext.options.resolveActionName(paths)));
     });
     return actionHelpers;
-}
-function createActionHelperDispatch(storeContext, container) {
-    var dispatch = function (action) {
-        if (actionHelperDispatch === container.cache.cachedDispatch) {
-            storeContext.store.dispatch(action);
-        }
-        else {
-            throw new Error("container is already unregistered");
-        }
-        return action;
-    };
-    var actionHelperDispatch = function (actionHelper, payload) {
-        return actionHelper.dispatch(payload, dispatch);
-    };
-    return actionHelperDispatch;
 }
 var batchRegisterActionHelper = new ActionHelperImpl(undefined, undefined, actionTypes.register);
 var batchUnregisterActionHelper = new ActionHelperImpl(undefined, undefined, actionTypes.unregister);
@@ -281,12 +266,19 @@ var ModelBuilder =  (function () {
         if (this._isFrozen) {
             return this.clone().extend(model, namespace);
         }
+        var args = model.args;
         var state = model.state;
         var selectors = model.selectors;
         var reducers = model.reducers;
         var effects = model.effects;
         var epics = model.epics;
         if (namespace !== undefined) {
+            args = function (context) {
+                var _a;
+                return (_a = {},
+                    _a[namespace] = model.args(__assign({}, context)),
+                    _a);
+            };
             state = function (context) {
                 var _a;
                 return (_a = {},
@@ -327,7 +319,7 @@ var ModelBuilder =  (function () {
                 _d);
         }
         this.dependencies()
-            .args()
+            .args(args)
             .state(state)
             .selectors(selectors)
             .reducers(reducers)
@@ -341,10 +333,35 @@ var ModelBuilder =  (function () {
         }
         return this;
     };
-    ModelBuilder.prototype.args = function () {
+    ModelBuilder.prototype.args = function (args) {
         if (this._isFrozen) {
-            return this.clone().args();
+            return this.clone().args(args);
         }
+        var oldArgsFn = this._model.args;
+        var newArgsFn = factoryWrapper(args);
+        this._model.args = function (context) {
+            var oldProps = oldArgsFn(context);
+            var newProps = newArgsFn(context);
+            if (oldProps === undefined && newProps === undefined) {
+                return undefined;
+            }
+            return merge({}, oldProps, newProps);
+        };
+        return this;
+    };
+    ModelBuilder.prototype.overrideArgs = function (override) {
+        if (this._isFrozen) {
+            return this.clone().overrideArgs(override);
+        }
+        var oldArgsFn = this._model.args;
+        this._model.args = function (context) {
+            var oldProps = oldArgsFn(context);
+            var newProps = factoryWrapper(override(oldProps))(context);
+            if (oldProps === undefined && newProps === undefined) {
+                return undefined;
+            }
+            return merge({}, oldProps, newProps);
+        };
         return this;
     };
     ModelBuilder.prototype.state = function (state) {
@@ -448,6 +465,14 @@ var ModelBuilder =  (function () {
         this._model.epics = merge({}, this._model.epics, override(this._model.epics));
         return this;
     };
+    ModelBuilder.prototype.autoRegister = function (value) {
+        if (value === void 0) { value = true; }
+        if (this._isFrozen) {
+            return this.clone().autoRegister(value);
+        }
+        this._model.autoRegister = value;
+        return this;
+    };
     ModelBuilder.prototype.build = function () {
         return cloneModel(this._model);
     };
@@ -456,6 +481,8 @@ var ModelBuilder =  (function () {
 }());
 function cloneModel(model) {
     return {
+        autoRegister: model.autoRegister,
+        args: model.args,
         state: model.state,
         selectors: merge({}, model.selectors),
         reducers: merge({}, model.reducers),
@@ -469,6 +496,8 @@ function isModel(obj) {
 }
 function createModelBuilder() {
     return new ModelBuilder({
+        autoRegister: false,
+        args: function () { return undefined; },
         state: function () { return undefined; },
         selectors: {},
         reducers: {},
@@ -541,6 +570,37 @@ function createRegisterModels(storeContext) {
     };
 }
 
+var argsRequired = function (fakeValue) { return [
+    nil,
+    "RequiredArg",
+    fakeValue
+]; };
+function isRequiredArg(obj) {
+    return Array.isArray(obj) && obj[0] === nil && obj[1] === "RequiredArg";
+}
+
+function createEffectDispatch(storeContext, container) {
+    var dispatch = function (action) {
+        if (effectDispatch === container.cache.cachedDispatch) {
+            storeContext.store.dispatch(action);
+        }
+        else {
+            throw new Error("container is already unregistered");
+        }
+        return action;
+    };
+    var effectDispatch = function (arg1, arg2) {
+        var actionHelper = arg1;
+        if (actionHelper && typeof actionHelper.dispatch === "function") {
+            return actionHelper.dispatch(arg2, dispatch);
+        }
+        else {
+            return dispatch(arg1);
+        }
+    };
+    return effectDispatch;
+}
+
 var stateModelsKey = "__models";
 function getSubState(rootState, basePath, key) {
     if (rootState == null) {
@@ -598,8 +658,21 @@ var ContainerImpl =  (function () {
         get: function () {
             var cache = this._storeContext.cacheById.get(this.id);
             if (cache == null) {
+                var args = this.model.args({
+                    dependencies: this._storeContext.options.dependencies,
+                    namespace: this.namespace,
+                    key: this.key,
+                    required: argsRequired
+                });
+                if (args !== undefined) {
+                    mapObjectDeeply(args, args, function (value) {
+                        if (isRequiredArg(value)) {
+                            return value[2];
+                        }
+                    });
+                }
                 cache = {
-                    cachedArgs: undefined,
+                    cachedArgs: args,
                     cachedState: nil,
                     cachedGetters: undefined,
                     cachedActions: undefined,
@@ -683,7 +756,7 @@ var ContainerImpl =  (function () {
             if (this.isRegistered || this.canRegister) {
                 var cache = this.cache;
                 if (cache.cachedDispatch === undefined) {
-                    cache.cachedDispatch = createActionHelperDispatch(this._storeContext, this);
+                    cache.cachedDispatch = createEffectDispatch(this._storeContext, this);
                 }
                 return cache.cachedDispatch;
             }
@@ -696,14 +769,30 @@ var ContainerImpl =  (function () {
         if (!this.canRegister) {
             throw new Error("namespace is already registered");
         }
+        var regArgs = this.model.args({
+            dependencies: this._storeContext.options.dependencies,
+            namespace: this.namespace,
+            key: this.key,
+            required: argsRequired
+        });
+        if (regArgs !== undefined) {
+            if (args !== undefined) {
+                merge(regArgs, args);
+            }
+            mapObjectDeeply({}, regArgs, function (value) {
+                if (isRequiredArg(value)) {
+                    throw new Error("arg is required");
+                }
+            });
+        }
         var cache = this.cache;
-        cache.cachedArgs = args;
+        cache.cachedArgs = regArgs;
         cache.cachedState = nil;
         var models = this._storeContext.modelsByBaseNamespace.get(this.baseNamespace);
         var modelIndex = models.indexOf(this.model);
         this._storeContext.store.dispatch(createRegisterActionHelper(this.namespace).create({
             model: modelIndex,
-            args: args
+            args: regArgs
         }));
     };
     ContainerImpl.prototype.unregister = function () {
@@ -798,8 +887,8 @@ function createReduxObservableEpic(storeContext, container) {
                 actions: container.actions,
                 getContainer: storeContext.getContainer
             });
-            if (storeContext.options.catchEpicError != null) {
-                output$ = output$.pipe(operators.catchError(storeContext.options.catchEpicError));
+            if (storeContext.options.defaultEpicErrorHandler != null) {
+                output$ = output$.pipe(operators.catchError(storeContext.options.defaultEpicErrorHandler));
             }
             outputObservables.push(output$);
         });
@@ -856,7 +945,9 @@ function createMiddleware(storeContext) {
             unregister(batchUnregisterPayloads);
         }
         if (!batchRegisterPayloads && !batchUnregisterPayloads) {
-            if (actionContext && actionContext.container.canRegister) {
+            if (actionContext &&
+                actionContext.container.model.autoRegister &&
+                actionContext.container.canRegister) {
                 actionContext.container.register();
             }
             var modelsInfo = storeContext.findModelsInfo(namespace);
@@ -901,8 +992,8 @@ function createMiddleware(storeContext) {
                         if (deferred_1) {
                             deferred_1.reject(reason);
                         }
-                        else if (storeContext.options.catchEffectError) {
-                            storeContext.options.catchEffectError(reason);
+                        else if (storeContext.options.defaultEffectErrorHandler) {
+                            storeContext.options.defaultEffectErrorHandler(reason);
                         }
                         else {
                             throw reason;
