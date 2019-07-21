@@ -138,8 +138,8 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
             (reason) => {
               if (deferred) {
                 deferred.reject(reason);
-              } else if (storeContext.options.catchEffectError) {
-                storeContext.options.catchEffectError(reason);
+              } else if (storeContext.options.defaultEffectErrorHandler) {
+                storeContext.options.defaultEffectErrorHandler(reason);
               } else {
                 throw reason;
               }

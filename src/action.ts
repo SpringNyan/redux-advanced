@@ -32,7 +32,7 @@ export interface ActionHelper<TPayload = any, TResult = any> {
   type: string;
   is(action: any): action is Action<TPayload>;
   create(payload: TPayload): Action<TPayload>;
-  dispatch(payload: TPayload): Promise<TResult>;
+  dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult>;
 }
 
 export interface ActionHelpers {
@@ -121,9 +121,11 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
             Promise.resolve().then(() => {
               if (
                 !promise.hasRejectionHandler &&
-                this._storeContext.options.catchEffectError
+                this._storeContext.options.defaultEffectErrorHandler
               ) {
-                promise.catch(this._storeContext.options.catchEffectError);
+                promise.catch(
+                  this._storeContext.options.defaultEffectErrorHandler
+                );
               }
             });
           }
@@ -161,38 +163,6 @@ export function createActionHelpers<TModel extends Model>(
   );
 
   return actionHelpers as any;
-}
-
-export type ActionHelperDispatch = <TActionHelper extends ActionHelper>(
-  actionHelper: TActionHelper,
-  payload: ExtractActionPayload<TActionHelper>
-) => Promise<ExtractActionHelperResult<TActionHelper>>;
-
-export function createActionHelperDispatch(
-  storeContext: StoreContext,
-  container: ContainerImpl
-): ActionHelperDispatch {
-  const dispatch: Dispatch = (action) => {
-    if (actionHelperDispatch === container.cache.cachedDispatch) {
-      storeContext.store.dispatch(action);
-    } else {
-      throw new Error("container is already unregistered");
-    }
-
-    return action;
-  };
-
-  const actionHelperDispatch: ActionHelperDispatch = (
-    actionHelper,
-    payload
-  ) => {
-    return ((actionHelper as any) as ActionHelperImpl).dispatch(
-      payload,
-      dispatch
-    );
-  };
-
-  return actionHelperDispatch;
 }
 
 export interface RegisterPayload {

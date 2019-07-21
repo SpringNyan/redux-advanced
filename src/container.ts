@@ -1,6 +1,4 @@
 import {
-  ActionHelperDispatch,
-  createActionHelperDispatch,
   createActionHelpers,
   createRegisterActionHelper,
   createUnregisterActionHelper,
@@ -8,7 +6,7 @@ import {
 } from "./action";
 import { ExtractArgs } from "./args";
 import { StoreContext } from "./context";
-import { ExtractEffects } from "./effect";
+import { createEffectDispatch, EffectDispatch, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers } from "./reducer";
 import {
@@ -17,12 +15,7 @@ import {
   ExtractSelectors
 } from "./selector";
 import { ExtractState, getSubState } from "./state";
-import {
-  convertNamespaceToPath,
-  joinLastPart,
-  mapObjectDeeply,
-  nil
-} from "./util";
+import { convertNamespaceToPath, joinLastPart, nil } from "./util";
 
 export interface Container<TModel extends Model = any> {
   namespace: string;
@@ -159,15 +152,12 @@ export class ContainerImpl<TModel extends Model = Model>
     throw new Error("namespace is already registered by other container");
   }
 
-  public get dispatch(): ActionHelperDispatch {
+  public get dispatch(): EffectDispatch {
     if (this.isRegistered || this.canRegister) {
       const cache = this.cache;
 
       if (cache.cachedDispatch === undefined) {
-        cache.cachedDispatch = createActionHelperDispatch(
-          this._storeContext,
-          this
-        );
+        cache.cachedDispatch = createEffectDispatch(this._storeContext, this);
       }
 
       return cache.cachedDispatch;

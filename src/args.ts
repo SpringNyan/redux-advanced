@@ -28,17 +28,28 @@ export type ExtractArgs<T extends Model> = T extends Model<
 
 export interface RequiredArg<T = any> {
   [nil]: "RequiredArg";
-  type: T;
+  fakeValue: T | undefined;
 }
 
-export type ArgsRequired = <T>() => RequiredArg<T>;
+export type ExtractRequiredArgType<
+  T extends RequiredArg
+> = T extends RequiredArg<infer TType> ? TType : never;
+
+export type ArgsRequired = <T>(fakeValue?: T) => RequiredArg<T>;
 
 export type ToArgs<T> = Pick<
-  { [P in keyof T]: T[P] extends RequiredArg ? T[P]["type"] : never },
+  {
+    [P in keyof T]: T[P] extends RequiredArg
+      ? ExtractRequiredArgType<T[P]>
+      : never
+  },
   { [P in keyof T]: T[P] extends RequiredArg ? P : never }[keyof T]
 > &
   Partial<
     Pick<T, { [P in keyof T]: T[P] extends RequiredArg ? never : P }[keyof T]>
   >;
 
-export const argsRequired: ArgsRequired = () => nil as any;
+export const argsRequired: ArgsRequired = (fakeValue) => ({
+  [nil]: "RequiredArg",
+  fakeValue
+});

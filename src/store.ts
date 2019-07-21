@@ -25,8 +25,8 @@ export interface ReduxAdvancedOptions {
     middleware: Middleware;
   }) => Store;
 
-  catchEffectError?: (error: any) => void;
-  catchEpicError?: (
+  defaultEffectErrorHandler?: (error: any) => void;
+  defaultEpicErrorHandler?: (
     error: any,
     caught: Observable<AnyAction>
   ) => Observable<AnyAction>;

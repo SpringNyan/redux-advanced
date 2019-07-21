@@ -105,8 +105,10 @@ export function createReduxObservableEpic(
         getContainer: storeContext.getContainer
       });
 
-      if (storeContext.options.catchEpicError != null) {
-        output$ = output$.pipe(catchError(storeContext.options.catchEpicError));
+      if (storeContext.options.defaultEpicErrorHandler != null) {
+        output$ = output$.pipe(
+          catchError(storeContext.options.defaultEpicErrorHandler)
+        );
       }
 
       outputObservables.push(output$);
