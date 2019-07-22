@@ -56,6 +56,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
     const [namespace, actionName] = splitLastPart(action.type);
     const actionContext = storeContext.contextByAction.get(action);
+    storeContext.contextByAction.delete(action);
 
     const batchRegisterPayloads = parseBatchRegisterPayloads(action);
     if (batchRegisterPayloads) {
@@ -103,7 +104,6 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
     rootActionSubject.next(action);
 
     // handle effect
-    let hasEffect = false;
     if (actionContext) {
       const deferred = actionContext.deferred;
 
@@ -112,8 +112,6 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
         const effect = modelContext.effectByActionName.get(actionName);
 
         if (effect != null) {
-          hasEffect = true;
-
           const promise = effect(
             {
               rootAction$,
@@ -149,11 +147,9 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
               }
             }
           );
+        } else {
+          deferred.resolve(undefined);
         }
-      }
-
-      if (!hasEffect && deferred) {
-        deferred.resolve(undefined);
       }
     }
 

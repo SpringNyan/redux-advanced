@@ -120,8 +120,6 @@ export function createEffectDispatch(
   const dispatch: Dispatch = (action) => {
     if (effectDispatch === container.cache.cachedDispatch) {
       storeContext.store.dispatch(action);
-    } else {
-      throw new Error("container is already unregistered");
     }
 
     return action;
