@@ -10,7 +10,7 @@ export interface StateContext<
   namespace: string;
   key: string | undefined;
 
-  args: TArgs;
+  args: StateArgs<TArgs>;
 }
 
 export type StateFactory<
@@ -30,6 +30,10 @@ export type ExtractState<T extends Model> = T extends Model<
 >
   ? TState
   : never;
+
+export type StateArgs<TArgs extends object | undefined> = TArgs extends object
+  ? Required<TArgs>
+  : TArgs;
 
 export function getSubState(
   rootState: any,
