@@ -36,21 +36,17 @@ function mapObjectDeeply(target, source, func, paths) {
         }
         var value = source[key];
         if (isObject(value)) {
-            var nextTarget = target[key];
-            if (nextTarget === undefined) {
-                nextTarget = {};
-                target[key] = nextTarget;
+            if (target[key] === undefined) {
+                target[key] = {};
             }
-            if (!isObject(nextTarget)) {
-                throw new Error("only object can be merged");
+            if (isObject(target[key])) {
+                mapObjectDeeply(target[key], value, func, paths.concat([key]));
+                return;
             }
-            mapObjectDeeply(nextTarget, value, func, paths.concat([key]));
         }
-        else {
-            var result = func(value, paths.concat([key]), target);
-            if (result !== undefined) {
-                target[key] = result;
-            }
+        var result = func(value, paths.concat([key]), target);
+        if (result !== undefined) {
+            target[key] = result;
         }
     });
     return target;
