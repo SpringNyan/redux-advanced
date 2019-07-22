@@ -2,67 +2,114 @@ import { Middleware } from "redux";
 import { Subject } from "rxjs";
 import { distinctUntilChanged } from "rxjs/operators";
 
-import { AnyAction } from "./action";
-import { StoreCache } from "./cache";
-import { Model } from "./model";
-
+import {
+  AnyAction,
+  parseBatchRegisterPayloads,
+  parseBatchUnregisterPayloads,
+  RegisterPayload,
+  UnregisterPayload
+} from "./action";
 import { ContainerImpl } from "./container";
-import { parseActionType } from "./util";
+import { StoreContext } from "./context";
+import { createReduxObservableEpic } from "./epic";
+import { getSubState, stateModelsKey } from "./state";
+import { convertNamespaceToPath, splitLastPart } from "./util";
 
-export function createMiddleware(storeCache: StoreCache): Middleware {
+export function createMiddleware(storeContext: StoreContext): Middleware {
   const rootActionSubject = new Subject<AnyAction>();
   const rootAction$ = rootActionSubject;
 
-  const rootStateSubject = new Subject<unknown>();
+  const rootStateSubject = new Subject<any>();
   const rootState$ = rootStateSubject.pipe(distinctUntilChanged());
 
-  return (store) => (next) => (action) => {
-    const context = storeCache.contextByAction.get(action);
+  function register(payloads: RegisterPayload[]) {
+    payloads.forEach((payload) => {
+      const namespace = payload.namespace!;
+      const modelIndex = payload.model || 0;
 
-    // handle auto register model
-    if (context != null && context.model.autoRegister) {
-      const container = storeCache.getContainer(context.model, context.key);
-      if (container.canRegister) {
-        container.register();
+      const { key, models } = storeContext.findModelsInfo(namespace)!;
+      const model = models[modelIndex];
+
+      const container = storeContext.getContainer(model, key!) as ContainerImpl;
+
+      storeContext.containerById.set(container.id, container);
+      storeContext.containerByNamespace.set(namespace, container);
+
+      const epic = createReduxObservableEpic(storeContext, container);
+      storeContext.addEpic$.next(epic);
+    });
+  }
+
+  function unregister(payloads: UnregisterPayload[]) {
+    payloads.forEach((payload) => {
+      const namespace = payload.namespace!;
+
+      const container = storeContext.containerByNamespace.get(namespace)!;
+      container.clearCache();
+
+      storeContext.containerByNamespace.delete(namespace);
+    });
+  }
+
+  return (store) => (next) => (action: AnyAction) => {
+    let container: ContainerImpl | undefined;
+
+    const [namespace, actionName] = splitLastPart(action.type);
+    const actionContext = storeContext.contextByAction.get(action);
+    storeContext.contextByAction.delete(action);
+
+    const batchRegisterPayloads = parseBatchRegisterPayloads(action);
+    if (batchRegisterPayloads) {
+      register(batchRegisterPayloads);
+    }
+
+    const batchUnregisterPayloads = parseBatchUnregisterPayloads(action);
+    if (batchUnregisterPayloads) {
+      unregister(batchUnregisterPayloads);
+    }
+
+    if (!batchRegisterPayloads && !batchUnregisterPayloads) {
+      // try to auto register container
+      if (
+        actionContext &&
+        actionContext.container.model.autoRegister &&
+        actionContext.container.canRegister
+      ) {
+        actionContext.container.register();
+      }
+
+      // try to get container
+      const modelsInfo = storeContext.findModelsInfo(namespace);
+      if (modelsInfo != null) {
+        const { baseNamespace, key, models } = modelsInfo;
+        const basePath = convertNamespaceToPath(baseNamespace);
+
+        const modelIndex = getSubState(
+          (store.getState() || {})[stateModelsKey],
+          basePath,
+          key
+        );
+        if (modelIndex != null) {
+          const model = models[modelIndex];
+          container = storeContext.getContainer(model, key!) as ContainerImpl;
+        }
       }
     }
 
+    // dispatch action
     const result = next(action);
 
+    // emit state and action
     rootStateSubject.next(store.getState());
     rootActionSubject.next(action);
 
     // handle effect
-    if (context != null) {
-      const effectDeferred =
-        context.effectDeferred != null
-          ? context.effectDeferred
-          : {
-              resolve: () => {
-                return;
-              },
-              reject: (reason: unknown) => {
-                // same behavior as action helper dispatch
-                setTimeout(() => {
-                  if (storeCache.options.effectErrorHandler != null) {
-                    storeCache.options.effectErrorHandler(reason);
-                  }
-                }, 0);
-              }
-            };
+    if (actionContext) {
+      const deferred = actionContext.deferred;
 
-      const { namespace, actionName } = parseActionType(action.type);
-
-      const container = storeCache.getContainer(
-        context.model,
-        context.key
-      ) as ContainerImpl<Model>;
-
-      if (container.isRegistered) {
-        const modelContext = storeCache.contextByModel.get(container.model);
-        const effect = modelContext
-          ? modelContext.effectByActionName[actionName]
-          : null;
+      if (container && container.isRegistered) {
+        const modelContext = storeContext.contextByModel.get(container.model)!;
+        const effect = modelContext.effectByActionName.get(actionName);
 
         if (effect != null) {
           const promise = effect(
@@ -70,32 +117,39 @@ export function createMiddleware(storeCache: StoreCache): Middleware {
               rootAction$,
               rootState$,
 
-              dependencies: storeCache.dependencies,
-              namespace,
+              dependencies: storeContext.options.dependencies,
+              namespace: container.namespace,
               key: container.key,
 
-              getState: () => container.state,
+              getState: () => container!.state,
               getters: container.getters,
               actions: container.actions,
 
-              getContainer: storeCache.getContainer
+              getContainer: storeContext.getContainer,
+              dispatch: container.dispatch
             },
             action.payload
           );
 
           promise.then(
             (value) => {
-              effectDeferred.resolve(value);
+              if (deferred) {
+                deferred.resolve(value);
+              }
             },
             (reason) => {
-              effectDeferred.reject(reason);
+              if (deferred) {
+                deferred.reject(reason);
+              } else if (storeContext.options.defaultEffectErrorHandler) {
+                storeContext.options.defaultEffectErrorHandler(reason);
+              } else {
+                throw reason;
+              }
             }
           );
         } else {
-          effectDeferred.resolve(undefined);
+          deferred.resolve(undefined);
         }
-      } else {
-        effectDeferred.resolve(undefined);
       }
     }
 

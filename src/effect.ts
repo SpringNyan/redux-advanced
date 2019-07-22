@@ -1,7 +1,15 @@
+import { Dispatch } from "redux";
 import { Observable } from "rxjs";
 
-import { ActionHelpers, AnyAction, ExtractActionPayload } from "./action";
-import { GetContainer } from "./container";
+import {
+  ActionHelper,
+  ActionHelpers,
+  AnyAction,
+  ExtractActionHelperResult,
+  ExtractActionPayload
+} from "./action";
+import { ContainerImpl, GetContainer } from "./container";
+import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
 
@@ -12,17 +20,18 @@ export interface EffectContext<
   TActionHelpers extends ActionHelpers = any
 > {
   rootAction$: Observable<AnyAction>;
-  rootState$: Observable<unknown>;
+  rootState$: Observable<any>;
 
   dependencies: TDependencies;
   namespace: string;
-  key: string;
+  key: string | undefined;
 
   getState: () => TState;
   getters: TGetters;
   actions: TActionHelpers;
 
   getContainer: GetContainer;
+  dispatch: EffectDispatch;
 }
 
 export type Effect<
@@ -49,6 +58,7 @@ export interface Effects<
 }
 
 export type ExtractEffects<T extends Model> = T extends Model<
+  any,
   any,
   any,
   any,
@@ -94,3 +104,38 @@ export type OverrideEffects<
         TActionHelpers
       >
 };
+
+export type EffectDispatch = (<TPayload>(
+  payload: TPayload extends ActionHelper ? never : TPayload
+) => TPayload) &
+  (<TActionHelper extends ActionHelper>(
+    actionHelper: TActionHelper,
+    payload: ExtractActionPayload<TActionHelper>
+  ) => Promise<ExtractActionHelperResult<TActionHelper>>);
+
+export function createEffectDispatch(
+  storeContext: StoreContext,
+  container: ContainerImpl
+): EffectDispatch {
+  const dispatch: Dispatch = (action) => {
+    if (
+      container.isRegistered &&
+      effectDispatch === container.cache.cachedDispatch
+    ) {
+      storeContext.store.dispatch(action);
+    }
+
+    return action;
+  };
+
+  const effectDispatch: EffectDispatch = (arg1: any, arg2?: any) => {
+    const actionHelper = arg1 as ActionHelper;
+    if (actionHelper && typeof actionHelper.dispatch === "function") {
+      return actionHelper.dispatch(arg2, dispatch);
+    } else {
+      return dispatch(arg1);
+    }
+  };
+
+  return effectDispatch;
+}

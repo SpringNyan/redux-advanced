@@ -4,17 +4,19 @@ import {
   StateObservable
 } from "redux-observable";
 import { merge, Observable } from "rxjs";
-import { catchError, takeUntil } from "rxjs/operators";
+import { catchError, filter, takeUntil } from "rxjs/operators";
 
-import { ActionHelpers, AnyAction } from "./action";
-import { StoreCache } from "./cache";
-import { GetContainer } from "./container";
+import {
+  ActionHelpers,
+  AnyAction,
+  batchUnregisterActionHelper,
+  createUnregisterActionHelper
+} from "./action";
+import { ContainerImpl, GetContainer } from "./container";
+import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
-
-import { actionTypes } from "./action";
-import { ContainerImpl } from "./container";
-import { flattenNestedFunctionMap } from "./util";
+import { mapObjectDeeply } from "./util";
 
 export interface EpicContext<
   TDependencies extends object | undefined = any,
@@ -23,11 +25,11 @@ export interface EpicContext<
   TActionHelpers extends ActionHelpers = any
 > {
   rootAction$: ActionsObservable<AnyAction>;
-  rootState$: StateObservable<unknown>;
+  rootState$: StateObservable<any>;
 
   dependencies: TDependencies;
   namespace: string;
-  key: string;
+  key: string | undefined;
 
   getState: () => TState;
   getters: TGetters;
@@ -62,6 +64,7 @@ export type ExtractEpics<T extends Model> = T extends Model<
   any,
   any,
   any,
+  any,
   infer TEpics
 >
   ? TEpics
@@ -79,19 +82,19 @@ export type OverrideEpics<
     : OverrideEpics<TEpics[P], TDependencies, TState, TGetters, TActionHelpers>
 };
 
-export function createEpicsReduxObservableEpic(
-  storeCache: StoreCache,
-  container: ContainerImpl<Model>
+export function createReduxObservableEpic(
+  storeContext: StoreContext,
+  container: ContainerImpl
 ): ReduxObservableEpic {
   return (rootAction$, rootState$) => {
-    const outputObservables = flattenNestedFunctionMap<Epic>(
-      container.model.epics
-    ).map(({ value: epic }) => {
+    const outputObservables: Array<Observable<AnyAction>> = [];
+
+    mapObjectDeeply({}, container.model.epics, (epic) => {
       let output$ = epic({
         rootAction$,
         rootState$,
 
-        dependencies: storeCache.dependencies,
+        dependencies: storeContext.options.dependencies,
         namespace: container.namespace,
         key: container.key,
 
@@ -99,18 +102,36 @@ export function createEpicsReduxObservableEpic(
         getters: container.getters,
         actions: container.actions,
 
-        getContainer: storeCache.getContainer
+        getContainer: storeContext.getContainer
       });
 
-      if (storeCache.options.epicErrorHandler != null) {
-        output$ = output$.pipe(catchError(storeCache.options.epicErrorHandler));
+      if (storeContext.options.defaultEpicErrorHandler != null) {
+        output$ = output$.pipe(
+          catchError(storeContext.options.defaultEpicErrorHandler)
+        );
       }
 
-      return output$;
+      outputObservables.push(output$);
     });
 
-    const takeUntil$ = rootAction$.ofType(
-      `${container.namespace}/${actionTypes.unregister}`
+    const unregisterActionType = createUnregisterActionHelper(
+      container.namespace
+    ).type;
+
+    const takeUntil$ = rootAction$.pipe(
+      filter((action: AnyAction) => {
+        if (action.type === unregisterActionType) {
+          return true;
+        }
+
+        if (batchUnregisterActionHelper.is(action)) {
+          return (action.payload || []).some(
+            (payload) => payload.namespace === container.namespace
+          );
+        }
+
+        return false;
+      })
     );
 
     return merge(...outputObservables).pipe(takeUntil(takeUntil$));
