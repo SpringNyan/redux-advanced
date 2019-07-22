@@ -118,7 +118,10 @@ export function createEffectDispatch(
   container: ContainerImpl
 ): EffectDispatch {
   const dispatch: Dispatch = (action) => {
-    if (effectDispatch === container.cache.cachedDispatch) {
+    if (
+      container.isRegistered &&
+      effectDispatch === container.cache.cachedDispatch
+    ) {
       storeContext.store.dispatch(action);
     }
 
