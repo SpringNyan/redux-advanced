@@ -1,5 +1,5 @@
 import { Model } from "./model";
-import { nil } from "./util";
+import { mapObjectDeeply, merge, nil } from "./util";
 
 export interface ArgsContext<TDependencies extends object | undefined = any> {
   dependencies: TDependencies;
@@ -54,4 +54,31 @@ export const argsRequired: ArgsRequired = (fakeValue) => [
 
 export function isRequiredArg(obj: any): obj is RequiredArg {
   return Array.isArray(obj) && obj[0] === nil && obj[1] === "RequiredArg";
+}
+
+export function generateArgs(
+  model: Model,
+  context: ArgsContext,
+  args: object | undefined,
+  optional?: boolean
+) {
+  const result = model.args(context);
+
+  if (result !== undefined) {
+    if (args !== undefined) {
+      merge(result, args);
+    }
+
+    mapObjectDeeply({}, result, (value) => {
+      if (isRequiredArg(value)) {
+        if (optional) {
+          return value[2];
+        } else {
+          throw new Error("arg is required");
+        }
+      }
+    });
+  }
+
+  return result;
 }

@@ -8,6 +8,7 @@ import {
   RegisterPayload,
   UnregisterPayload
 } from "./action";
+import { argsRequired, generateArgs } from "./args";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { getSubState, setSubState, stateModelsKey } from "./state";
@@ -70,8 +71,6 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
     payloads.forEach((payload) => {
       const namespace = payload.namespace!;
       const modelIndex = payload.model || 0;
-      const args = payload.args;
-      const state = payload.state;
 
       const { baseNamespace, key, models } = storeContext.findModelsInfo(
         namespace
@@ -89,9 +88,21 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
         )
       };
 
-      if (state !== undefined) {
-        rootState = setSubState(rootState, state, basePath, key);
+      if (payload.state !== undefined) {
+        rootState = setSubState(rootState, payload.state, basePath, key);
       } else {
+        const args = generateArgs(
+          model,
+          {
+            dependencies: storeContext.options.dependencies,
+            namespace,
+            key,
+
+            required: argsRequired
+          },
+          payload.args
+        );
+
         const modelState = model.state({
           dependencies: storeContext.options.dependencies,
           namespace,
