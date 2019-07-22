@@ -20,3 +20,4 @@ export declare type ToArgs<T> = Pick<{
 }[keyof T]>>;
 export declare const argsRequired: ArgsRequired;
 export declare function isRequiredArg(obj: any): obj is RequiredArg;
+export declare function generateArgs(model: Model, context: ArgsContext, args: object | undefined, optional?: boolean): any;

@@ -202,11 +202,12 @@ var createSelector = (function () {
     var combiner = args[args.length - 1];
     var resultSelector = function (context, cache) {
         var needUpdate = cache.lastParams == null;
+        var lastParams = cache.lastParams || [];
         var params = [];
         for (var i = 0; i < selectors.length; ++i) {
             var selector = selectors[i];
-            params.push(selector(context));
-            if (!needUpdate && params[i] !== cache.lastParams[i]) {
+            params.push(selector(context, lastParams[i]));
+            if (!needUpdate && params[i] !== lastParams[i]) {
                 needUpdate = true;
             }
         }
@@ -340,12 +341,12 @@ var ModelBuilder =  (function () {
         var oldArgsFn = this._model.args;
         var newArgsFn = factoryWrapper(args);
         this._model.args = function (context) {
-            var oldProps = oldArgsFn(context);
-            var newProps = newArgsFn(context);
-            if (oldProps === undefined && newProps === undefined) {
+            var oldArgs = oldArgsFn(context);
+            var newArgs = newArgsFn(context);
+            if (oldArgs === undefined && newArgs === undefined) {
                 return undefined;
             }
-            return merge({}, oldProps, newProps);
+            return merge({}, oldArgs, newArgs);
         };
         return this;
     };
@@ -355,12 +356,12 @@ var ModelBuilder =  (function () {
         }
         var oldArgsFn = this._model.args;
         this._model.args = function (context) {
-            var oldProps = oldArgsFn(context);
-            var newProps = factoryWrapper(override(oldProps))(context);
-            if (oldProps === undefined && newProps === undefined) {
+            var oldArgs = oldArgsFn(context);
+            var newArgs = factoryWrapper(override(oldArgs))(context);
+            if (oldArgs === undefined && newArgs === undefined) {
                 return undefined;
             }
-            return merge({}, oldProps, newProps);
+            return merge({}, oldArgs, newArgs);
         };
         return this;
     };
@@ -578,14 +579,31 @@ var argsRequired = function (fakeValue) { return [
 function isRequiredArg(obj) {
     return Array.isArray(obj) && obj[0] === nil && obj[1] === "RequiredArg";
 }
+function generateArgs(model, context, args, optional) {
+    var result = model.args(context);
+    if (result !== undefined) {
+        if (args !== undefined) {
+            merge(result, args);
+        }
+        mapObjectDeeply({}, result, function (value) {
+            if (isRequiredArg(value)) {
+                if (optional) {
+                    return value[2];
+                }
+                else {
+                    throw new Error("arg is required");
+                }
+            }
+        });
+    }
+    return result;
+}
 
 function createEffectDispatch(storeContext, container) {
     var dispatch = function (action) {
-        if (effectDispatch === container.cache.cachedDispatch) {
+        if (container.isRegistered &&
+            effectDispatch === container.cache.cachedDispatch) {
             storeContext.store.dispatch(action);
-        }
-        else {
-            throw new Error("container is already unregistered");
         }
         return action;
     };
@@ -658,21 +676,8 @@ var ContainerImpl =  (function () {
         get: function () {
             var cache = this._storeContext.cacheById.get(this.id);
             if (cache == null) {
-                var args = this.model.args({
-                    dependencies: this._storeContext.options.dependencies,
-                    namespace: this.namespace,
-                    key: this.key,
-                    required: argsRequired
-                });
-                if (args !== undefined) {
-                    mapObjectDeeply(args, args, function (value) {
-                        if (isRequiredArg(value)) {
-                            return value[2];
-                        }
-                    });
-                }
                 cache = {
-                    cachedArgs: args,
+                    cachedArgs: undefined,
                     cachedState: nil,
                     cachedGetters: undefined,
                     cachedActions: undefined,
@@ -709,11 +714,17 @@ var ContainerImpl =  (function () {
             if (this.canRegister) {
                 var cache = this.cache;
                 if (cache.cachedState === nil) {
+                    var args = generateArgs(this.model, {
+                        dependencies: this._storeContext.options.dependencies,
+                        namespace: this.namespace,
+                        key: this.key,
+                        required: argsRequired
+                    }, cache.cachedArgs, true);
                     cache.cachedState = this.model.state({
                         dependencies: this._storeContext.options.dependencies,
                         namespace: this.namespace,
                         key: this.key,
-                        args: cache.cachedArgs
+                        args: args
                     });
                 }
                 return cache.cachedState;
@@ -769,30 +780,14 @@ var ContainerImpl =  (function () {
         if (!this.canRegister) {
             throw new Error("namespace is already registered");
         }
-        var regArgs = this.model.args({
-            dependencies: this._storeContext.options.dependencies,
-            namespace: this.namespace,
-            key: this.key,
-            required: argsRequired
-        });
-        if (regArgs !== undefined) {
-            if (args !== undefined) {
-                merge(regArgs, args);
-            }
-            mapObjectDeeply({}, regArgs, function (value) {
-                if (isRequiredArg(value)) {
-                    throw new Error("arg is required");
-                }
-            });
-        }
         var cache = this.cache;
-        cache.cachedArgs = regArgs;
+        cache.cachedArgs = args;
         cache.cachedState = nil;
         var models = this._storeContext.modelsByBaseNamespace.get(this.baseNamespace);
         var modelIndex = models.indexOf(this.model);
         this._storeContext.store.dispatch(createRegisterActionHelper(this.namespace).create({
             model: modelIndex,
-            args: regArgs
+            args: args
         }));
     };
     ContainerImpl.prototype.unregister = function () {
@@ -936,6 +931,7 @@ function createMiddleware(storeContext) {
         var container;
         var _a = splitLastPart(action.type), namespace = _a[0], actionName = _a[1];
         var actionContext = storeContext.contextByAction.get(action);
+        storeContext.contextByAction.delete(action);
         var batchRegisterPayloads = parseBatchRegisterPayloads(action);
         if (batchRegisterPayloads) {
             register(batchRegisterPayloads);
@@ -964,14 +960,12 @@ function createMiddleware(storeContext) {
         var result = next(action);
         rootStateSubject.next(store.getState());
         rootActionSubject.next(action);
-        var hasEffect = false;
         if (actionContext) {
             var deferred_1 = actionContext.deferred;
             if (container && container.isRegistered) {
                 var modelContext = storeContext.contextByModel.get(container.model);
                 var effect = modelContext.effectByActionName.get(actionName);
                 if (effect != null) {
-                    hasEffect = true;
                     var promise = effect({
                         rootAction$: rootAction$,
                         rootState$: rootState$,
@@ -1000,9 +994,9 @@ function createMiddleware(storeContext) {
                         }
                     });
                 }
-            }
-            if (!hasEffect && deferred_1) {
-                deferred_1.resolve(undefined);
+                else {
+                    deferred_1.resolve(undefined);
+                }
             }
         }
         return result;
@@ -1015,16 +1009,20 @@ function createReduxReducer(storeContext) {
             var _a;
             var namespace = payload.namespace;
             var modelIndex = payload.model || 0;
-            var args = payload.args;
-            var state = payload.state;
             var _b = storeContext.findModelsInfo(namespace), baseNamespace = _b.baseNamespace, key = _b.key, models = _b.models;
             var basePath = convertNamespaceToPath(baseNamespace);
             var model = models[modelIndex];
             rootState = __assign({}, rootState, (_a = {}, _a[stateModelsKey] = setSubState(rootState[stateModelsKey], modelIndex, basePath, key), _a));
-            if (state !== undefined) {
-                rootState = setSubState(rootState, state, basePath, key);
+            if (payload.state !== undefined) {
+                rootState = setSubState(rootState, payload.state, basePath, key);
             }
             else {
+                var args = generateArgs(model, {
+                    dependencies: storeContext.options.dependencies,
+                    namespace: namespace,
+                    key: key,
+                    required: argsRequired
+                }, payload.args);
                 var modelState = model.state({
                     dependencies: storeContext.options.dependencies,
                     namespace: namespace,
