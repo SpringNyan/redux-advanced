@@ -9,6 +9,7 @@ import {
   UnregisterPayload
 } from "./action";
 import { argsRequired, generateArgs } from "./args";
+import { GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { getSubState, setSubState, stateModelsKey } from "./state";
@@ -23,6 +24,7 @@ export interface ReducerContext<
   key: string | undefined;
 
   originalState: TState;
+  getContainer: GetContainer;
 }
 
 export type Reducer<
@@ -98,7 +100,8 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
             namespace,
             key,
 
-            required: argsRequired
+            required: argsRequired,
+            getContainer: storeContext.getContainer
           },
           payload.args
         );
@@ -108,7 +111,8 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
           namespace,
           key,
 
-          args
+          args,
+          getContainer: storeContext.getContainer
         });
 
         rootState = setSubState(rootState, modelState, basePath, key);
@@ -141,7 +145,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
     return rootState;
   }
 
-  return (rootState, action) => {
+  const reduxReducer: ReduxReducer = (rootState, action) => {
     if (rootState === undefined) {
       rootState = {};
     }
@@ -189,10 +193,18 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
         namespace,
         key,
 
-        originalState: state
+        originalState: state,
+        getContainer: storeContext.getContainer
       });
     });
 
     return setSubState(rootState, newState, basePath, key);
+  };
+
+  return (rootState, action) => {
+    storeContext.reducerRootState = rootState;
+    rootState = reduxReducer(rootState, action);
+    storeContext.reducerRootState = undefined;
+    return rootState;
   };
 }

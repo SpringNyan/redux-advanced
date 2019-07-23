@@ -125,8 +125,8 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
               getters: container.getters,
               actions: container.actions,
 
-              getContainer: storeContext.getContainer,
-              dispatch: container.dispatch
+              dispatch: container.dispatch,
+              getContainer: storeContext.getContainer
             },
             action.payload
           );

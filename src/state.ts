@@ -1,3 +1,4 @@
+import { GetContainer } from "./container";
 import { Model } from "./model";
 
 export const stateModelsKey = "__models";
@@ -11,6 +12,7 @@ export interface StateContext<
   key: string | undefined;
 
   args: StateArgs<TArgs>;
+  getContainer: GetContainer;
 }
 
 export type StateFactory<
