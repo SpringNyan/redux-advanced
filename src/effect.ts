@@ -30,8 +30,8 @@ export interface EffectContext<
   getters: TGetters;
   actions: TActionHelpers;
 
-  getContainer: GetContainer;
   dispatch: EffectDispatch;
+  getContainer: GetContainer;
 }
 
 export type Effect<

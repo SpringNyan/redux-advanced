@@ -63,6 +63,10 @@ export function convertNamespaceToPath(namespace: string): string {
   return namespace.replace(/\//g, ".");
 }
 
+export function convertPathToNamespace(path: string): string {
+  return path.replace(/\./g, "/");
+}
+
 export function joinLastPart(
   str: string,
   lastPart: string | undefined,

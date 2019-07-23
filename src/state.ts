@@ -1,6 +1,7 @@
+import { GetContainer } from "./container";
 import { Model } from "./model";
 
-export const stateModelsKey = "__models";
+export const modelsStateKey = "__models";
 
 export interface StateContext<
   TDependencies extends object | undefined = any,
@@ -11,6 +12,7 @@ export interface StateContext<
   key: string | undefined;
 
   args: StateArgs<TArgs>;
+  getContainer: GetContainer;
 }
 
 export type StateFactory<

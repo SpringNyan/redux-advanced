@@ -7,13 +7,20 @@ import {
   parseBatchRegisterPayloads,
   parseBatchUnregisterPayloads,
   RegisterPayload,
+  reloadActionHelper,
+  ReloadPayload,
   UnregisterPayload
 } from "./action";
 import { ContainerImpl } from "./container";
 import { StoreContext } from "./context";
 import { createReduxObservableEpic } from "./epic";
-import { getSubState, stateModelsKey } from "./state";
-import { convertNamespaceToPath, splitLastPart } from "./util";
+import { getSubState, modelsStateKey } from "./state";
+import {
+  convertNamespaceToPath,
+  convertPathToNamespace,
+  mapObjectDeeply,
+  splitLastPart
+} from "./util";
 
 export function createMiddleware(storeContext: StoreContext): Middleware {
   const rootActionSubject = new Subject<AnyAction>();
@@ -51,7 +58,38 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
     });
   }
 
+  function reload(payload: ReloadPayload) {
+    storeContext.containerByNamespace.clear();
+    storeContext.containerById.clear();
+    storeContext.cacheById.clear();
+    storeContext.switchEpic$.next();
+
+    const batchRegisterPayloads: RegisterPayload[] = [];
+
+    const rootState =
+      payload && payload.state !== undefined
+        ? payload.state
+        : storeContext.store.getState();
+    const modelsState = (rootState || {})[modelsStateKey] || {};
+    mapObjectDeeply({}, modelsState, (modelIndex, paths) => {
+      if (typeof modelIndex === "number") {
+        const namespace = convertPathToNamespace(paths.join("."));
+        batchRegisterPayloads.push({
+          namespace,
+          model: modelIndex
+        });
+      }
+    });
+
+    register(batchRegisterPayloads);
+  }
+
   return (store) => (next) => (action: AnyAction) => {
+    if (reloadActionHelper.is(action)) {
+      reload(action.payload);
+      return next(action);
+    }
+
     let container: ContainerImpl | undefined;
 
     const [namespace, actionName] = splitLastPart(action.type);
@@ -85,7 +123,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
         const basePath = convertNamespaceToPath(baseNamespace);
 
         const modelIndex = getSubState(
-          (store.getState() || {})[stateModelsKey],
+          (store.getState() || {})[modelsStateKey],
           basePath,
           key
         );
@@ -125,8 +163,8 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
               getters: container.getters,
               actions: container.actions,
 
-              getContainer: storeContext.getContainer,
-              dispatch: container.dispatch
+              dispatch: container.dispatch,
+              getContainer: storeContext.getContainer
             },
             action.payload
           );

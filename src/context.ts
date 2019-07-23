@@ -18,6 +18,9 @@ export interface StoreContext {
   getContainer: GetContainer;
 
   addEpic$: Subject<ReduxObservableEpic>;
+  switchEpic$: Subject<void>;
+
+  reducerRootState: any;
 
   contextByModel: Map<
     Model,
@@ -77,6 +80,9 @@ export function createStoreContext(): StoreContext {
     getContainer: undefined!,
 
     addEpic$: new Subject(),
+    switchEpic$: new Subject(),
+
+    reducerRootState: undefined,
 
     contextByModel: new Map(),
 

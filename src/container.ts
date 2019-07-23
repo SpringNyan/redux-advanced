@@ -96,11 +96,12 @@ export class ContainerImpl<TModel extends Model = Model>
 
   public get state() {
     if (this.isRegistered) {
-      return getSubState(
-        this._storeContext.store.getState(),
-        this.basePath,
-        this.key
-      );
+      const rootState =
+        this._storeContext.reducerRootState !== undefined
+          ? this._storeContext.reducerRootState
+          : this._storeContext.store.getState();
+
+      return getSubState(rootState, this.basePath, this.key);
     }
 
     if (this.canRegister) {
@@ -113,7 +114,8 @@ export class ContainerImpl<TModel extends Model = Model>
             namespace: this.namespace,
             key: this.key,
 
-            required: argsRequired
+            required: argsRequired,
+            getContainer: this._storeContext.getContainer
           },
           cache.cachedArgs,
           true
@@ -124,7 +126,8 @@ export class ContainerImpl<TModel extends Model = Model>
           namespace: this.namespace,
           key: this.key,
 
-          args
+          args,
+          getContainer: this._storeContext.getContainer
         });
       }
 

@@ -7,9 +7,9 @@ import {
 } from "redux";
 import { createEpicMiddleware, Epic } from "redux-observable";
 import { Observable } from "rxjs";
-import { mergeMap } from "rxjs/operators";
+import { mergeMap, switchMap } from "rxjs/operators";
 
-import { AnyAction } from "./action";
+import { AnyAction, reloadActionHelper } from "./action";
 import { GetContainer } from "./container";
 import { createStoreContext } from "./context";
 import { createMiddleware } from "./middleware";
@@ -25,19 +25,20 @@ export interface ReduxAdvancedOptions {
     middleware: Middleware;
   }) => Store;
 
+  resolveActionName?: (paths: string[]) => string;
+
   defaultEffectErrorHandler?: (error: any) => void;
   defaultEpicErrorHandler?: (
     error: any,
     caught: Observable<AnyAction>
   ) => Observable<AnyAction>;
-
-  resolveActionName?: (paths: string[]) => string;
 }
 
 export interface ReduxAdvancedContext {
   store: Store;
   getContainer: GetContainer;
   registerModels: RegisterModels;
+  reload: (state?: any) => void;
 }
 
 export function init(options: ReduxAdvancedOptions): ReduxAdvancedContext {
@@ -50,8 +51,12 @@ export function init(options: ReduxAdvancedOptions): ReduxAdvancedContext {
 
   const rootReducer: Reducer = createReduxReducer(storeContext);
   const rootEpic: Epic = (action$, state$, ...rest) =>
-    storeContext.addEpic$.pipe(
-      mergeMap((epic) => epic(action$, state$, ...rest))
+    storeContext.switchEpic$.pipe(
+      switchMap(() =>
+        storeContext.addEpic$.pipe(
+          mergeMap((epic) => epic(action$, state$, ...rest))
+        )
+      )
     );
   const middleware = createMiddleware(storeContext);
 
@@ -70,9 +75,14 @@ export function init(options: ReduxAdvancedOptions): ReduxAdvancedContext {
     epicMiddleware.run(rootEpic);
   }
 
+  storeContext.switchEpic$.next();
+
   return {
     store: storeContext.store,
     getContainer: storeContext.getContainer,
-    registerModels: createRegisterModels(storeContext)
+    registerModels: createRegisterModels(storeContext),
+    reload: (state) => {
+      storeContext.store.dispatch(reloadActionHelper.create({ state }));
+    }
   };
 }

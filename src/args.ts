@@ -1,3 +1,4 @@
+import { GetContainer } from "./container";
 import { Model } from "./model";
 import { mapObjectDeeply, merge, nil } from "./util";
 
@@ -7,6 +8,7 @@ export interface ArgsContext<TDependencies extends object | undefined = any> {
   key: string | undefined;
 
   required: ArgsRequired;
+  getContainer: GetContainer;
 }
 
 export type ArgsFactory<
