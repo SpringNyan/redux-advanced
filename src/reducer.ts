@@ -6,13 +6,15 @@ import {
   parseBatchRegisterPayloads,
   parseBatchUnregisterPayloads,
   RegisterPayload,
+  reloadActionHelper,
+  ReloadPayload,
   UnregisterPayload
 } from "./action";
 import { argsRequired, generateArgs } from "./args";
 import { GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
-import { getSubState, setSubState, stateModelsKey } from "./state";
+import { getSubState, modelsStateKey, setSubState } from "./state";
 import { convertNamespaceToPath, splitLastPart } from "./util";
 
 export interface ReducerContext<
@@ -82,8 +84,8 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
       rootState = {
         ...rootState,
-        [stateModelsKey]: setSubState(
-          rootState[stateModelsKey],
+        [modelsStateKey]: setSubState(
+          rootState[modelsStateKey],
           modelIndex,
           basePath,
           key
@@ -131,8 +133,8 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
       rootState = {
         ...rootState,
-        [stateModelsKey]: setSubState(
-          rootState[stateModelsKey],
+        [modelsStateKey]: setSubState(
+          rootState[modelsStateKey],
           undefined,
           basePath,
           key
@@ -145,7 +147,19 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
     return rootState;
   }
 
+  function reload(rootState: any, payload: ReloadPayload) {
+    if (payload && payload.state !== undefined) {
+      return payload.state;
+    } else {
+      return rootState;
+    }
+  }
+
   const reduxReducer: ReduxReducer = (rootState, action) => {
+    if (reloadActionHelper.is(action)) {
+      return reload(rootState, action.payload);
+    }
+
     if (rootState === undefined) {
       rootState = {};
     }
@@ -170,7 +184,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
     const { baseNamespace, key, models } = modelsInfo;
     const basePath = convertNamespaceToPath(baseNamespace);
 
-    const modelIndex = getSubState(rootState[stateModelsKey], basePath, key);
+    const modelIndex = getSubState(rootState[modelsStateKey], basePath, key);
     if (modelIndex == null) {
       return rootState;
     }

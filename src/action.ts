@@ -15,7 +15,8 @@ import {
 
 export const actionTypes = {
   register: "@@REGISTER",
-  unregister: "@@UNREGISTER"
+  unregister: "@@UNREGISTER",
+  reload: "@@RELOAD"
 };
 
 export interface AnyAction {
@@ -176,6 +177,10 @@ export interface UnregisterPayload {
   namespace?: string;
 }
 
+export interface ReloadPayload {
+  state?: any;
+}
+
 export const batchRegisterActionHelper = new ActionHelperImpl<
   RegisterPayload[],
   void
@@ -185,6 +190,12 @@ export const batchUnregisterActionHelper = new ActionHelperImpl<
   UnregisterPayload[],
   void
 >(undefined!, undefined!, actionTypes.unregister);
+
+export const reloadActionHelper = new ActionHelperImpl<ReloadPayload, void>(
+  undefined!,
+  undefined!,
+  actionTypes.reload
+);
 
 export function parseBatchRegisterPayloads(
   action: AnyAction
