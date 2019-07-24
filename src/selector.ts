@@ -150,6 +150,11 @@ export interface CreateSelector<
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
+  <TResult>(
+    combiner: (
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+    ) => TResult
+  ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <
     T extends
       | Array<

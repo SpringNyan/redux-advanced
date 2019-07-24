@@ -43,7 +43,8 @@ describe("redux-advanced", () => {
         summary2: createSelector(
           [({ state }) => state.name, ({ state }) => state.age],
           ([name, age]) => `${name} - ${age}`
-        )
+        ),
+        getName: createSelector(({ state }) => () => state.name)
       }))
       .selectors({
         _: {
@@ -191,6 +192,11 @@ describe("redux-advanced", () => {
     const staticModelSetNameResult = await staticModelSetNamePromise;
     expect(staticModelSetNameResult).eq(undefined);
     expect(staticModelContainer.state.name).eq("meow");
+
+    expect(staticModelContainer.getters.getName()).eq("meow");
+    expect(staticModelContainer.getters.getName).eq(
+      staticModelContainer.getters.getName
+    );
 
     const staticModelSetAgePromise = staticModelContainer.actions.setAgeAsync.dispatch(
       233
