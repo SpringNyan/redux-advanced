@@ -149,6 +149,9 @@ describe("redux-advanced", () => {
       .args(({ required }) => ({
         name: required("fake")
       }))
+      .overrideState(() => ({ args }) => ({
+        name: args.name
+      }))
       .selectors({
         staticSummary: ({ getContainer }) =>
           getContainer(staticModel).getters.summary
@@ -247,11 +250,11 @@ describe("redux-advanced", () => {
     const dynamicModel1Container = storeGetContainer(dynamicModel, "1");
     expect(dynamicModel1Container.isRegistered).eq(false);
     expect(dynamicModel1Container.namespace).eq("dynamicModels/1");
+    expect(dynamicModel1Container.state.name).eq("fake");
 
     dynamicModel1Container.register({
       name: "hahaha"
     });
-    dynamicModel1Container.actions.setName.dispatch("hahaha");
     expect(dynamicModel1Container.isRegistered).eq(true);
     expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
     expect(dynamicModel1Container.getters.summary2).eq("hahaha - 0");
@@ -264,7 +267,6 @@ describe("redux-advanced", () => {
     dynamicModel2Container.register({
       name: "zzzzzz"
     });
-    dynamicModel2Container.actions.setName.dispatch("zzzzzz");
     expect(dynamicModel2Container.isRegistered).eq(true);
     expect(dynamicModel2Container.getters.summary).eq("zzzzzz - 0");
     expect(dynamicModel2Container.getters.summary2).eq("zzzzzz - 0");
@@ -282,7 +284,7 @@ describe("redux-advanced", () => {
     })();
     await timer(60).toPromise();
     expect(dynamicModel2SetNamePromiseResolved).eq(false);
-    expect(dynamicModel2Container.state.name).eq(""); // setName is not applied after unregister
+    expect(dynamicModel2Container.state.name).eq("fake"); // setName is not applied after unregister
 
     const autoRegisteredDynamicContainer = storeGetContainer(
       autoRegisteredDynamicModel,
