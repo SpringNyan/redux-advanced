@@ -82,15 +82,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
       const basePath = convertNamespaceToPath(baseNamespace);
       const model = models[modelIndex];
 
-      rootState = {
-        ...rootState,
-        [modelsStateKey]: setSubState(
-          rootState[modelsStateKey],
-          modelIndex,
-          basePath,
-          key
-        )
-      };
+      const oldRootState = rootState;
 
       if (payload.state !== undefined) {
         rootState = setSubState(rootState, payload.state, basePath, key);
@@ -119,6 +111,16 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
         rootState = setSubState(rootState, modelState, basePath, key);
       }
+
+      if (oldRootState === rootState) {
+        rootState = { ...rootState };
+      }
+      rootState[modelsStateKey] = setSubState(
+        rootState[modelsStateKey],
+        modelIndex,
+        basePath,
+        key
+      );
     });
 
     return rootState;
@@ -131,17 +133,18 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
       const { baseNamespace, key } = storeContext.findModelsInfo(namespace)!;
       const basePath = convertNamespaceToPath(baseNamespace);
 
-      rootState = {
-        ...rootState,
-        [modelsStateKey]: setSubState(
-          rootState[modelsStateKey],
-          undefined,
-          basePath,
-          key
-        )
-      };
-
+      const oldRootState = rootState;
       rootState = setSubState(rootState, undefined, basePath, key);
+
+      if (oldRootState === rootState) {
+        rootState = { ...rootState };
+      }
+      rootState[modelsStateKey] = setSubState(
+        rootState[modelsStateKey],
+        undefined,
+        basePath,
+        key
+      );
     });
 
     return rootState;

@@ -85,55 +85,64 @@ export type OverrideEpics<
 export function createReduxObservableEpic(
   storeContext: StoreContext,
   container: ContainerImpl
-): ReduxObservableEpic {
-  return (rootAction$, rootState$) => {
-    const outputObservables: Array<Observable<AnyAction>> = [];
+): ReduxObservableEpic | null {
+  const epics: Epic[] = [];
+  mapObjectDeeply({}, container.model.epics, (epic) => {
+    epics.push(epic);
+  });
 
-    mapObjectDeeply({}, container.model.epics, (epic) => {
-      let output$ = epic({
-        rootAction$,
-        rootState$,
+  if (epics.length > 0) {
+    return (rootAction$, rootState$) => {
+      const outputObservables: Array<Observable<AnyAction>> = [];
 
-        dependencies: storeContext.options.dependencies,
-        namespace: container.namespace,
-        key: container.key,
+      epics.forEach((epic) => {
+        let output$ = epic({
+          rootAction$,
+          rootState$,
 
-        getState: () => container.state,
-        getters: container.getters,
-        actions: container.actions,
+          dependencies: storeContext.options.dependencies,
+          namespace: container.namespace,
+          key: container.key,
 
-        getContainer: storeContext.getContainer
-      });
+          getState: () => container.state,
+          getters: container.getters,
+          actions: container.actions,
 
-      if (storeContext.options.defaultEpicErrorHandler != null) {
-        output$ = output$.pipe(
-          catchError(storeContext.options.defaultEpicErrorHandler)
-        );
-      }
+          getContainer: storeContext.getContainer
+        });
 
-      outputObservables.push(output$);
-    });
-
-    const unregisterActionType = createUnregisterActionHelper(
-      container.namespace
-    ).type;
-
-    const takeUntil$ = rootAction$.pipe(
-      filter((action: AnyAction) => {
-        if (action.type === unregisterActionType) {
-          return true;
-        }
-
-        if (batchUnregisterActionHelper.is(action)) {
-          return (action.payload || []).some(
-            (payload) => payload.namespace === container.namespace
+        if (storeContext.options.defaultEpicErrorHandler != null) {
+          output$ = output$.pipe(
+            catchError(storeContext.options.defaultEpicErrorHandler)
           );
         }
 
-        return false;
-      })
-    );
+        outputObservables.push(output$);
+      });
 
-    return merge(...outputObservables).pipe(takeUntil(takeUntil$));
-  };
+      const unregisterActionHelper = createUnregisterActionHelper(
+        container.namespace
+      );
+
+      const takeUntil$ = rootAction$.pipe(
+        filter((action) => {
+          if (unregisterActionHelper.is(action)) {
+            return true;
+          }
+
+          if (batchUnregisterActionHelper.is(action)) {
+            return (action.payload || []).some(
+              (payload) => payload.namespace === container.namespace
+            );
+          }
+
+          return false;
+        })
+      );
+
+      return merge(...outputObservables).pipe(takeUntil(takeUntil$));
+    };
+  } else {
+    return null;
+  }
 }
