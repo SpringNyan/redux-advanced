@@ -43,9 +43,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
       storeContext.containerByNamespace.set(namespace, container);
 
       const epic = createReduxObservableEpic(storeContext, container);
-      if (epic) {
-        storeContext.addEpic$.next(epic);
-      }
+      storeContext.addEpic$.next(epic);
     });
   }
 
@@ -64,7 +62,6 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
     storeContext.containerByNamespace.clear();
     storeContext.containerById.clear();
     storeContext.cacheById.clear();
-
     storeContext.switchEpic$.next();
 
     const batchRegisterPayloads: RegisterPayload[] = [];

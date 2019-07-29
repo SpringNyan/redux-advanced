@@ -43,7 +43,7 @@ export function getSubState(
   key: string | undefined
 ) {
   if (rootState == null) {
-    return rootState;
+    return undefined;
   }
 
   let state = rootState[basePath];
