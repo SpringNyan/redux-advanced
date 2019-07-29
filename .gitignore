@@ -1,6 +1,6 @@
 node_modules
-dist
-lib
+# dist
+# lib
 
 test/test.js
 test/test.build.js
