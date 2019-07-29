@@ -114,13 +114,13 @@ export function createReduxObservableEpic(
       outputObservables.push(output$);
     });
 
-    const unregisterActionType = createUnregisterActionHelper(
+    const unregisterActionHelper = createUnregisterActionHelper(
       container.namespace
-    ).type;
+    );
 
     const takeUntil$ = rootAction$.pipe(
-      filter((action: AnyAction) => {
-        if (action.type === unregisterActionType) {
+      filter((action) => {
+        if (unregisterActionHelper.is(action)) {
           return true;
         }
 

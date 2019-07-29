@@ -62,6 +62,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
     storeContext.containerByNamespace.clear();
     storeContext.containerById.clear();
     storeContext.cacheById.clear();
+
     storeContext.switchEpic$.next();
 
     const batchRegisterPayloads: RegisterPayload[] = [];

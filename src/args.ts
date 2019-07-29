@@ -71,7 +71,7 @@ export function generateArgs(
       merge(result, args);
     }
 
-    mapObjectDeeply({}, result, (value) => {
+    mapObjectDeeply(result, result, (value) => {
       if (isRequiredArg(value)) {
         if (optional) {
           return value[2];
