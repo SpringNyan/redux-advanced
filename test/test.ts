@@ -25,14 +25,14 @@ describe("redux-advanced", () => {
       }))
       .selectors({
         _: {
-          name: ({ state }) => state.name
+          name: ({ getState }) => getState().name
         },
-        summary: ({ state }) => `${state.name} - ${state.age}`
+        summary: ({ getState }) => `${getState().name} - ${getState().age}`
       })
       .selectors((createSelector) => ({
         _: {
           age: createSelector(
-            ({ state }) => state.age,
+            ({ getState }) => getState().age,
             (age) => age
           )
         },
@@ -41,10 +41,10 @@ describe("redux-advanced", () => {
           (summary, { dependencies }) => `${dependencies.appId} - ${summary}`
         ),
         summary2: createSelector(
-          [({ state }) => state.name, ({ state }) => state.age],
+          [({ getState }) => getState().name, ({ getState }) => getState().age],
           ([name, age]) => `${name} - ${age}`
         ),
-        getName: createSelector(({ state }) => () => state.name)
+        getName: createSelector(({ getState }) => () => getState().name)
       }))
       .selectors({
         _: {

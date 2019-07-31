@@ -12,6 +12,7 @@ export interface StateContext<
   key: string | undefined;
 
   args: StateArgs<TArgs>;
+
   getContainer: GetContainer;
 }
 

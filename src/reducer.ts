@@ -26,6 +26,7 @@ export interface ReducerContext<
   key: string | undefined;
 
   originalState: TState;
+
   getContainer: GetContainer;
 }
 
@@ -102,8 +103,9 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
             namespace,
             key,
 
-            required: argsRequired,
-            getContainer: storeContext.getContainer
+            getContainer: storeContext.getContainer,
+
+            required: argsRequired
           },
           payload.args
         );
@@ -114,6 +116,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
           key,
 
           args,
+
           getContainer: storeContext.getContainer
         });
 
@@ -208,6 +211,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
         key,
 
         originalState: state,
+
         getContainer: storeContext.getContainer
       });
     });

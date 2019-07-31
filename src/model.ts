@@ -199,7 +199,7 @@ export class ModelBuilder<
               oldSelector(
                 {
                   ...context,
-                  state: (context.state || {})[namespace],
+                  getState: () => (context.getState() || {})[namespace],
                   getters: context.getters[namespace],
                   actions: context.actions[namespace]
                 },
