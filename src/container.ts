@@ -275,10 +275,7 @@ export function createContainerDispatch(
   container: ContainerImpl
 ): ContainerDispatch {
   const dispatch: Dispatch = (action) => {
-    if (
-      container.isRegistered &&
-      containerDispatch === container.cache.cachedDispatch
-    ) {
+    if (containerDispatch === container.cache.cachedDispatch) {
       storeContext.store.dispatch(action);
     }
 
