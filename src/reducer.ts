@@ -25,7 +25,7 @@ export interface ReducerContext<
   namespace: string;
   key: string | undefined;
 
-  originalState: TState;
+  prevState: TState;
 
   getContainer: GetContainer;
 }
@@ -210,7 +210,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
         namespace,
         key,
 
-        originalState: state,
+        prevState: state,
 
         getContainer: storeContext.getContainer
       });

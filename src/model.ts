@@ -219,7 +219,7 @@ export class ModelBuilder<
             const newReducer: Reducer = (_state, payload, context) =>
               oldReducer(_state[namespace], payload, {
                 ...context,
-                originalState: (context.originalState || {})[namespace]
+                prevState: (context.prevState || {})[namespace]
               });
 
             return newReducer;

@@ -110,6 +110,13 @@ describe("redux-advanced", () => {
           await actions.innerThrow.dispatch({});
         }
       })
+      .selectors((createSelector) => ({
+        setName: createSelector(
+          ({ actions, dispatch, getState }) => (name: string) => {
+            dispatch(actions.setName, name);
+          }
+        )
+      }))
       .overrideEffects((base) => ({
         overrideSetInfo: async (context) => {
           await base.overrideSetInfo(context);
@@ -200,6 +207,9 @@ describe("redux-advanced", () => {
     expect(staticModelContainer.getters.getName).eq(
       staticModelContainer.getters.getName
     );
+
+    staticModelContainer.getters.setName("haha");
+    expect(staticModelContainer.state.name).eq("haha");
 
     const staticModelSetAgePromise = staticModelContainer.actions.setAgeAsync.dispatch(
       233
