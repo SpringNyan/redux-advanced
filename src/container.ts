@@ -1,12 +1,17 @@
+import { Dispatch } from "redux";
+
 import {
+  ActionHelper,
   createActionHelpers,
   createRegisterActionHelper,
   createUnregisterActionHelper,
-  ExtractActionHelpersFromReducersEffects
+  ExtractActionHelperResult,
+  ExtractActionHelpersFromReducersEffects,
+  ExtractActionPayload
 } from "./action";
 import { argsRequired, ExtractArgs, generateArgs } from "./args";
 import { StoreContext } from "./context";
-import { createEffectDispatch, EffectDispatch, ExtractEffects } from "./effect";
+import { ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers } from "./reducer";
 import {
@@ -34,11 +39,6 @@ export interface Container<TModel extends Model = any> {
   register(args?: ExtractArgs<TModel>): void;
   unregister(): void;
 }
-
-export type GetContainer = (<TModel extends Model>(
-  model: TModel
-) => Container<TModel>) &
-  (<TModel extends Model>(model: TModel, key: string) => Container<TModel>);
 
 export class ContainerImpl<TModel extends Model = Model>
   implements Container<TModel> {
@@ -114,8 +114,9 @@ export class ContainerImpl<TModel extends Model = Model>
             namespace: this.namespace,
             key: this.key,
 
-            required: argsRequired,
-            getContainer: this._storeContext.getContainer
+            getContainer: this._storeContext.getContainer,
+
+            required: argsRequired
           },
           cache.cachedArgs,
           true
@@ -127,6 +128,7 @@ export class ContainerImpl<TModel extends Model = Model>
           key: this.key,
 
           args,
+
           getContainer: this._storeContext.getContainer
         });
       }
@@ -168,12 +170,15 @@ export class ContainerImpl<TModel extends Model = Model>
     throw new Error("namespace is already registered by other container");
   }
 
-  public get dispatch(): EffectDispatch {
+  public get dispatch(): ContainerDispatch {
     if (this.isRegistered || this.canRegister) {
       const cache = this.cache;
 
       if (cache.cachedDispatch === undefined) {
-        cache.cachedDispatch = createEffectDispatch(this._storeContext, this);
+        cache.cachedDispatch = createContainerDispatch(
+          this._storeContext,
+          this
+        );
       }
 
       return cache.cachedDispatch;
@@ -220,6 +225,11 @@ export class ContainerImpl<TModel extends Model = Model>
   }
 }
 
+export type GetContainer = (<TModel extends Model>(
+  model: TModel
+) => Container<TModel>) &
+  (<TModel extends Model>(model: TModel, key: string) => Container<TModel>);
+
 export function createGetContainer(storeContext: StoreContext): GetContainer {
   return (model: Model, key?: string) => {
     const modelContext = storeContext.contextByModel.get(model);
@@ -250,4 +260,36 @@ export function createGetContainer(storeContext: StoreContext): GetContainer {
 
     return container;
   };
+}
+
+export type ContainerDispatch = (<TPayload>(
+  payload: TPayload extends ActionHelper ? never : TPayload
+) => TPayload) &
+  (<TActionHelper extends ActionHelper>(
+    actionHelper: TActionHelper,
+    payload: ExtractActionPayload<TActionHelper>
+  ) => Promise<ExtractActionHelperResult<TActionHelper>>);
+
+export function createContainerDispatch(
+  storeContext: StoreContext,
+  container: ContainerImpl
+): ContainerDispatch {
+  const dispatch: Dispatch = (action) => {
+    if (containerDispatch === container.cache.cachedDispatch) {
+      storeContext.store.dispatch(action);
+    }
+
+    return action;
+  };
+
+  const containerDispatch: ContainerDispatch = (arg1: any, arg2?: any) => {
+    const actionHelper = arg1 as ActionHelper;
+    if (actionHelper && typeof actionHelper.dispatch === "function") {
+      return actionHelper.dispatch(arg2, dispatch);
+    } else {
+      return dispatch(arg1);
+    }
+  };
+
+  return containerDispatch;
 }

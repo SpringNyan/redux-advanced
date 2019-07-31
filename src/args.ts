@@ -7,8 +7,9 @@ export interface ArgsContext<TDependencies extends object | undefined = any> {
   namespace: string;
   key: string | undefined;
 
-  required: ArgsRequired;
   getContainer: GetContainer;
+
+  required: ArgsRequired;
 }
 
 export type ArgsFactory<

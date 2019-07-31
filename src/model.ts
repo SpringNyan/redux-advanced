@@ -199,7 +199,7 @@ export class ModelBuilder<
               oldSelector(
                 {
                   ...context,
-                  state: (context.state || {})[namespace],
+                  getState: () => (context.getState() || {})[namespace],
                   getters: context.getters[namespace],
                   actions: context.actions[namespace]
                 },
@@ -219,7 +219,7 @@ export class ModelBuilder<
             const newReducer: Reducer = (_state, payload, context) =>
               oldReducer(_state[namespace], payload, {
                 ...context,
-                originalState: (context.originalState || {})[namespace]
+                prevState: (context.prevState || {})[namespace]
               });
 
             return newReducer;
@@ -660,7 +660,7 @@ export class ModelBuilder<
 
     if (Array.isArray(epics)) {
       epics = epics.reduce<{ [key: string]: Epic }>((obj, epic) => {
-        obj["__ANONYMOUS_EPIC_" + ModelBuilder._nextEpicId] = epic;
+        obj["$$EPIC_" + ModelBuilder._nextEpicId] = epic;
         ModelBuilder._nextEpicId += 1;
         return obj;
       }, {}) as T;

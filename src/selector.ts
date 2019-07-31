@@ -1,5 +1,5 @@
 import { ActionHelpers } from "./action";
-import { ContainerImpl, GetContainer } from "./container";
+import { ContainerDispatch, ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { DeepPartial, mapObjectDeeply } from "./util";
@@ -14,11 +14,13 @@ export interface SelectorContext<
   namespace: string;
   key: string | undefined;
 
-  state: TState;
+  getState: () => TState;
   getters: TGetters;
   actions: TActionHelpers;
 
   getContainer: GetContainer;
+
+  dispatch: ContainerDispatch;
 }
 
 export type Selector<
@@ -651,11 +653,13 @@ export function createGetters<TModel extends Model>(
               namespace: container.namespace,
               key: container.key,
 
-              state: container.state,
+              getState: () => container.state,
               getters: container.getters,
               actions: container.actions,
 
-              getContainer: storeContext.getContainer
+              getContainer: storeContext.getContainer,
+
+              dispatch: container.dispatch
             },
             cache
           );

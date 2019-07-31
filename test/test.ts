@@ -25,14 +25,14 @@ describe("redux-advanced", () => {
       }))
       .selectors({
         _: {
-          name: ({ state }) => state.name
+          name: ({ getState }) => getState().name
         },
-        summary: ({ state }) => `${state.name} - ${state.age}`
+        summary: ({ getState }) => `${getState().name} - ${getState().age}`
       })
       .selectors((createSelector) => ({
         _: {
           age: createSelector(
-            ({ state }) => state.age,
+            ({ getState }) => getState().age,
             (age) => age
           )
         },
@@ -41,10 +41,10 @@ describe("redux-advanced", () => {
           (summary, { dependencies }) => `${dependencies.appId} - ${summary}`
         ),
         summary2: createSelector(
-          [({ state }) => state.name, ({ state }) => state.age],
+          [({ getState }) => getState().name, ({ getState }) => getState().age],
           ([name, age]) => `${name} - ${age}`
         ),
-        getName: createSelector(({ state }) => () => state.name)
+        getName: createSelector(({ getState }) => () => getState().name)
       }))
       .selectors({
         _: {
@@ -110,6 +110,13 @@ describe("redux-advanced", () => {
           await actions.innerThrow.dispatch({});
         }
       })
+      .selectors((createSelector) => ({
+        setName: createSelector(
+          ({ actions, dispatch, getState }) => (name: string) => {
+            dispatch(actions.setName, name);
+          }
+        )
+      }))
       .overrideEffects((base) => ({
         overrideSetInfo: async (context) => {
           await base.overrideSetInfo(context);
@@ -200,6 +207,9 @@ describe("redux-advanced", () => {
     expect(staticModelContainer.getters.getName).eq(
       staticModelContainer.getters.getName
     );
+
+    staticModelContainer.getters.setName("haha");
+    expect(staticModelContainer.state.name).eq("haha");
 
     const staticModelSetAgePromise = staticModelContainer.actions.setAgeAsync.dispatch(
       233

@@ -12,7 +12,7 @@ import {
   batchUnregisterActionHelper,
   createUnregisterActionHelper
 } from "./action";
-import { ContainerImpl, GetContainer } from "./container";
+import { ContainerDispatch, ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
@@ -36,6 +36,8 @@ export interface EpicContext<
   actions: TActionHelpers;
 
   getContainer: GetContainer;
+
+  dispatch: ContainerDispatch;
 }
 
 export type Epic<
@@ -85,64 +87,57 @@ export type OverrideEpics<
 export function createReduxObservableEpic(
   storeContext: StoreContext,
   container: ContainerImpl
-): ReduxObservableEpic | null {
-  const epics: Epic[] = [];
-  mapObjectDeeply({}, container.model.epics, (epic) => {
-    epics.push(epic);
-  });
+): ReduxObservableEpic {
+  return (rootAction$, rootState$) => {
+    const outputObservables: Array<Observable<AnyAction>> = [];
 
-  if (epics.length > 0) {
-    return (rootAction$, rootState$) => {
-      const outputObservables: Array<Observable<AnyAction>> = [];
+    mapObjectDeeply({}, container.model.epics, (epic) => {
+      let output$ = epic({
+        rootAction$,
+        rootState$,
 
-      epics.forEach((epic) => {
-        let output$ = epic({
-          rootAction$,
-          rootState$,
+        dependencies: storeContext.options.dependencies,
+        namespace: container.namespace,
+        key: container.key,
 
-          dependencies: storeContext.options.dependencies,
-          namespace: container.namespace,
-          key: container.key,
+        getState: () => container.state,
+        getters: container.getters,
+        actions: container.actions,
 
-          getState: () => container.state,
-          getters: container.getters,
-          actions: container.actions,
+        getContainer: storeContext.getContainer,
 
-          getContainer: storeContext.getContainer
-        });
+        dispatch: container.dispatch
+      });
 
-        if (storeContext.options.defaultEpicErrorHandler != null) {
-          output$ = output$.pipe(
-            catchError(storeContext.options.defaultEpicErrorHandler)
+      if (storeContext.options.defaultEpicErrorHandler != null) {
+        output$ = output$.pipe(
+          catchError(storeContext.options.defaultEpicErrorHandler)
+        );
+      }
+
+      outputObservables.push(output$);
+    });
+
+    const unregisterActionHelper = createUnregisterActionHelper(
+      container.namespace
+    );
+
+    const takeUntil$ = rootAction$.pipe(
+      filter((action) => {
+        if (unregisterActionHelper.is(action)) {
+          return true;
+        }
+
+        if (batchUnregisterActionHelper.is(action)) {
+          return (action.payload || []).some(
+            (payload) => payload.namespace === container.namespace
           );
         }
 
-        outputObservables.push(output$);
-      });
+        return false;
+      })
+    );
 
-      const unregisterActionHelper = createUnregisterActionHelper(
-        container.namespace
-      );
-
-      const takeUntil$ = rootAction$.pipe(
-        filter((action) => {
-          if (unregisterActionHelper.is(action)) {
-            return true;
-          }
-
-          if (batchUnregisterActionHelper.is(action)) {
-            return (action.payload || []).some(
-              (payload) => payload.namespace === container.namespace
-            );
-          }
-
-          return false;
-        })
-      );
-
-      return merge(...outputObservables).pipe(takeUntil(takeUntil$));
-    };
-  } else {
-    return null;
-  }
+    return merge(...outputObservables).pipe(takeUntil(takeUntil$));
+  };
 }

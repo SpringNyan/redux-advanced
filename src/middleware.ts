@@ -43,9 +43,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
       storeContext.containerByNamespace.set(namespace, container);
 
       const epic = createReduxObservableEpic(storeContext, container);
-      if (epic) {
-        storeContext.addEpic$.next(epic);
-      }
+      storeContext.addEpic$.next(epic);
     });
   }
 
@@ -166,8 +164,9 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
               getters: container.getters,
               actions: container.actions,
 
-              dispatch: container.dispatch,
-              getContainer: storeContext.getContainer
+              getContainer: storeContext.getContainer,
+
+              dispatch: container.dispatch
             },
             action.payload
           );
