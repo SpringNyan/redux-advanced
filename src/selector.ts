@@ -653,7 +653,7 @@ export function createGetters<TModel extends Model>(
               namespace: container.namespace,
               key: container.key,
 
-              getState: () => container.state,
+              getState: () => container.getState(),
               getters: container.getters,
               actions: container.actions,
 
