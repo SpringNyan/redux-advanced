@@ -26,15 +26,15 @@ export interface Container<TModel extends Model = any> {
   namespace: string;
   key: string | undefined;
 
-  isRegistered: boolean;
-  canRegister: boolean;
-
-  state: ExtractState<TModel>;
+  getState: () => ExtractState<TModel>;
   getters: ExtractGettersFromSelectors<ExtractSelectors<TModel>>;
   actions: ExtractActionHelpersFromReducersEffects<
     ExtractReducers<TModel>,
     ExtractEffects<TModel>
   >;
+
+  isRegistered: boolean;
+  canRegister: boolean;
 
   register(args?: ExtractArgs<TModel>): void;
   unregister(): void;
@@ -94,7 +94,7 @@ export class ContainerImpl<TModel extends Model = Model>
     return !this._storeContext.containerByNamespace.has(this.namespace);
   }
 
-  public get state() {
+  public getState() {
     if (this.isRegistered) {
       const rootState =
         this._storeContext.reducerRootState !== undefined

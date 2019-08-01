@@ -160,7 +160,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
               namespace: container.namespace,
               key: container.key,
 
-              getState: () => container!.state,
+              getState: () => container!.getState(),
               getters: container.getters,
               actions: container.actions,
 

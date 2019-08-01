@@ -189,19 +189,19 @@ describe("redux-advanced", () => {
     expect(staticModelContainer.isRegistered).eq(true);
     expect(staticModelContainer.canRegister).eq(false);
 
-    expect(staticModelContainer.state.name).eq("nyan");
+    expect(staticModelContainer.getState().name).eq("nyan");
     expect(staticModelContainer.getters.fullSummary).eq("233 - nyan - 0");
 
     staticModelContainer.actions.setAge.dispatch(998);
-    expect(staticModelContainer.state.age).eq(998);
+    expect(staticModelContainer.getState().age).eq(998);
 
     const staticModelSetNamePromise = staticModelContainer.actions.setNameAsync.dispatch(
       "meow"
     );
-    expect(staticModelContainer.state.name).eq("nyan");
+    expect(staticModelContainer.getState().name).eq("nyan");
     const staticModelSetNameResult = await staticModelSetNamePromise;
     expect(staticModelSetNameResult).eq(undefined);
-    expect(staticModelContainer.state.name).eq("meow");
+    expect(staticModelContainer.getState().name).eq("meow");
 
     expect(staticModelContainer.getters.getName()).eq("meow");
     expect(staticModelContainer.getters.getName).eq(
@@ -209,22 +209,22 @@ describe("redux-advanced", () => {
     );
 
     staticModelContainer.getters.setName("haha");
-    expect(staticModelContainer.state.name).eq("haha");
+    expect(staticModelContainer.getState().name).eq("haha");
 
     const staticModelSetAgePromise = staticModelContainer.actions.setAgeAsync.dispatch(
       233
     );
-    expect(staticModelContainer.state.age).eq(998);
+    expect(staticModelContainer.getState().age).eq(998);
     const staticModelSetAgeResult = await staticModelSetAgePromise;
     expect(staticModelSetAgeResult).eq("233");
-    expect(staticModelContainer.state.age).eq(233);
+    expect(staticModelContainer.getState().age).eq(233);
 
     await staticModelContainer.actions._.setName1.dispatch("_1");
-    expect(staticModelContainer.state.name).eq("_1");
+    expect(staticModelContainer.getState().name).eq("_1");
     await staticModelContainer.actions._.nested.setName2.dispatch("_2");
-    expect(staticModelContainer.state.name).eq("_2");
+    expect(staticModelContainer.getState().name).eq("_2");
     await staticModelContainer.actions._.setAge1.dispatch(1);
-    expect(staticModelContainer.state.age).eq(1);
+    expect(staticModelContainer.getState().age).eq(1);
 
     expect(setAge2Count).eq(0);
     expect(setAge2Count2).eq(0);
@@ -236,8 +236,8 @@ describe("redux-advanced", () => {
     expect(setAge2Count2).eq(6);
 
     await staticModelContainer.actions.overrideSetInfo.dispatch({});
-    expect(staticModelContainer.state.name).eq("haha");
-    expect(staticModelContainer.state.age).eq(666);
+    expect(staticModelContainer.getState().name).eq("haha");
+    expect(staticModelContainer.getState().age).eq(666);
 
     expect(staticModelContainer.getters._.name).eq("haha");
     expect(staticModelContainer.getters._.age).eq(666);
@@ -260,7 +260,7 @@ describe("redux-advanced", () => {
     const dynamicModel1Container = storeGetContainer(dynamicModel, "1");
     expect(dynamicModel1Container.isRegistered).eq(false);
     expect(dynamicModel1Container.namespace).eq("dynamicModels/1");
-    expect(dynamicModel1Container.state.name).eq("fake");
+    expect(dynamicModel1Container.getState().name).eq("fake");
 
     dynamicModel1Container.register({
       name: "hahaha"
@@ -294,14 +294,14 @@ describe("redux-advanced", () => {
     })();
     await timer(60).toPromise();
     expect(dynamicModel2SetNamePromiseResolved).eq(false);
-    expect(dynamicModel2Container.state.name).eq("fake"); // setName is not applied after unregister
+    expect(dynamicModel2Container.getState().name).eq("fake"); // setName is not applied after unregister
 
     const autoRegisteredDynamicContainer = storeGetContainer(
       autoRegisteredDynamicModel,
       "O_O"
     );
     expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
-    expect(autoRegisteredDynamicContainer.state.name).eq("");
+    expect(autoRegisteredDynamicContainer.getState().name).eq("");
 
     expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
     expect(autoRegisteredDynamicContainer.getters.summary).eq(" - 0");
@@ -310,6 +310,6 @@ describe("redux-advanced", () => {
     autoRegisteredDynamicContainer.actions.setName.dispatch("^_^");
 
     expect(autoRegisteredDynamicContainer.isRegistered).eq(true);
-    expect(autoRegisteredDynamicContainer.state.name).eq("^_^");
+    expect(autoRegisteredDynamicContainer.getState().name).eq("^_^");
   });
 });
