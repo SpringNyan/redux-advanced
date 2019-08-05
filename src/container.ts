@@ -1,13 +1,8 @@
-import { Dispatch } from "redux";
-
 import {
-  ActionHelper,
   createActionHelpers,
   createRegisterActionHelper,
   createUnregisterActionHelper,
-  ExtractActionHelperResult,
-  ExtractActionHelpersFromReducersEffects,
-  ExtractActionPayload
+  ExtractActionHelpersFromReducersEffects
 } from "./action";
 import { argsRequired, ExtractArgs, generateArgs } from "./args";
 import { StoreContext } from "./context";
@@ -73,7 +68,7 @@ export class ContainerImpl<TModel extends Model = Model>
         cachedState: nil,
         cachedGetters: undefined,
         cachedActions: undefined,
-        cachedDispatch: undefined,
+        cachedCall: undefined,
 
         selectorCacheByPath: new Map()
       };
@@ -170,18 +165,15 @@ export class ContainerImpl<TModel extends Model = Model>
     throw new Error("namespace is already registered by other container");
   }
 
-  public get dispatch(): ContainerDispatch {
+  public get call(): ContainerCall {
     if (this.isRegistered || this.canRegister) {
       const cache = this.cache;
 
-      if (cache.cachedDispatch === undefined) {
-        cache.cachedDispatch = createContainerDispatch(
-          this._storeContext,
-          this
-        );
+      if (cache.cachedCall === undefined) {
+        cache.cachedCall = createContainerCall(this);
       }
 
-      return cache.cachedDispatch;
+      return cache.cachedCall;
     }
 
     throw new Error("namespace is already registered by other container");
@@ -262,34 +254,18 @@ export function createGetContainer(storeContext: StoreContext): GetContainer {
   };
 }
 
-export type ContainerDispatch = (<TPayload>(
-  payload: TPayload extends ActionHelper ? never : TPayload
-) => TPayload) &
-  (<TActionHelper extends ActionHelper>(
-    actionHelper: TActionHelper,
-    payload: ExtractActionPayload<TActionHelper>
-  ) => Promise<ExtractActionHelperResult<TActionHelper>>);
+export type ContainerCall = <T>(func: () => T | Promise<T>) => Promise<T>;
 
-export function createContainerDispatch(
-  storeContext: StoreContext,
-  container: ContainerImpl
-): ContainerDispatch {
-  const dispatch: Dispatch = (action) => {
-    if (containerDispatch === container.cache.cachedDispatch) {
-      storeContext.store.dispatch(action);
+export function createContainerCall(container: ContainerImpl): ContainerCall {
+  const call: ContainerCall = async (func) => {
+    if (call === container.cache.cachedCall) {
+      return func();
     }
 
-    return action;
+    return new Promise(() => {
+      // never resolve
+    });
   };
 
-  const containerDispatch: ContainerDispatch = (arg1: any, arg2?: any) => {
-    const actionHelper = arg1 as ActionHelper;
-    if (actionHelper && typeof actionHelper.dispatch === "function") {
-      return actionHelper.dispatch(arg2, dispatch);
-    } else {
-      return dispatch(arg1);
-    }
-  };
-
-  return containerDispatch;
+  return call;
 }
