@@ -12,7 +12,7 @@ import {
   batchUnregisterActionHelper,
   createUnregisterActionHelper
 } from "./action";
-import { ContainerDispatch, ContainerImpl, GetContainer } from "./container";
+import { ContainerCall, ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
@@ -36,8 +36,7 @@ export interface EpicContext<
   actions: TActionHelpers;
 
   getContainer: GetContainer;
-
-  dispatch: ContainerDispatch;
+  call: ContainerCall;
 }
 
 export type Epic<
@@ -105,8 +104,7 @@ export function createReduxObservableEpic(
         actions: container.actions,
 
         getContainer: storeContext.getContainer,
-
-        dispatch: container.dispatch
+        call: container.call
       });
 
       if (storeContext.options.defaultEpicErrorHandler != null) {

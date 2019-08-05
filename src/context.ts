@@ -46,7 +46,7 @@ export interface StoreContext {
       cachedState: any;
       cachedGetters: any;
       cachedActions: any;
-      cachedDispatch: any;
+      cachedCall: any;
 
       selectorCacheByPath: Map<string, SelectorCache>;
     }
