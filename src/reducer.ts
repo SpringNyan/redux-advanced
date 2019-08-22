@@ -11,23 +11,15 @@ import {
   UnregisterPayload
 } from "./action";
 import { argsRequired, generateArgs } from "./args";
-import { GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { getSubState, modelsStateKey, setSubState } from "./state";
 import { convertNamespaceToPath, splitLastPart } from "./util";
 
-export interface ReducerContext<
-  TDependencies = any,
-  TState extends object = any
-> {
+export interface ReducerContext<TDependencies = any> {
   dependencies: TDependencies;
   namespace: string;
   key: string | undefined;
-
-  prevState: TState;
-
-  getContainer: GetContainer;
 }
 
 export type Reducer<
@@ -37,7 +29,7 @@ export type Reducer<
 > = (
   state: TState,
   payload: TPayload,
-  context: ReducerContext<TDependencies, TState>
+  context: ReducerContext<TDependencies>
 ) => void;
 
 export interface Reducers<TDependencies = any, TState extends object = any> {
@@ -201,11 +193,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
       reducer(draft, action.payload, {
         dependencies: storeContext.options.dependencies,
         namespace,
-        key,
-
-        prevState: state,
-
-        getContainer: storeContext.getContainer
+        key
       });
     });
 
