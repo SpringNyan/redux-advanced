@@ -4,7 +4,7 @@ import {
   createActionHelpers,
   ExtractActionHelpersFromReducersEffects
 } from "./action";
-import { argsRequired, ExtractArgs, generateArgs } from "./args";
+import { ExtractArgs, generateArgs, requiredArgFunc } from "./args";
 import { StoreContext } from "./context";
 import { ExtractEffects } from "./effect";
 import { Model } from "./model";
@@ -111,7 +111,7 @@ export class ContainerImpl<TModel extends Model = Model>
 
             getContainer: this._storeContext.getContainer,
 
-            required: argsRequired
+            required: requiredArgFunc
           },
           cache.cachedArgs,
           true

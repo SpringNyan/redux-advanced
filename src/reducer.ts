@@ -10,7 +10,7 @@ import {
   ReloadPayload,
   UnregisterPayload
 } from "./action";
-import { argsRequired, generateArgs } from "./args";
+import { generateArgs, requiredArgFunc } from "./args";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { getSubState, modelsStateKey, setSubState } from "./state";
@@ -94,7 +94,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
             getContainer: storeContext.getContainer,
 
-            required: argsRequired
+            required: requiredArgFunc
           },
           payload.args
         );

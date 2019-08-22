@@ -639,7 +639,7 @@ export class ModelBuilder<
 
     if (Array.isArray(epics)) {
       epics = epics.reduce<{ [key: string]: Epic }>((obj, epic) => {
-        obj["$$EPIC_" + ModelBuilder._nextEpicId] = epic;
+        obj["@@EPIC_" + ModelBuilder._nextEpicId] = epic;
         ModelBuilder._nextEpicId += 1;
         return obj;
       }, {}) as T;
