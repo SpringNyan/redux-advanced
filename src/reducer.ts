@@ -2,9 +2,9 @@ import produce from "immer";
 import { Reducer as ReduxReducer } from "redux";
 
 import {
+  batchRegisterActionHelper,
+  batchUnregisterActionHelper,
   ExtractActionPayload,
-  parseBatchRegisterPayloads,
-  parseBatchUnregisterPayloads,
   RegisterPayload,
   reloadActionHelper,
   ReloadPayload,
@@ -74,7 +74,7 @@ export type OverrideReducers<
 export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
   function register(rootState: any, payloads: RegisterPayload[]) {
     payloads.forEach((payload) => {
-      const namespace = payload.namespace!;
+      const namespace = payload.namespace;
       const modelIndex = payload.model || 0;
 
       const { baseNamespace, key, models } = storeContext.findModelsInfo(
@@ -129,7 +129,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
   function unregister(rootState: any, payloads: UnregisterPayload[]) {
     payloads.forEach((payload) => {
-      const namespace = payload.namespace!;
+      const namespace = payload.namespace;
 
       const { baseNamespace, key } = storeContext.findModelsInfo(namespace)!;
       const basePath = convertNamespaceToPath(baseNamespace);
@@ -169,14 +169,10 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
     const [namespace, actionName] = splitLastPart(action.type);
 
-    const batchRegisterPayloads = parseBatchRegisterPayloads(action);
-    if (batchRegisterPayloads) {
-      rootState = register(rootState, batchRegisterPayloads);
-    }
-
-    const batchUnregisterPayloads = parseBatchUnregisterPayloads(action);
-    if (batchUnregisterPayloads) {
-      rootState = unregister(rootState, batchUnregisterPayloads);
+    if (batchRegisterActionHelper.is(action)) {
+      rootState = register(rootState, action.payload);
+    } else if (batchUnregisterActionHelper.is(action)) {
+      rootState = unregister(rootState, action.payload);
     }
 
     const modelsInfo = storeContext.findModelsInfo(namespace);

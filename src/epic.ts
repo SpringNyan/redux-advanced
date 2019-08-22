@@ -9,8 +9,7 @@ import { catchError, filter, takeUntil } from "rxjs/operators";
 import {
   ActionHelpers,
   AnyAction,
-  batchUnregisterActionHelper,
-  createUnregisterActionHelper
+  batchUnregisterActionHelper
 } from "./action";
 import { ContainerCall, ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
@@ -116,16 +115,8 @@ export function createReduxObservableEpic(
       outputObservables.push(output$);
     });
 
-    const unregisterActionHelper = createUnregisterActionHelper(
-      container.namespace
-    );
-
     const takeUntil$ = rootAction$.pipe(
       filter((action) => {
-        if (unregisterActionHelper.is(action)) {
-          return true;
-        }
-
         if (batchUnregisterActionHelper.is(action)) {
           return (action.payload || []).some(
             (payload) => payload.namespace === container.namespace

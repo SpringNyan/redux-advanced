@@ -1,7 +1,7 @@
 import {
+  batchRegisterActionHelper,
+  batchUnregisterActionHelper,
   createActionHelpers,
-  createRegisterActionHelper,
-  createUnregisterActionHelper,
   ExtractActionHelpersFromReducersEffects
 } from "./action";
 import { argsRequired, ExtractArgs, generateArgs } from "./args";
@@ -194,17 +194,24 @@ export class ContainerImpl<TModel extends Model = Model>
     const modelIndex = models.indexOf(this.model);
 
     this._storeContext.store.dispatch(
-      createRegisterActionHelper(this.namespace).create({
-        model: modelIndex,
-        args
-      })
+      batchRegisterActionHelper.create([
+        {
+          namespace: this.namespace,
+          model: modelIndex,
+          args
+        }
+      ])
     );
   }
 
   public unregister() {
     if (this.isRegistered) {
       this._storeContext.store.dispatch(
-        createUnregisterActionHelper(this.namespace).create({})
+        batchUnregisterActionHelper.create([
+          {
+            namespace: this.namespace
+          }
+        ])
       );
     } else {
       this.clearCache();

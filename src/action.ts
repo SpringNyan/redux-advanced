@@ -5,19 +5,7 @@ import { StoreContext } from "./context";
 import { Effect, Effects, ExtractEffectResult, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
-import {
-  joinLastPart,
-  mapObjectDeeply,
-  merge,
-  PatchedPromise,
-  splitLastPart
-} from "./util";
-
-export const actionTypes = {
-  register: "@@REGISTER",
-  unregister: "@@UNREGISTER",
-  reload: "@@RELOAD"
-};
+import { joinLastPart, mapObjectDeeply, merge, PatchedPromise } from "./util";
 
 export interface AnyAction {
   type: string;
@@ -166,18 +154,16 @@ export function createActionHelpers<TModel extends Model>(
   return actionHelpers as any;
 }
 
+export const actionTypes = {
+  register: "@@REGISTER",
+  unregister: "@@UNREGISTER",
+  reload: "@@RELOAD"
+};
+
 export interface RegisterPayload {
-  namespace?: string;
+  namespace: string;
   model?: number;
   args?: any;
-  state?: any;
-}
-
-export interface UnregisterPayload {
-  namespace?: string;
-}
-
-export interface ReloadPayload {
   state?: any;
 }
 
@@ -186,63 +172,21 @@ export const batchRegisterActionHelper = new ActionHelperImpl<
   void
 >(undefined!, undefined!, actionTypes.register);
 
+export interface UnregisterPayload {
+  namespace: string;
+}
+
 export const batchUnregisterActionHelper = new ActionHelperImpl<
   UnregisterPayload[],
   void
 >(undefined!, undefined!, actionTypes.unregister);
+
+export interface ReloadPayload {
+  state?: any;
+}
 
 export const reloadActionHelper = new ActionHelperImpl<ReloadPayload, void>(
   undefined!,
   undefined!,
   actionTypes.reload
 );
-
-export function parseBatchRegisterPayloads(
-  action: AnyAction
-): RegisterPayload[] | null {
-  if (batchRegisterActionHelper.is(action)) {
-    return action.payload || [];
-  }
-
-  const [namespace, actionName] = splitLastPart(action.type);
-  if (actionName === actionTypes.register) {
-    return [{ ...action.payload, namespace }];
-  }
-
-  return null;
-}
-
-export function parseBatchUnregisterPayloads(
-  action: AnyAction
-): UnregisterPayload[] | null {
-  if (batchUnregisterActionHelper.is(action)) {
-    return action.payload || [];
-  }
-
-  const [namespace, actionName] = splitLastPart(action.type);
-  if (actionName === actionTypes.unregister) {
-    return [{ ...action.payload, namespace }];
-  }
-
-  return null;
-}
-
-export function createRegisterActionHelper(
-  namespace: string
-): ActionHelper<RegisterPayload, void> {
-  return new ActionHelperImpl(
-    undefined!,
-    undefined!,
-    joinLastPart(namespace, actionTypes.register)
-  );
-}
-
-export function createUnregisterActionHelper(
-  namespace: string
-): ActionHelper<UnregisterPayload, void> {
-  return new ActionHelperImpl(
-    undefined!,
-    undefined!,
-    joinLastPart(namespace, actionTypes.unregister)
-  );
-}

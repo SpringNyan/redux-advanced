@@ -4,8 +4,8 @@ import { distinctUntilChanged } from "rxjs/operators";
 
 import {
   AnyAction,
-  parseBatchRegisterPayloads,
-  parseBatchUnregisterPayloads,
+  batchRegisterActionHelper,
+  batchUnregisterActionHelper,
   RegisterPayload,
   reloadActionHelper,
   ReloadPayload,
@@ -31,7 +31,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
   function register(payloads: RegisterPayload[]) {
     payloads.forEach((payload) => {
-      const namespace = payload.namespace!;
+      const namespace = payload.namespace;
       const modelIndex = payload.model || 0;
 
       const { key, models } = storeContext.findModelsInfo(namespace)!;
@@ -49,7 +49,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
   function unregister(payloads: UnregisterPayload[]) {
     payloads.forEach((payload) => {
-      const namespace = payload.namespace!;
+      const namespace = payload.namespace;
 
       const container = storeContext.containerByNamespace.get(namespace)!;
       container.clearCache();
@@ -97,41 +97,35 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
     const actionContext = storeContext.contextByAction.get(action);
     storeContext.contextByAction.delete(action);
 
-    const batchRegisterPayloads = parseBatchRegisterPayloads(action);
-    if (batchRegisterPayloads) {
-      register(batchRegisterPayloads);
-    }
-
-    const batchUnregisterPayloads = parseBatchUnregisterPayloads(action);
-    if (batchUnregisterPayloads) {
-      unregister(batchUnregisterPayloads);
-    }
-
-    if (!batchRegisterPayloads && !batchUnregisterPayloads) {
+    if (batchRegisterActionHelper.is(action)) {
+      // try to register container
+      register(action.payload);
+    } else if (batchUnregisterActionHelper.is(action)) {
+      // try to unregister container
+      unregister(action.payload);
+    } else if (
+      actionContext &&
+      actionContext.container.model.autoRegister &&
+      actionContext.container.canRegister
+    ) {
       // try to auto register container
-      if (
-        actionContext &&
-        actionContext.container.model.autoRegister &&
-        actionContext.container.canRegister
-      ) {
-        actionContext.container.register();
-      }
+      actionContext.container.register();
+    }
 
-      // try to get container
-      const modelsInfo = storeContext.findModelsInfo(namespace);
-      if (modelsInfo != null) {
-        const { baseNamespace, key, models } = modelsInfo;
-        const basePath = convertNamespaceToPath(baseNamespace);
+    // try to get container
+    const modelsInfo = storeContext.findModelsInfo(namespace);
+    if (modelsInfo != null) {
+      const { baseNamespace, key, models } = modelsInfo;
+      const basePath = convertNamespaceToPath(baseNamespace);
 
-        const modelIndex = getSubState(
-          (store.getState() || {})[modelsStateKey],
-          basePath,
-          key
-        );
-        if (modelIndex != null) {
-          const model = models[modelIndex];
-          container = storeContext.getContainer(model, key!) as ContainerImpl;
-        }
+      const modelIndex = getSubState(
+        (store.getState() || {})[modelsStateKey],
+        basePath,
+        key
+      );
+      if (modelIndex != null) {
+        const model = models[modelIndex];
+        container = storeContext.getContainer(model, key!) as ContainerImpl;
       }
     }
 
