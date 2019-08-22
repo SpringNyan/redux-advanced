@@ -18,8 +18,8 @@ import { getSubState, modelsStateKey, setSubState } from "./state";
 import { convertNamespaceToPath, splitLastPart } from "./util";
 
 export interface ReducerContext<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any
+  TDependencies = any,
+  TState extends object = any
 > {
   dependencies: TDependencies;
   namespace: string;
@@ -31,8 +31,8 @@ export interface ReducerContext<
 }
 
 export type Reducer<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TPayload = any
 > = (
   state: TState,
@@ -40,10 +40,7 @@ export type Reducer<
   context: ReducerContext<TDependencies, TState>
 ) => void;
 
-export interface Reducers<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any
-> {
+export interface Reducers<TDependencies = any, TState extends object = any> {
   [name: string]:
     | Reducer<TDependencies, TState>
     | Reducers<TDependencies, TState>;
@@ -63,8 +60,8 @@ export type ExtractReducers<T extends Model> = T extends Model<
 
 export type OverrideReducers<
   TReducers,
-  TDependencies extends object | undefined,
-  TState extends object | undefined
+  TDependencies,
+  TState extends object
 > = {
   [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
     ? Reducer<TDependencies, TState, ExtractActionPayload<TReducers[P]>>

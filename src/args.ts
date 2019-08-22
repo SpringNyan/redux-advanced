@@ -2,7 +2,7 @@ import { GetContainer } from "./container";
 import { Model } from "./model";
 import { mapObjectDeeply, merge, nil } from "./util";
 
-export interface ArgsContext<TDependencies extends object | undefined = any> {
+export interface ArgsContext<TDependencies = any> {
   dependencies: TDependencies;
   namespace: string;
   key: string | undefined;
@@ -12,10 +12,9 @@ export interface ArgsContext<TDependencies extends object | undefined = any> {
   required: ArgsRequired;
 }
 
-export type ArgsFactory<
-  TDependencies extends object | undefined,
-  TArgs extends object | undefined
-> = (context: ArgsContext<TDependencies>) => TArgs;
+export type ArgsFactory<TDependencies, TArgs extends object> = (
+  context: ArgsContext<TDependencies>
+) => TArgs;
 
 export type ExtractArgs<T extends Model> = T extends Model<
   any,

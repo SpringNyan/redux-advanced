@@ -18,8 +18,8 @@ import { Getters } from "./selector";
 import { mapObjectDeeply } from "./util";
 
 export interface EpicContext<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -39,8 +39,8 @@ export interface EpicContext<
 }
 
 export type Epic<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > = (
@@ -48,8 +48,8 @@ export type Epic<
 ) => Observable<AnyAction>;
 
 export interface Epics<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -72,8 +72,8 @@ export type ExtractEpics<T extends Model> = T extends Model<
 
 export type OverrideEpics<
   TEpics,
-  TDependencies extends object | undefined,
-  TState extends object | undefined,
+  TDependencies,
+  TState extends object,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers
 > = {

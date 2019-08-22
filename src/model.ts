@@ -33,9 +33,9 @@ import {
 } from "./util";
 
 export interface Model<
-  TDependencies extends object | undefined = any,
-  TArgs extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TArgs extends object = any,
+  TState extends object = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any,
@@ -51,7 +51,7 @@ export interface Model<
   epics: TEpics;
 }
 
-export interface Models<TDependencies extends object | undefined = any> {
+export interface Models<TDependencies = any> {
   [key: string]:
     | Model<TDependencies>
     | Array<Model<TDependencies>>
@@ -61,9 +61,9 @@ export interface Models<TDependencies extends object | undefined = any> {
 export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
 export class ModelBuilder<
-  TDependencies extends object | undefined = any,
-  TArgs extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TArgs extends object = any,
+  TState extends object = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any,
@@ -124,13 +124,9 @@ export class ModelBuilder<
   public extend<TModel extends Model>(
     model: TModel
   ): ModelBuilder<
-    TDependencies extends object
-      ? TDependencies & ExtractDependencies<TModel>
-      : ExtractDependencies<TModel>,
-    TArgs extends object ? TArgs & ExtractArgs<TModel> : ExtractArgs<TModel>,
-    TState extends object
-      ? TState & ExtractState<TModel>
-      : ExtractState<TModel>,
+    TDependencies & ExtractDependencies<TModel>,
+    TArgs & ExtractArgs<TModel>,
+    TState & ExtractState<TModel>,
     TSelectors & ExtractSelectors<TModel>,
     TReducers & ExtractReducers<TModel>,
     TEffects & ExtractEffects<TModel>,
@@ -140,25 +136,9 @@ export class ModelBuilder<
     model: TModel,
     namespace: TNamespace
   ): ModelBuilder<
-    TDependencies extends object
-      ? TDependencies & ExtractDependencies<TModel>
-      : ExtractDependencies<TModel>,
-    TArgs extends object
-      ? TArgs &
-          (ExtractArgs<TModel> extends object
-            ? { [P in TNamespace]: ExtractArgs<TModel> }
-            : {})
-      : (ExtractArgs<TModel> extends object
-          ? { [P in TNamespace]: ExtractArgs<TModel> }
-          : {}),
-    TState extends object
-      ? TState &
-          (ExtractState<TModel> extends object
-            ? { [P in TNamespace]: ExtractState<TModel> }
-            : {})
-      : (ExtractState<TModel> extends object
-          ? { [P in TNamespace]: ExtractState<TModel> }
-          : {}),
+    TDependencies & ExtractDependencies<TModel>,
+    TArgs & { [P in TNamespace]: ExtractArgs<TModel> },
+    TState & { [P in TNamespace]: ExtractState<TModel> },
     TSelectors & { [P in TNamespace]: ExtractSelectors<TModel> },
     TReducers & { [P in TNamespace]: ExtractReducers<TModel> },
     TEffects & { [P in TNamespace]: ExtractEffects<TModel> },
@@ -270,8 +250,8 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public dependencies<T extends object>(): ModelBuilder<
-    TDependencies extends object ? TDependencies & T : T,
+  public dependencies<T>(): ModelBuilder<
+    TDependencies & T,
     TArgs,
     TState,
     TSelectors,
@@ -290,7 +270,7 @@ export class ModelBuilder<
     args: T | ArgsFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
-    TArgs extends object ? TArgs & ToArgs<T> : ToArgs<T>,
+    TArgs & ToArgs<T>,
     TState,
     TSelectors,
     TReducers,
@@ -356,7 +336,7 @@ export class ModelBuilder<
   ): ModelBuilder<
     TDependencies,
     TArgs,
-    TState extends object ? TState & T : T,
+    TState & T,
     TSelectors,
     TReducers,
     TEffects,
@@ -762,20 +742,12 @@ export function isModel(obj: any): obj is Model {
   return model != null && typeof model.state === "function";
 }
 
-export function createModelBuilder(): ModelBuilder<
-  undefined,
-  undefined,
-  undefined,
-  {},
-  {},
-  {},
-  {}
-> {
+export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}, {}> {
   return new ModelBuilder({
     autoRegister: false,
 
-    args: () => undefined,
-    state: () => undefined,
+    args: () => ({}),
+    state: () => ({}),
     selectors: {},
     reducers: {},
     effects: {},

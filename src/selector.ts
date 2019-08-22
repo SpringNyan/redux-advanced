@@ -5,8 +5,8 @@ import { Model } from "./model";
 import { DeepPartial, mapObjectDeeply } from "./util";
 
 export interface SelectorContext<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -23,8 +23,8 @@ export interface SelectorContext<
 }
 
 export type Selector<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
@@ -38,8 +38,8 @@ export interface SelectorCache {
 }
 
 export type SelectorInternal<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
@@ -49,8 +49,8 @@ export type SelectorInternal<
 ) => TResult;
 
 export type SelectorParam<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TResult = any
@@ -60,8 +60,8 @@ export type SelectorParam<
 ) => TResult;
 
 export interface Selectors<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -71,8 +71,8 @@ export interface Selectors<
 }
 
 export type SelectorsFactory<
-  TDependencies extends object | undefined,
-  TState extends object | undefined,
+  TDependencies,
+  TState extends object,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers,
   TSelectors extends DeepPartial<
@@ -123,8 +123,8 @@ export type ExtractSelectors<T extends Model> = T extends Model<
 
 export type OverrideSelectors<
   TSelectors,
-  TDependencies extends object | undefined,
-  TState extends object | undefined,
+  TDependencies,
+  TState extends object,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers
 > = {
@@ -146,8 +146,8 @@ export type OverrideSelectors<
 };
 
 export interface CreateSelector<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
