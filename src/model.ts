@@ -142,7 +142,7 @@ export class ModelBuilder<
     namespace: TNamespace
   ): ModelBuilder<
     TDependencies & ExtractDependencies<TModel>,
-    TArgs & { [P in TNamespace]: ExtractArgs<TModel> },
+    TArgs & ToArgs<{ [P in TNamespace]: ExtractArgs<TModel> }>,
     TState & { [P in TNamespace]: ExtractState<TModel> },
     TSelectors & { [P in TNamespace]: ExtractSelectors<TModel> },
     TReducers & { [P in TNamespace]: ExtractReducers<TModel> },

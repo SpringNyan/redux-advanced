@@ -32,9 +32,9 @@ export declare class ModelBuilder<TDependencies = any, TArgs extends object = an
     freeze(): ModelBuilder<TDependencies, TArgs, TState, TSelectors, TReducers, TEffects, TEpics>;
     clone(): ModelBuilder<TDependencies, TArgs, TState, TSelectors, TReducers, TEffects, TEpics>;
     extend<TModel extends Model>(model: TModel): ModelBuilder<TDependencies & ExtractDependencies<TModel>, TArgs & ExtractArgs<TModel>, TState & ExtractState<TModel>, TSelectors & ExtractSelectors<TModel>, TReducers & ExtractReducers<TModel>, TEffects & ExtractEffects<TModel>, TEpics & ExtractEpics<TModel>>;
-    extend<TModel extends Model, TNamespace extends string>(model: TModel, namespace: TNamespace): ModelBuilder<TDependencies & ExtractDependencies<TModel>, TArgs & {
+    extend<TModel extends Model, TNamespace extends string>(model: TModel, namespace: TNamespace): ModelBuilder<TDependencies & ExtractDependencies<TModel>, TArgs & ToArgs<{
         [P in TNamespace]: ExtractArgs<TModel>;
-    }, TState & {
+    }>, TState & {
         [P in TNamespace]: ExtractState<TModel>;
     }, TSelectors & {
         [P in TNamespace]: ExtractSelectors<TModel>;
