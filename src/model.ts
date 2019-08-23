@@ -33,6 +33,10 @@ import {
   merge
 } from "./util";
 
+export interface ModelOptions {
+  autoRegister?: boolean;
+}
+
 export interface Model<
   TDependencies = any,
   TArgs extends object = any,
@@ -42,7 +46,7 @@ export interface Model<
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
-  autoRegister: boolean;
+  options: ModelOptions;
 
   args: ArgsFactory<TDependencies, TArgs>;
   state: StateFactory<TDependencies, TArgs, TState>;
@@ -156,6 +160,7 @@ export class ModelBuilder<
     let reducers = model.reducers;
     let effects = model.effects;
     let epics = model.epics;
+    let options = model.options;
 
     if (namespace !== undefined) {
       args = (context) => ({
@@ -237,6 +242,11 @@ export class ModelBuilder<
           return newEpic;
         })
       };
+
+      options = {
+        ...options,
+        autoRegister: undefined
+      };
     }
 
     this.dependencies()
@@ -245,7 +255,8 @@ export class ModelBuilder<
       .selectors(selectors)
       .reducers(reducers)
       .effects(effects)
-      .epics(epics);
+      .epics(epics)
+      .options(options);
 
     return this as any;
   }
@@ -675,8 +686,8 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public autoRegister(
-    value: boolean = true
+  public options(
+    options: ModelOptions
   ): ModelBuilder<
     TDependencies,
     TArgs,
@@ -687,10 +698,34 @@ export class ModelBuilder<
     TEpics
   > {
     if (this._isFrozen) {
-      return this.clone().autoRegister(value);
+      return this.clone().options(options);
     }
 
-    this._model.autoRegister = value;
+    this._model.options = merge({}, this._model.options, options);
+
+    return this as any;
+  }
+
+  public overrideOptions(
+    override: (base: ModelOptions) => DeepPartial<ModelOptions>
+  ): ModelBuilder<
+    TDependencies,
+    TArgs,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects,
+    TEpics
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideOptions(override);
+    }
+
+    this._model.options = merge(
+      {},
+      this._model.options,
+      override(this._model.options)
+    );
 
     return this as any;
   }
@@ -710,7 +745,7 @@ export class ModelBuilder<
 
 function cloneModel<T extends Model>(model: T): T {
   return {
-    autoRegister: model.autoRegister,
+    options: merge({}, model.options),
 
     args: model.args,
     state: model.state,
@@ -728,7 +763,7 @@ export function isModel(obj: any): obj is Model {
 
 export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}, {}> {
   return new ModelBuilder({
-    autoRegister: false,
+    options: {},
 
     args: () => ({}),
     state: () => ({}),

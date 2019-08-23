@@ -160,7 +160,11 @@ describe("redux-advanced", () => {
       })
       .build();
 
-    const autoRegisteredDynamicModel = testModelBuilder.autoRegister().build();
+    const autoRegisteredDynamicModel = testModelBuilder
+      .options({
+        autoRegister: true
+      })
+      .build();
 
     const appDependencies: IDependencies = { appId: 233 };
 

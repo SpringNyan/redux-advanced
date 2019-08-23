@@ -96,7 +96,10 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
   }
 
   public dispatch(payload: TPayload): Promise<TResult> {
-    if (this._container.canRegister && this._container.model.autoRegister) {
+    if (
+      this._container.canRegister &&
+      this._container.model.options.autoRegister
+    ) {
       this._container.register();
     }
 
