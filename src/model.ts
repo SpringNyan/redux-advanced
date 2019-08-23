@@ -25,6 +25,7 @@ import {
 } from "./selector";
 import { ExtractState, StateFactory } from "./state";
 import {
+  convertNamespaceToPath,
   DeepPartial,
   factoryWrapper,
   joinLastPart,
@@ -287,10 +288,6 @@ export class ModelBuilder<
       const oldArgs = oldArgsFn(context);
       const newArgs = newArgsFn(context);
 
-      if (oldArgs === undefined && newArgs === undefined) {
-        return undefined!;
-      }
-
       return merge({}, oldArgs, newArgs);
     };
 
@@ -320,10 +317,6 @@ export class ModelBuilder<
       const oldArgs = oldArgsFn(context);
       const newArgs = factoryWrapper(override(oldArgs))(context);
 
-      if (oldArgs === undefined && newArgs === undefined) {
-        return undefined!;
-      }
-
       return merge({}, oldArgs, newArgs);
     };
 
@@ -351,10 +344,6 @@ export class ModelBuilder<
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
       const newState = newStateFn(context);
-
-      if (oldState === undefined && newState === undefined) {
-        return undefined!;
-      }
 
       return merge({}, oldState, newState);
     };
@@ -386,10 +375,6 @@ export class ModelBuilder<
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
       const newState = factoryWrapper(override(oldState))(context);
-
-      if (oldState === undefined && newState === undefined) {
-        return undefined!;
-      }
 
       return merge({}, oldState, newState);
     };
@@ -766,16 +751,17 @@ export function registerModel<TModel extends Model>(
     registeredModels = [];
     storeContext.modelsByBaseNamespace.set(namespace, registeredModels);
   }
+  const prevRegisteredModelsLength = registeredModels.length;
   registeredModels.push(...models);
 
-  models.forEach((_model) => {
+  models.forEach((_model, index) => {
     if (storeContext.contextByModel.has(_model)) {
       throw new Error("model is already registered");
     }
 
     const reducerByActionName = new Map<string, Reducer>();
     mapObjectDeeply({}, _model.reducers, (reducer, paths) => {
-      const actionName = storeContext.options.resolveActionName!(paths);
+      const actionName = storeContext.resolveActionName(paths);
       if (reducerByActionName.has(actionName)) {
         throw new Error("action name of reducer should be unique");
       }
@@ -785,7 +771,7 @@ export function registerModel<TModel extends Model>(
 
     const effectByActionName = new Map<string, Effect>();
     mapObjectDeeply({}, _model.effects, (effect, paths) => {
-      const actionName = storeContext.options.resolveActionName!(paths);
+      const actionName = storeContext.resolveActionName(paths);
       if (effectByActionName.has(actionName)) {
         throw new Error("action name of effect should be unique");
       }
@@ -794,13 +780,16 @@ export function registerModel<TModel extends Model>(
     });
 
     storeContext.contextByModel.set(_model, {
-      baseNamespace: namespace,
       isDynamic: Array.isArray(model),
+      modelIndex: prevRegisteredModelsLength + index,
+
+      baseNamespace: namespace,
+      basePath: convertNamespaceToPath(namespace),
 
       reducerByActionName,
       effectByActionName,
 
-      idByKey: new Map()
+      containerByKey: new Map()
     });
   });
 }
@@ -824,12 +813,9 @@ export function registerModels(
         namespace: modelNamespace
       });
     } else {
-      const childPayloads = registerModels(
-        storeContext,
-        modelNamespace,
-        model as Models
+      payloads.push(
+        ...registerModels(storeContext, modelNamespace, model as Models)
       );
-      payloads.push(...childPayloads);
     }
   });
 

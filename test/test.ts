@@ -93,10 +93,10 @@ describe("redux-advanced", () => {
         }
       })
       .effects({
-        setNameAsync: async ({ actions, getState, call }, payload: string) => {
+        setNameAsync: async ({ actions, getState }, payload: string) => {
           await timer(50).toPromise();
           getState();
-          await call(() => actions.setName.dispatch(payload));
+          await actions.setName.dispatch(payload);
         },
         setAgeAsync: async ({ getContainer }, payload: number) => {
           await timer(50).toPromise();
@@ -108,8 +108,8 @@ describe("redux-advanced", () => {
         }
       })
       .selectors((createSelector) => ({
-        setName: createSelector(({ actions, call }) => (name: string) => {
-          call(() => actions.setName.dispatch(name));
+        setName: createSelector(({ actions }) => (name: string) => {
+          actions.setName.dispatch(name);
         })
       }))
       .overrideEffects((base) => ({

@@ -66,21 +66,19 @@ export function generateArgs(
 ) {
   const result = model.args(context);
 
-  if (result !== undefined) {
-    if (args !== undefined) {
-      merge(result, args);
-    }
-
-    mapObjectDeeply(result, result, (value) => {
-      if (isRequiredArg(value)) {
-        if (optional) {
-          return value[1];
-        } else {
-          throw new Error("arg is required");
-        }
-      }
-    });
+  if (args !== undefined) {
+    merge(result, args);
   }
+
+  mapObjectDeeply(result, result, (value) => {
+    if (isRequiredArg(value)) {
+      if (optional) {
+        return value[1];
+      } else {
+        throw new Error("arg is required");
+      }
+    }
+  });
 
   return result;
 }

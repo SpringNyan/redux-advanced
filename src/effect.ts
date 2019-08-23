@@ -1,7 +1,7 @@
 import { Observable } from "rxjs";
 
 import { ActionHelpers, AnyAction, ExtractActionPayload } from "./action";
-import { ContainerCall, GetContainer } from "./container";
+import { GetContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
 
@@ -23,7 +23,6 @@ export interface EffectContext<
   actions: TActionHelpers;
 
   getContainer: GetContainer;
-  call: ContainerCall;
 }
 
 export type Effect<

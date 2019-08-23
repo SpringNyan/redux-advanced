@@ -11,7 +11,7 @@ import {
   AnyAction,
   batchUnregisterActionHelper
 } from "./action";
-import { ContainerCall, ContainerImpl, GetContainer } from "./container";
+import { ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
@@ -35,7 +35,6 @@ export interface EpicContext<
   actions: TActionHelpers;
 
   getContainer: GetContainer;
-  call: ContainerCall;
 }
 
 export type Epic<
@@ -94,7 +93,7 @@ export function createReduxObservableEpic(
         rootAction$,
         rootState$,
 
-        dependencies: storeContext.options.dependencies,
+        dependencies: storeContext.getDependencies(),
         namespace: container.namespace,
         key: container.key,
 
@@ -102,8 +101,7 @@ export function createReduxObservableEpic(
         getters: container.getters,
         actions: container.actions,
 
-        getContainer: storeContext.getContainer,
-        call: container.call
+        getContainer: storeContext.getContainer
       });
 
       if (storeContext.options.defaultEpicErrorHandler != null) {

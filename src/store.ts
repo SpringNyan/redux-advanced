@@ -42,10 +42,6 @@ export interface ReduxAdvancedContext {
 }
 
 export function init(options: ReduxAdvancedOptions): ReduxAdvancedContext {
-  if (options.resolveActionName == null) {
-    options.resolveActionName = (paths) => paths.join(".");
-  }
-
   const storeContext = createStoreContext();
   storeContext.options = options;
 

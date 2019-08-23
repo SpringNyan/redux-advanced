@@ -13,7 +13,7 @@ import {
 import { generateArgs, requiredArgFunc } from "./args";
 import { StoreContext } from "./context";
 import { Model } from "./model";
-import { getSubState, modelsStateKey, setSubState } from "./state";
+import { getSubState, setSubState, stateModelsKey } from "./state";
 import { convertNamespaceToPath, splitLastPart } from "./util";
 
 export interface ReducerContext<TDependencies = any> {
@@ -66,29 +66,20 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
       const namespace = payload.namespace;
       const modelIndex = payload.model || 0;
 
-      const { baseNamespace, key, models } = storeContext.findModelsInfo(
+      const { baseNamespace, key, models } = storeContext.parseNamespace(
         namespace
       )!;
       const basePath = convertNamespaceToPath(baseNamespace);
       const model = models[modelIndex];
 
-      rootState = {
-        ...rootState,
-        [modelsStateKey]: setSubState(
-          rootState[modelsStateKey],
-          modelIndex,
-          basePath,
-          key
-        )
-      };
-
+      let state: any;
       if (payload.state !== undefined) {
-        rootState = setSubState(rootState, payload.state, basePath, key);
+        state = payload.state;
       } else {
         const args = generateArgs(
           model,
           {
-            dependencies: storeContext.options.dependencies,
+            dependencies: storeContext.getDependencies(),
             namespace,
             key,
 
@@ -99,8 +90,8 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
           payload.args
         );
 
-        const modelState = model.state({
-          dependencies: storeContext.options.dependencies,
+        state = model.state({
+          dependencies: storeContext.getDependencies(),
           namespace,
           key,
 
@@ -108,8 +99,20 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
           getContainer: storeContext.getContainer
         });
+      }
 
-        rootState = setSubState(rootState, modelState, basePath, key);
+      rootState = setSubState(rootState, state, basePath, key);
+
+      if (key !== undefined) {
+        rootState = {
+          ...rootState,
+          [basePath]: setSubState(
+            rootState[basePath],
+            modelIndex,
+            stateModelsKey,
+            key
+          )
+        };
       }
     });
 
@@ -120,20 +123,22 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
     payloads.forEach((payload) => {
       const namespace = payload.namespace;
 
-      const { baseNamespace, key } = storeContext.findModelsInfo(namespace)!;
+      const { baseNamespace, key } = storeContext.parseNamespace(namespace)!;
       const basePath = convertNamespaceToPath(baseNamespace);
 
-      rootState = {
-        ...rootState,
-        [modelsStateKey]: setSubState(
-          rootState[modelsStateKey],
-          undefined,
-          basePath,
-          key
-        )
-      };
-
       rootState = setSubState(rootState, undefined, basePath, key);
+
+      if (key !== undefined) {
+        rootState = {
+          ...rootState,
+          [basePath]: setSubState(
+            rootState[basePath],
+            undefined,
+            stateModelsKey,
+            key
+          )
+        };
+      }
     });
 
     return rootState;
@@ -164,16 +169,20 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
       rootState = unregister(rootState, action.payload);
     }
 
-    const modelsInfo = storeContext.findModelsInfo(namespace);
-    if (modelsInfo == null) {
+    const parsed = storeContext.parseNamespace(namespace);
+    if (parsed == null) {
       return rootState;
     }
 
-    const { baseNamespace, key, models } = modelsInfo;
+    const { baseNamespace, key, models } = parsed;
     const basePath = convertNamespaceToPath(baseNamespace);
 
-    const modelIndex = getSubState(rootState[modelsStateKey], basePath, key);
-    if (modelIndex == null) {
+    const modelIndex =
+      key !== undefined
+        ? getSubState(rootState[basePath], stateModelsKey, key)
+        : 0;
+
+    if (typeof modelIndex !== "number") {
       return rootState;
     }
 
@@ -191,7 +200,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
     const state = getSubState(rootState, basePath, key);
     const newState = produce(state, (draft: any) => {
       reducer(draft, action.payload, {
-        dependencies: storeContext.options.dependencies,
+        dependencies: storeContext.getDependencies(),
         namespace,
         key
       });
@@ -201,9 +210,9 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
   };
 
   return (rootState, action) => {
-    storeContext.reducerRootState = rootState;
+    storeContext.adHocRootState = rootState;
     rootState = reduxReducer(rootState, action);
-    storeContext.reducerRootState = undefined;
+    storeContext.adHocRootState = undefined;
     return rootState;
   };
 }

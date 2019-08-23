@@ -1,7 +1,7 @@
 import { GetContainer } from "./container";
 import { Model } from "./model";
 
-export const modelsStateKey = "@@models";
+export const stateModelsKey = "@@models";
 
 export interface StateContext<TDependencies = any, TArgs extends object = any> {
   dependencies: TDependencies;
