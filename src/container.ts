@@ -1,11 +1,11 @@
 import {
+  batchRegisterActionHelper,
+  batchUnregisterActionHelper,
   createActionHelpers,
-  createRegisterActionHelper,
-  createUnregisterActionHelper,
   ExtractActionHelpersFromReducersEffects
 } from "./action";
-import { argsRequired, ExtractArgs, generateArgs } from "./args";
-import { StoreContext } from "./context";
+import { ExtractArgs, generateArgs, requiredArgFunc } from "./args";
+import { ModelContext, StoreContext } from "./context";
 import { ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers } from "./reducer";
@@ -15,7 +15,7 @@ import {
   ExtractSelectors
 } from "./selector";
 import { ExtractState, getSubState } from "./state";
-import { convertNamespaceToPath, joinLastPart, nil } from "./util";
+import { joinLastPart } from "./util";
 
 export interface Container<TModel extends Model = any> {
   namespace: string;
@@ -37,88 +37,106 @@ export interface Container<TModel extends Model = any> {
 
 export class ContainerImpl<TModel extends Model = Model>
   implements Container<TModel> {
-  public static nextId: number = 1;
-
-  public readonly id: number;
-
   public readonly namespace: string;
 
-  public readonly baseNamespace: string;
-  public readonly basePath: string;
+  private readonly _modelContext: ModelContext;
+
+  private _cachedArgs: any;
+  private _cachedState: any;
+  private _cachedGetters: any;
+  private _cachedActions: any;
+
+  private _getStateCache = {
+    rootState: {} as any,
+    value: undefined as any
+  };
 
   constructor(
     private readonly _storeContext: StoreContext,
     public readonly model: TModel,
     public readonly key: string | undefined
   ) {
-    const modelContext = this._storeContext.contextByModel.get(this.model)!;
-    this.baseNamespace = modelContext.baseNamespace;
-
-    this.id = modelContext.idByKey.get(this.key)!;
-
-    this.namespace = joinLastPart(this.baseNamespace, this.key);
-    this.basePath = convertNamespaceToPath(this.baseNamespace);
+    this._modelContext = this._storeContext.contextByModel.get(this.model)!;
+    this.namespace = joinLastPart(this._modelContext.baseNamespace, this.key);
   }
 
-  public get cache() {
-    let cache = this._storeContext.cacheById.get(this.id);
-    if (cache == null) {
-      cache = {
-        cachedArgs: undefined,
-        cachedState: nil,
-        cachedGetters: undefined,
-        cachedActions: undefined,
-        cachedCall: undefined,
-
-        selectorCacheByPath: new Map()
-      };
-      this._storeContext.cacheById.set(this.id, cache);
+  public get isRegistered(): boolean {
+    const container = this._getCurrentContainer();
+    if (container !== this) {
+      return container.isRegistered;
     }
 
-    return cache;
-  }
-
-  public get isRegistered() {
-    const container = this._storeContext.containerByNamespace.get(
+    const registeredContainer = this._storeContext.containerByNamespace.get(
       this.namespace
     );
-    return container != null && container.model === this.model;
+    return (
+      registeredContainer != null && registeredContainer.model === this.model
+    );
   }
 
-  public get canRegister() {
+  public get canRegister(): boolean {
+    const container = this._getCurrentContainer();
+    if (container !== this) {
+      return container.canRegister;
+    }
+
     return !this._storeContext.containerByNamespace.has(this.namespace);
   }
 
-  public getState() {
-    if (this.isRegistered) {
-      const rootState =
-        this._storeContext.reducerRootState !== undefined
-          ? this._storeContext.reducerRootState
-          : this._storeContext.store.getState();
+  public getRootState(): any {
+    const container = this._getCurrentContainer();
+    if (container !== this) {
+      return container.getRootState();
+    }
 
-      return getSubState(rootState, this.basePath, this.key);
+    return this._storeContext.adHocRootState !== undefined
+      ? this._storeContext.adHocRootState
+      : this._storeContext.store.getState();
+  }
+
+  public getState(): any {
+    const container = this._getCurrentContainer();
+    if (container !== this) {
+      return container.getState();
+    }
+
+    if (this.isRegistered) {
+      const rootState = this.getRootState();
+      if (this._getStateCache.rootState === rootState) {
+        return this._getStateCache.value;
+      }
+
+      const value = getSubState(
+        rootState,
+        this._modelContext.basePath,
+        this.key
+      );
+
+      this._getStateCache.rootState = rootState;
+      this._getStateCache.value = value;
+
+      return value;
     }
 
     if (this.canRegister) {
-      const cache = this.cache;
-      if (cache.cachedState === nil) {
+      if (this._cachedState === undefined) {
         const args = generateArgs(
           this.model,
           {
-            dependencies: this._storeContext.options.dependencies,
+            dependencies: this._storeContext.getDependencies(),
             namespace: this.namespace,
             key: this.key,
 
             getContainer: this._storeContext.getContainer,
 
-            required: argsRequired
+            required: requiredArgFunc
           },
-          cache.cachedArgs,
+          this._cachedArgs,
           true
         );
 
-        cache.cachedState = this.model.state({
-          dependencies: this._storeContext.options.dependencies,
+        this._cachedState = this.model.state({
+          dependencies: this._storeContext.getDependencies(),
           namespace: this.namespace,
           key: this.key,
 
@@ -128,99 +146,102 @@ export class ContainerImpl<TModel extends Model = Model>
         });
       }
 
-      return cache.cachedState;
+      return this._cachedState;
     }
 
-    throw new Error("namespace is already registered by other container");
+    throw new Error("namespace is already registered by other model");
   }
 
   public get getters(): ExtractGettersFromSelectors<ExtractSelectors<TModel>> {
-    if (this.isRegistered || this.canRegister) {
-      const cache = this.cache;
-
-      if (cache.cachedGetters === undefined) {
-        cache.cachedGetters = createGetters(this._storeContext, this);
-      }
-
-      return cache.cachedGetters;
+    const container = this._getCurrentContainer();
+    if (container !== this) {
+      return container.getters;
     }
 
-    throw new Error("namespace is already registered by other container");
+    if (this.isRegistered || this.canRegister) {
+      if (this._cachedGetters === undefined) {
+        this._cachedGetters = createGetters(this._storeContext, this);
+      }
+
+      return this._cachedGetters;
+    }
+
+    throw new Error("namespace is already registered by other model");
   }
 
   public get actions(): ExtractActionHelpersFromReducersEffects<
     ExtractReducers<TModel>,
     ExtractEffects<TModel>
   > {
-    if (this.isRegistered || this.canRegister) {
-      const cache = this.cache;
-
-      if (cache.cachedActions === undefined) {
-        cache.cachedActions = createActionHelpers(this._storeContext, this);
-      }
-
-      return cache.cachedActions;
+    const container = this._getCurrentContainer();
+    if (container !== this) {
+      return container.actions;
     }
 
-    throw new Error("namespace is already registered by other container");
-  }
-
-  public get call(): ContainerCall {
     if (this.isRegistered || this.canRegister) {
-      const cache = this.cache;
-
-      if (cache.cachedCall === undefined) {
-        cache.cachedCall = createContainerCall(this);
+      if (this._cachedActions === undefined) {
+        this._cachedActions = createActionHelpers(this._storeContext, this);
       }
 
-      return cache.cachedCall;
+      return this._cachedActions;
     }
 
-    throw new Error("namespace is already registered by other container");
+    throw new Error("namespace is already registered by other model");
   }
 
-  public register(args?: ExtractArgs<TModel>) {
+  public register(args?: ExtractArgs<TModel>): void {
+    const container = this._getCurrentContainer();
+    if (container !== this) {
+      return container.register(args);
+    }
+
     if (!this.canRegister) {
       throw new Error("namespace is already registered");
     }
 
-    const cache = this.cache;
-    cache.cachedArgs = args;
-    cache.cachedState = nil;
-
-    const models = this._storeContext.modelsByBaseNamespace.get(
-      this.baseNamespace
-    )!;
-    const modelIndex = models.indexOf(this.model);
+    this._cachedArgs = args;
+    this._cachedState = undefined;
 
     this._storeContext.store.dispatch(
-      createRegisterActionHelper(this.namespace).create({
-        model: modelIndex,
-        args
-      })
+      batchRegisterActionHelper.create([
+        {
+          namespace: this.namespace,
+          model: this._modelContext.modelIndex,
+          args
+        }
+      ])
     );
   }
 
-  public unregister() {
+  public unregister(): void {
+    const container = this._getCurrentContainer();
+    if (container !== this) {
+      return container.unregister();
+    }
+
     if (this.isRegistered) {
       this._storeContext.store.dispatch(
-        createUnregisterActionHelper(this.namespace).create({})
+        batchUnregisterActionHelper.create([
+          {
+            namespace: this.namespace
+          }
+        ])
       );
-    } else {
-      this.clearCache();
     }
   }
 
-  public clearCache() {
-    this._storeContext.containerById.delete(this.id);
-    this._storeContext.cacheById.delete(this.id);
+  private _getCurrentContainer() {
+    return this._storeContext.getContainer(
+      this.model,
+      this.key!
+    ) as ContainerImpl;
   }
 }
 
-export type GetContainer = (<TModel extends Model>(
-  model: TModel
-) => Container<TModel>) &
-  (<TModel extends Model>(model: TModel, key: string) => Container<TModel>);
+export interface GetContainer {
+  <TModel extends Model>(model: TModel): Container<TModel>;
+  <TModel extends Model>(model: TModel, key: string): Container<TModel>;
+}
 
 export function createGetContainer(storeContext: StoreContext): GetContainer {
   return (model: Model, key?: string) => {
@@ -237,35 +258,12 @@ export function createGetContainer(storeContext: StoreContext): GetContainer {
       throw new Error("key should not be provided for static model");
     }
 
-    let id = modelContext.idByKey.get(key);
-    if (id == null) {
-      id = ContainerImpl.nextId;
-      ContainerImpl.nextId += 1;
-      modelContext.idByKey.set(key, id);
-    }
-
-    let container = storeContext.containerById.get(id);
+    let container = modelContext.containerByKey.get(key);
     if (container == null) {
       container = new ContainerImpl(storeContext, model, key);
-      storeContext.containerById.set(id, container);
+      modelContext.containerByKey.set(key, container);
     }
 
     return container;
   };
-}
-
-export type ContainerCall = <T>(func: () => T | Promise<T>) => Promise<T>;
-
-export function createContainerCall(container: ContainerImpl): ContainerCall {
-  const call: ContainerCall = async (func) => {
-    if (call === container.cache.cachedCall) {
-      return func();
-    }
-
-    return new Promise(() => {
-      // never resolve
-    });
-  };
-
-  return call;
 }

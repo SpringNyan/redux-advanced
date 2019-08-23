@@ -7,9 +7,21 @@ import { ContainerImpl, createGetContainer, GetContainer } from "./container";
 import { Effect } from "./effect";
 import { Model } from "./model";
 import { Reducer } from "./reducer";
-import { SelectorCache } from "./selector";
 import { ReduxAdvancedOptions } from "./store";
 import { splitLastPart } from "./util";
+
+export interface ModelContext {
+  isDynamic: boolean;
+  modelIndex: number | undefined;
+
+  baseNamespace: string;
+  basePath: string;
+
+  reducerByActionName: Map<string, Reducer>;
+  effectByActionName: Map<string, Effect>;
+
+  containerByKey: Map<string | undefined, ContainerImpl>;
+}
 
 export interface StoreContext {
   store: Store;
@@ -20,50 +32,22 @@ export interface StoreContext {
   addEpic$: Subject<ReduxObservableEpic>;
   switchEpic$: Subject<void>;
 
-  reducerRootState: any;
+  adHocRootState: any;
 
-  contextByModel: Map<
-    Model,
-    {
-      baseNamespace: string;
-      isDynamic: boolean;
-
-      reducerByActionName: Map<string, Reducer>;
-      effectByActionName: Map<string, Effect>;
-
-      idByKey: Map<string | undefined, number>;
-    }
-  >;
-
+  contextByModel: Map<Model, ModelContext>;
   modelsByBaseNamespace: Map<string, Model[]>;
   containerByNamespace: Map<string, ContainerImpl>;
-
-  containerById: Map<number, ContainerImpl>;
-  cacheById: Map<
-    number,
-    {
-      cachedArgs: any;
-      cachedState: any;
-      cachedGetters: any;
-      cachedActions: any;
-      cachedCall: any;
-
-      selectorCacheByPath: Map<string, SelectorCache>;
-    }
-  >;
-
-  contextByAction: WeakMap<
+  deferredByAction: WeakMap<
     AnyAction,
     {
-      container: ContainerImpl;
-      deferred: {
-        resolve: (value: any) => void;
-        reject: (err: any) => void;
-      };
+      resolve: (value: any) => void;
+      reject: (err: any) => void;
     }
   >;
 
-  findModelsInfo: (
+  getDependencies: () => any;
+  resolveActionName: (paths: string[]) => string;
+  parseNamespace: (
     namespace: string
   ) => {
     baseNamespace: string;
@@ -82,19 +66,24 @@ export function createStoreContext(): StoreContext {
     addEpic$: new Subject(),
     switchEpic$: new Subject(),
 
-    reducerRootState: undefined,
+    adHocRootState: undefined,
 
     contextByModel: new Map(),
-
     modelsByBaseNamespace: new Map(),
     containerByNamespace: new Map(),
+    deferredByAction: new WeakMap(),
 
-    containerById: new Map(),
-    cacheById: new Map(),
+    getDependencies: () => {
+      return storeContext.options.dependencies;
+    },
+    resolveActionName: (paths) => {
+      if (storeContext.options.resolveActionName) {
+        return storeContext.options.resolveActionName(paths);
+      }
 
-    contextByAction: new WeakMap(),
-
-    findModelsInfo: (namespace) => {
+      return paths.join(".");
+    },
+    parseNamespace: (namespace) => {
       let baseNamespace: string = namespace;
       let key: string | undefined;
 

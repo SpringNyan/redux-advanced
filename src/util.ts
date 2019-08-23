@@ -1,5 +1,3 @@
-export const nil: unique symbol = `$$NIL_${Date.now()}` as any;
-
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends ((...args: any[]) => any) | any[]
     ? T[P]

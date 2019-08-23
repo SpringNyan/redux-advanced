@@ -1,23 +1,9 @@
-import { Dispatch } from "redux";
-
 import { ContainerImpl } from "./container";
 import { StoreContext } from "./context";
 import { Effect, Effects, ExtractEffectResult, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
-import {
-  joinLastPart,
-  mapObjectDeeply,
-  merge,
-  PatchedPromise,
-  splitLastPart
-} from "./util";
-
-export const actionTypes = {
-  register: "@@REGISTER",
-  unregister: "@@UNREGISTER",
-  reload: "@@RELOAD"
-};
+import { joinLastPart, mapObjectDeeply, merge, PatchedPromise } from "./util";
 
 export interface AnyAction {
   type: string;
@@ -33,7 +19,7 @@ export interface ActionHelper<TPayload = any, TResult = any> {
   type: string;
   is(action: any): action is Action<TPayload>;
   create(payload: TPayload): Action<TPayload>;
-  dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult>;
+  dispatch(payload: TPayload): Promise<TResult>;
 }
 
 export interface ActionHelpers {
@@ -109,32 +95,36 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
     };
   }
 
-  public dispatch(payload: TPayload, dispatch?: Dispatch): Promise<TResult> {
+  public dispatch(payload: TPayload): Promise<TResult> {
+    if (
+      this._container.canRegister &&
+      this._container.model.options.autoRegister
+    ) {
+      this._container.register();
+    }
+
     const action = this.create(payload);
 
     const promise = new PatchedPromise<TResult>((resolve, reject) => {
-      this._storeContext.contextByAction.set(action, {
-        container: this._container,
-        deferred: {
-          resolve,
-          reject: (reason) => {
-            reject(reason);
-            Promise.resolve().then(() => {
-              if (
-                !promise.hasRejectionHandler &&
+      this._storeContext.deferredByAction.set(action, {
+        resolve,
+        reject: (reason) => {
+          reject(reason);
+          Promise.resolve().then(() => {
+            if (
+              !promise.hasRejectionHandler &&
+              this._storeContext.options.defaultEffectErrorHandler
+            ) {
+              promise.catch(
                 this._storeContext.options.defaultEffectErrorHandler
-              ) {
-                promise.catch(
-                  this._storeContext.options.defaultEffectErrorHandler
-                );
-              }
-            });
-          }
+              );
+            }
+          });
         }
       });
     });
 
-    (dispatch || this._storeContext.store.dispatch)(action);
+    this._storeContext.store.dispatch(action);
 
     return promise;
   }
@@ -156,28 +146,23 @@ export function createActionHelpers<TModel extends Model>(
       new ActionHelperImpl(
         storeContext,
         container,
-        joinLastPart(
-          container.namespace,
-          storeContext.options.resolveActionName!(paths)
-        )
+        joinLastPart(container.namespace, storeContext.resolveActionName(paths))
       )
   );
 
   return actionHelpers as any;
 }
 
+export const actionTypes = {
+  register: "@@REGISTER",
+  unregister: "@@UNREGISTER",
+  reload: "@@RELOAD"
+};
+
 export interface RegisterPayload {
-  namespace?: string;
+  namespace: string;
   model?: number;
   args?: any;
-  state?: any;
-}
-
-export interface UnregisterPayload {
-  namespace?: string;
-}
-
-export interface ReloadPayload {
   state?: any;
 }
 
@@ -186,63 +171,21 @@ export const batchRegisterActionHelper = new ActionHelperImpl<
   void
 >(undefined!, undefined!, actionTypes.register);
 
+export interface UnregisterPayload {
+  namespace: string;
+}
+
 export const batchUnregisterActionHelper = new ActionHelperImpl<
   UnregisterPayload[],
   void
 >(undefined!, undefined!, actionTypes.unregister);
+
+export interface ReloadPayload {
+  state?: any;
+}
 
 export const reloadActionHelper = new ActionHelperImpl<ReloadPayload, void>(
   undefined!,
   undefined!,
   actionTypes.reload
 );
-
-export function parseBatchRegisterPayloads(
-  action: AnyAction
-): RegisterPayload[] | null {
-  if (batchRegisterActionHelper.is(action)) {
-    return action.payload || [];
-  }
-
-  const [namespace, actionName] = splitLastPart(action.type);
-  if (actionName === actionTypes.register) {
-    return [{ ...action.payload, namespace }];
-  }
-
-  return null;
-}
-
-export function parseBatchUnregisterPayloads(
-  action: AnyAction
-): UnregisterPayload[] | null {
-  if (batchUnregisterActionHelper.is(action)) {
-    return action.payload || [];
-  }
-
-  const [namespace, actionName] = splitLastPart(action.type);
-  if (actionName === actionTypes.unregister) {
-    return [{ ...action.payload, namespace }];
-  }
-
-  return null;
-}
-
-export function createRegisterActionHelper(
-  namespace: string
-): ActionHelper<RegisterPayload, void> {
-  return new ActionHelperImpl(
-    undefined!,
-    undefined!,
-    joinLastPart(namespace, actionTypes.register)
-  );
-}
-
-export function createUnregisterActionHelper(
-  namespace: string
-): ActionHelper<UnregisterPayload, void> {
-  return new ActionHelperImpl(
-    undefined!,
-    undefined!,
-    joinLastPart(namespace, actionTypes.unregister)
-  );
-}

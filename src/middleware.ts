@@ -4,8 +4,8 @@ import { distinctUntilChanged } from "rxjs/operators";
 
 import {
   AnyAction,
-  parseBatchRegisterPayloads,
-  parseBatchUnregisterPayloads,
+  batchRegisterActionHelper,
+  batchUnregisterActionHelper,
   RegisterPayload,
   reloadActionHelper,
   ReloadPayload,
@@ -14,13 +14,8 @@ import {
 import { ContainerImpl } from "./container";
 import { StoreContext } from "./context";
 import { createReduxObservableEpic } from "./epic";
-import { getSubState, modelsStateKey } from "./state";
-import {
-  convertNamespaceToPath,
-  convertPathToNamespace,
-  mapObjectDeeply,
-  splitLastPart
-} from "./util";
+import { stateModelsKey } from "./state";
+import { joinLastPart, splitLastPart } from "./util";
 
 export function createMiddleware(storeContext: StoreContext): Middleware {
   const rootActionSubject = new Subject<AnyAction>();
@@ -31,15 +26,14 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
   function register(payloads: RegisterPayload[]) {
     payloads.forEach((payload) => {
-      const namespace = payload.namespace!;
+      const namespace = payload.namespace;
       const modelIndex = payload.model || 0;
 
-      const { key, models } = storeContext.findModelsInfo(namespace)!;
+      const { key, models } = storeContext.parseNamespace(namespace)!;
       const model = models[modelIndex];
 
       const container = storeContext.getContainer(model, key!) as ContainerImpl;
 
-      storeContext.containerById.set(container.id, container);
       storeContext.containerByNamespace.set(namespace, container);
 
       const epic = createReduxObservableEpic(storeContext, container);
@@ -49,10 +43,12 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
   function unregister(payloads: UnregisterPayload[]) {
     payloads.forEach((payload) => {
-      const namespace = payload.namespace!;
+      const namespace = payload.namespace;
 
       const container = storeContext.containerByNamespace.get(namespace)!;
-      container.clearCache();
+      storeContext.contextByModel
+        .get(container.model)!
+        .containerByKey.delete(container.key);
 
       storeContext.containerByNamespace.delete(namespace);
     });
@@ -60,8 +56,10 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
   function reload(payload: ReloadPayload) {
     storeContext.containerByNamespace.clear();
-    storeContext.containerById.clear();
-    storeContext.cacheById.clear();
+
+    storeContext.contextByModel.forEach((context) => {
+      context.containerByKey.clear();
+    });
 
     storeContext.switchEpic$.next();
 
@@ -71,122 +69,92 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
       payload && payload.state !== undefined
         ? payload.state
         : storeContext.store.getState();
-    const modelsState = (rootState || {})[modelsStateKey] || {};
-    mapObjectDeeply({}, modelsState, (modelIndex, paths) => {
-      if (typeof modelIndex === "number") {
-        const namespace = convertPathToNamespace(paths.join("."));
-        batchRegisterPayloads.push({
-          namespace,
-          model: modelIndex
-        });
-      }
-    });
+    if (rootState != null) {
+      storeContext.contextByModel.forEach((context) => {
+        const state = rootState[context.basePath];
+        if (state != null) {
+          if (!context.isDynamic) {
+            batchRegisterPayloads.push({
+              namespace: context.baseNamespace
+            });
+          } else {
+            const models = state[stateModelsKey] || {};
+            Object.keys(models).forEach((key) => {
+              const modelIndex = models[key];
+              if (typeof modelIndex === "number") {
+                batchRegisterPayloads.push({
+                  namespace: joinLastPart(context.baseNamespace, key),
+                  model: modelIndex
+                });
+              }
+            });
+          }
+        }
+      });
+    }
 
     register(batchRegisterPayloads);
   }
 
   return (store) => (next) => (action: AnyAction) => {
-    if (reloadActionHelper.is(action)) {
+    if (batchRegisterActionHelper.is(action)) {
+      register(action.payload);
+    } else if (batchUnregisterActionHelper.is(action)) {
+      unregister(action.payload);
+    } else if (reloadActionHelper.is(action)) {
       reload(action.payload);
-      return next(action);
     }
 
-    let container: ContainerImpl | undefined;
-
-    const [namespace, actionName] = splitLastPart(action.type);
-    const actionContext = storeContext.contextByAction.get(action);
-    storeContext.contextByAction.delete(action);
-
-    const batchRegisterPayloads = parseBatchRegisterPayloads(action);
-    if (batchRegisterPayloads) {
-      register(batchRegisterPayloads);
-    }
-
-    const batchUnregisterPayloads = parseBatchUnregisterPayloads(action);
-    if (batchUnregisterPayloads) {
-      unregister(batchUnregisterPayloads);
-    }
-
-    if (!batchRegisterPayloads && !batchUnregisterPayloads) {
-      // try to auto register container
-      if (
-        actionContext &&
-        actionContext.container.model.autoRegister &&
-        actionContext.container.canRegister
-      ) {
-        actionContext.container.register();
-      }
-
-      // try to get container
-      const modelsInfo = storeContext.findModelsInfo(namespace);
-      if (modelsInfo != null) {
-        const { baseNamespace, key, models } = modelsInfo;
-        const basePath = convertNamespaceToPath(baseNamespace);
-
-        const modelIndex = getSubState(
-          (store.getState() || {})[modelsStateKey],
-          basePath,
-          key
-        );
-        if (modelIndex != null) {
-          const model = models[modelIndex];
-          container = storeContext.getContainer(model, key!) as ContainerImpl;
-        }
-      }
-    }
-
-    // dispatch action
     const result = next(action);
 
-    // emit state and action
     rootStateSubject.next(store.getState());
     rootActionSubject.next(action);
 
-    // handle effect
-    if (actionContext) {
-      const deferred = actionContext.deferred;
+    const [namespace, actionName] = splitLastPart(action.type);
+    const container = storeContext.containerByNamespace.get(namespace);
+    if (container && container.isRegistered) {
+      const deferred = storeContext.deferredByAction.get(action);
 
-      if (container && container.isRegistered) {
-        const modelContext = storeContext.contextByModel.get(container.model)!;
-        const effect = modelContext.effectByActionName.get(actionName);
+      const modelContext = storeContext.contextByModel.get(container.model)!;
+      const effect = modelContext.effectByActionName.get(actionName);
 
-        if (effect != null) {
-          const promise = effect(
-            {
-              rootAction$,
-              rootState$,
+      if (effect != null) {
+        const promise = effect(
+          {
+            rootAction$,
+            rootState$,
 
-              dependencies: storeContext.options.dependencies,
-              namespace: container.namespace,
-              key: container.key,
+            dependencies: storeContext.getDependencies(),
+            namespace: container.namespace,
+            key: container.key,
 
-              getState: () => container!.getState(),
-              getters: container.getters,
-              actions: container.actions,
+            getState: () => container!.getState(),
+            getters: container.getters,
+            actions: container.actions,
 
-              getContainer: storeContext.getContainer,
-              call: container.call
-            },
-            action.payload
-          );
+            getContainer: storeContext.getContainer
+          },
+          action.payload
+        );
 
-          promise.then(
-            (value) => {
-              if (deferred) {
-                deferred.resolve(value);
-              }
-            },
-            (reason) => {
-              if (deferred) {
-                deferred.reject(reason);
-              } else if (storeContext.options.defaultEffectErrorHandler) {
-                storeContext.options.defaultEffectErrorHandler(reason);
-              } else {
-                throw reason;
-              }
+        promise.then(
+          (value) => {
+            if (deferred) {
+              deferred.resolve(value);
             }
-          );
-        } else {
+          },
+          (reason) => {
+            if (deferred) {
+              deferred.reject(reason);
+            } else if (storeContext.options.defaultEffectErrorHandler) {
+              storeContext.options.defaultEffectErrorHandler(reason);
+            } else {
+              throw reason;
+            }
+          }
+        );
+      } else {
+        if (deferred) {
           deferred.resolve(undefined);
         }
       }

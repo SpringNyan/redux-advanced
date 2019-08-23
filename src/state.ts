@@ -1,12 +1,9 @@
 import { GetContainer } from "./container";
 import { Model } from "./model";
 
-export const modelsStateKey = "$$models";
+export const stateModelsKey = "@@models";
 
-export interface StateContext<
-  TDependencies extends object | undefined = any,
-  TArgs extends object | undefined = any
-> {
+export interface StateContext<TDependencies = any, TArgs extends object = any> {
   dependencies: TDependencies;
   namespace: string;
   key: string | undefined;
@@ -17,9 +14,9 @@ export interface StateContext<
 }
 
 export type StateFactory<
-  TDependencies extends object | undefined,
-  TArgs extends object | undefined,
-  TState extends object | undefined
+  TDependencies,
+  TArgs extends object,
+  TState extends object
 > = (context: StateContext<TDependencies, TArgs>) => TState;
 
 export type ExtractState<T extends Model> = T extends Model<
@@ -34,9 +31,7 @@ export type ExtractState<T extends Model> = T extends Model<
   ? TState
   : never;
 
-export type StateArgs<TArgs extends object | undefined> = TArgs extends object
-  ? Required<TArgs>
-  : TArgs;
+export type StateArgs<TArgs> = TArgs extends object ? Required<TArgs> : TArgs;
 
 export function getSubState(
   rootState: any,

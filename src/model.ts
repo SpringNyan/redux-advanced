@@ -25,6 +25,7 @@ import {
 } from "./selector";
 import { ExtractState, StateFactory } from "./state";
 import {
+  convertNamespaceToPath,
   DeepPartial,
   factoryWrapper,
   joinLastPart,
@@ -32,16 +33,20 @@ import {
   merge
 } from "./util";
 
+export interface ModelOptions {
+  autoRegister?: boolean;
+}
+
 export interface Model<
-  TDependencies extends object | undefined = any,
-  TArgs extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TArgs extends object = any,
+  TState extends object = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
-  autoRegister: boolean;
+  options: ModelOptions;
 
   args: ArgsFactory<TDependencies, TArgs>;
   state: StateFactory<TDependencies, TArgs, TState>;
@@ -51,7 +56,7 @@ export interface Model<
   epics: TEpics;
 }
 
-export interface Models<TDependencies extends object | undefined = any> {
+export interface Models<TDependencies = any> {
   [key: string]:
     | Model<TDependencies>
     | Array<Model<TDependencies>>
@@ -61,9 +66,9 @@ export interface Models<TDependencies extends object | undefined = any> {
 export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
 export class ModelBuilder<
-  TDependencies extends object | undefined = any,
-  TArgs extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TArgs extends object = any,
+  TState extends object = any,
   TSelectors extends Selectors = any,
   TReducers extends Reducers = any,
   TEffects extends Effects = any,
@@ -124,13 +129,9 @@ export class ModelBuilder<
   public extend<TModel extends Model>(
     model: TModel
   ): ModelBuilder<
-    TDependencies extends object
-      ? TDependencies & ExtractDependencies<TModel>
-      : ExtractDependencies<TModel>,
-    TArgs extends object ? TArgs & ExtractArgs<TModel> : ExtractArgs<TModel>,
-    TState extends object
-      ? TState & ExtractState<TModel>
-      : ExtractState<TModel>,
+    TDependencies & ExtractDependencies<TModel>,
+    TArgs & ExtractArgs<TModel>,
+    TState & ExtractState<TModel>,
     TSelectors & ExtractSelectors<TModel>,
     TReducers & ExtractReducers<TModel>,
     TEffects & ExtractEffects<TModel>,
@@ -140,25 +141,9 @@ export class ModelBuilder<
     model: TModel,
     namespace: TNamespace
   ): ModelBuilder<
-    TDependencies extends object
-      ? TDependencies & ExtractDependencies<TModel>
-      : ExtractDependencies<TModel>,
-    TArgs extends object
-      ? TArgs &
-          (ExtractArgs<TModel> extends object
-            ? { [P in TNamespace]: ExtractArgs<TModel> }
-            : {})
-      : (ExtractArgs<TModel> extends object
-          ? { [P in TNamespace]: ExtractArgs<TModel> }
-          : {}),
-    TState extends object
-      ? TState &
-          (ExtractState<TModel> extends object
-            ? { [P in TNamespace]: ExtractState<TModel> }
-            : {})
-      : (ExtractState<TModel> extends object
-          ? { [P in TNamespace]: ExtractState<TModel> }
-          : {}),
+    TDependencies & ExtractDependencies<TModel>,
+    TArgs & ToArgs<{ [P in TNamespace]: ExtractArgs<TModel> }>,
+    TState & { [P in TNamespace]: ExtractState<TModel> },
     TSelectors & { [P in TNamespace]: ExtractSelectors<TModel> },
     TReducers & { [P in TNamespace]: ExtractReducers<TModel> },
     TEffects & { [P in TNamespace]: ExtractEffects<TModel> },
@@ -175,6 +160,7 @@ export class ModelBuilder<
     let reducers = model.reducers;
     let effects = model.effects;
     let epics = model.epics;
+    let options = model.options;
 
     if (namespace !== undefined) {
       args = (context) => ({
@@ -218,8 +204,7 @@ export class ModelBuilder<
           (oldReducer: Reducer) => {
             const newReducer: Reducer = (_state, payload, context) =>
               oldReducer(_state[namespace], payload, {
-                ...context,
-                prevState: (context.prevState || {})[namespace]
+                ...context
               });
 
             return newReducer;
@@ -257,6 +242,11 @@ export class ModelBuilder<
           return newEpic;
         })
       };
+
+      options = {
+        ...options,
+        autoRegister: undefined
+      };
     }
 
     this.dependencies()
@@ -265,13 +255,14 @@ export class ModelBuilder<
       .selectors(selectors)
       .reducers(reducers)
       .effects(effects)
-      .epics(epics);
+      .epics(epics)
+      .options(options);
 
     return this as any;
   }
 
-  public dependencies<T extends object>(): ModelBuilder<
-    TDependencies extends object ? TDependencies & T : T,
+  public dependencies<T>(): ModelBuilder<
+    TDependencies & T,
     TArgs,
     TState,
     TSelectors,
@@ -290,7 +281,7 @@ export class ModelBuilder<
     args: T | ArgsFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
-    TArgs extends object ? TArgs & ToArgs<T> : ToArgs<T>,
+    TArgs & ToArgs<T>,
     TState,
     TSelectors,
     TReducers,
@@ -307,10 +298,6 @@ export class ModelBuilder<
     this._model.args = (context) => {
       const oldArgs = oldArgsFn(context);
       const newArgs = newArgsFn(context);
-
-      if (oldArgs === undefined && newArgs === undefined) {
-        return undefined!;
-      }
 
       return merge({}, oldArgs, newArgs);
     };
@@ -341,10 +328,6 @@ export class ModelBuilder<
       const oldArgs = oldArgsFn(context);
       const newArgs = factoryWrapper(override(oldArgs))(context);
 
-      if (oldArgs === undefined && newArgs === undefined) {
-        return undefined!;
-      }
-
       return merge({}, oldArgs, newArgs);
     };
 
@@ -356,7 +339,7 @@ export class ModelBuilder<
   ): ModelBuilder<
     TDependencies,
     TArgs,
-    TState extends object ? TState & T : T,
+    TState & T,
     TSelectors,
     TReducers,
     TEffects,
@@ -372,10 +355,6 @@ export class ModelBuilder<
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
       const newState = newStateFn(context);
-
-      if (oldState === undefined && newState === undefined) {
-        return undefined!;
-      }
 
       return merge({}, oldState, newState);
     };
@@ -407,10 +386,6 @@ export class ModelBuilder<
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
       const newState = factoryWrapper(override(oldState))(context);
-
-      if (oldState === undefined && newState === undefined) {
-        return undefined!;
-      }
 
       return merge({}, oldState, newState);
     };
@@ -660,7 +635,7 @@ export class ModelBuilder<
 
     if (Array.isArray(epics)) {
       epics = epics.reduce<{ [key: string]: Epic }>((obj, epic) => {
-        obj["$$EPIC_" + ModelBuilder._nextEpicId] = epic;
+        obj["@@EPIC_" + ModelBuilder._nextEpicId] = epic;
         ModelBuilder._nextEpicId += 1;
         return obj;
       }, {}) as T;
@@ -711,8 +686,8 @@ export class ModelBuilder<
     return this as any;
   }
 
-  public autoRegister(
-    value: boolean = true
+  public options(
+    options: ModelOptions
   ): ModelBuilder<
     TDependencies,
     TArgs,
@@ -723,10 +698,34 @@ export class ModelBuilder<
     TEpics
   > {
     if (this._isFrozen) {
-      return this.clone().autoRegister(value);
+      return this.clone().options(options);
     }
 
-    this._model.autoRegister = value;
+    this._model.options = merge({}, this._model.options, options);
+
+    return this as any;
+  }
+
+  public overrideOptions(
+    override: (base: ModelOptions) => DeepPartial<ModelOptions>
+  ): ModelBuilder<
+    TDependencies,
+    TArgs,
+    TState,
+    TSelectors,
+    TReducers,
+    TEffects,
+    TEpics
+  > {
+    if (this._isFrozen) {
+      return this.clone().overrideOptions(override);
+    }
+
+    this._model.options = merge(
+      {},
+      this._model.options,
+      override(this._model.options)
+    );
 
     return this as any;
   }
@@ -746,7 +745,7 @@ export class ModelBuilder<
 
 function cloneModel<T extends Model>(model: T): T {
   return {
-    autoRegister: model.autoRegister,
+    options: merge({}, model.options),
 
     args: model.args,
     state: model.state,
@@ -762,20 +761,12 @@ export function isModel(obj: any): obj is Model {
   return model != null && typeof model.state === "function";
 }
 
-export function createModelBuilder(): ModelBuilder<
-  undefined,
-  undefined,
-  undefined,
-  {},
-  {},
-  {},
-  {}
-> {
+export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}, {}> {
   return new ModelBuilder({
-    autoRegister: false,
+    options: {},
 
-    args: () => undefined,
-    state: () => undefined,
+    args: () => ({}),
+    state: () => ({}),
     selectors: {},
     reducers: {},
     effects: {},
@@ -795,16 +786,17 @@ export function registerModel<TModel extends Model>(
     registeredModels = [];
     storeContext.modelsByBaseNamespace.set(namespace, registeredModels);
   }
+  const prevRegisteredModelsLength = registeredModels.length;
   registeredModels.push(...models);
 
-  models.forEach((_model) => {
+  models.forEach((_model, index) => {
     if (storeContext.contextByModel.has(_model)) {
       throw new Error("model is already registered");
     }
 
     const reducerByActionName = new Map<string, Reducer>();
     mapObjectDeeply({}, _model.reducers, (reducer, paths) => {
-      const actionName = storeContext.options.resolveActionName!(paths);
+      const actionName = storeContext.resolveActionName(paths);
       if (reducerByActionName.has(actionName)) {
         throw new Error("action name of reducer should be unique");
       }
@@ -814,7 +806,7 @@ export function registerModel<TModel extends Model>(
 
     const effectByActionName = new Map<string, Effect>();
     mapObjectDeeply({}, _model.effects, (effect, paths) => {
-      const actionName = storeContext.options.resolveActionName!(paths);
+      const actionName = storeContext.resolveActionName(paths);
       if (effectByActionName.has(actionName)) {
         throw new Error("action name of effect should be unique");
       }
@@ -823,13 +815,16 @@ export function registerModel<TModel extends Model>(
     });
 
     storeContext.contextByModel.set(_model, {
-      baseNamespace: namespace,
       isDynamic: Array.isArray(model),
+      modelIndex: prevRegisteredModelsLength + index,
+
+      baseNamespace: namespace,
+      basePath: convertNamespaceToPath(namespace),
 
       reducerByActionName,
       effectByActionName,
 
-      idByKey: new Map()
+      containerByKey: new Map()
     });
   });
 }
@@ -853,12 +848,9 @@ export function registerModels(
         namespace: modelNamespace
       });
     } else {
-      const childPayloads = registerModels(
-        storeContext,
-        modelNamespace,
-        model as Models
+      payloads.push(
+        ...registerModels(storeContext, modelNamespace, model as Models)
       );
-      payloads.push(...childPayloads);
     }
   });
 

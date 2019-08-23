@@ -9,18 +9,17 @@ import { catchError, filter, takeUntil } from "rxjs/operators";
 import {
   ActionHelpers,
   AnyAction,
-  batchUnregisterActionHelper,
-  createUnregisterActionHelper
+  batchUnregisterActionHelper
 } from "./action";
-import { ContainerCall, ContainerImpl, GetContainer } from "./container";
+import { ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
 import { mapObjectDeeply } from "./util";
 
 export interface EpicContext<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -36,12 +35,11 @@ export interface EpicContext<
   actions: TActionHelpers;
 
   getContainer: GetContainer;
-  call: ContainerCall;
 }
 
 export type Epic<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > = (
@@ -49,8 +47,8 @@ export type Epic<
 ) => Observable<AnyAction>;
 
 export interface Epics<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -73,8 +71,8 @@ export type ExtractEpics<T extends Model> = T extends Model<
 
 export type OverrideEpics<
   TEpics,
-  TDependencies extends object | undefined,
-  TState extends object | undefined,
+  TDependencies,
+  TState extends object,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers
 > = {
@@ -95,7 +93,7 @@ export function createReduxObservableEpic(
         rootAction$,
         rootState$,
 
-        dependencies: storeContext.options.dependencies,
+        dependencies: storeContext.getDependencies(),
         namespace: container.namespace,
         key: container.key,
 
@@ -103,8 +101,7 @@ export function createReduxObservableEpic(
         getters: container.getters,
         actions: container.actions,
 
-        getContainer: storeContext.getContainer,
-        call: container.call
+        getContainer: storeContext.getContainer
       });
 
       if (storeContext.options.defaultEpicErrorHandler != null) {
@@ -116,16 +113,8 @@ export function createReduxObservableEpic(
       outputObservables.push(output$);
     });
 
-    const unregisterActionHelper = createUnregisterActionHelper(
-      container.namespace
-    );
-
     const takeUntil$ = rootAction$.pipe(
       filter((action) => {
-        if (unregisterActionHelper.is(action)) {
-          return true;
-        }
-
         if (batchUnregisterActionHelper.is(action)) {
           return (action.payload || []).some(
             (payload) => payload.namespace === container.namespace

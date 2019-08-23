@@ -1,13 +1,13 @@
 import { Observable } from "rxjs";
 
 import { ActionHelpers, AnyAction, ExtractActionPayload } from "./action";
-import { ContainerCall, GetContainer } from "./container";
+import { GetContainer } from "./container";
 import { Model } from "./model";
 import { Getters } from "./selector";
 
 export interface EffectContext<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -23,12 +23,11 @@ export interface EffectContext<
   actions: TActionHelpers;
 
   getContainer: GetContainer;
-  call: ContainerCall;
 }
 
 export type Effect<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any,
   TPayload = any,
@@ -39,8 +38,8 @@ export type Effect<
 ) => Promise<TResult>;
 
 export interface Effects<
-  TDependencies extends object | undefined = any,
-  TState extends object | undefined = any,
+  TDependencies = any,
+  TState extends object = any,
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
@@ -74,8 +73,8 @@ export type ExtractEffectResult<T extends Effect> = T extends Effect<
 
 export type OverrideEffects<
   TEffects,
-  TDependencies extends object | undefined,
-  TState extends object | undefined,
+  TDependencies,
+  TState extends object,
   TGetters extends Getters,
   TActionHelpers extends ActionHelpers
 > = {
