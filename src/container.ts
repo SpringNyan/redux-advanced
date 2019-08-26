@@ -41,7 +41,6 @@ export class ContainerImpl<TModel extends Model = Model>
 
   private readonly _modelContext: ModelContext;
 
-  private _cachedArgs: any;
   private _cachedState: any;
   private _cachedGetters: any;
   private _cachedActions: any;
@@ -61,34 +60,17 @@ export class ContainerImpl<TModel extends Model = Model>
   }
 
   public get isRegistered(): boolean {
-    const container = this._getCurrentContainer();
-    if (container !== this) {
-      return container.isRegistered;
-    }
-
-    const registeredContainer = this._storeContext.containerByNamespace.get(
+    const container = this._storeContext.containerByNamespace.get(
       this.namespace
     );
-    return (
-      registeredContainer != null && registeredContainer.model === this.model
-    );
+    return container != null && container.model === this.model;
   }
 
   public get canRegister(): boolean {
-    const container = this._getCurrentContainer();
-    if (container !== this) {
-      return container.canRegister;
-    }
-
     return !this._storeContext.containerByNamespace.has(this.namespace);
   }
 
   public getRootState(): any {
-    const container = this._getCurrentContainer();
-    if (container !== this) {
-      return container.getRootState();
-    }
-
     return this._storeContext.adHocRootState !== undefined
       ? this._storeContext.adHocRootState
       : this._storeContext.store.getState();
@@ -131,7 +113,7 @@ export class ContainerImpl<TModel extends Model = Model>
 
             required: requiredArgFunc
           },
-          this._cachedArgs,
+          undefined,
           true
         );
 
@@ -190,17 +172,9 @@ export class ContainerImpl<TModel extends Model = Model>
   }
 
   public register(args?: ExtractArgs<TModel>): void {
-    const container = this._getCurrentContainer();
-    if (container !== this) {
-      return container.register(args);
-    }
-
     if (!this.canRegister) {
       throw new Error("namespace is already registered");
     }
-
-    this._cachedArgs = args;
-    this._cachedState = undefined;
 
     this._storeContext.store.dispatch(
       batchRegisterActionHelper.create([
@@ -214,11 +188,6 @@ export class ContainerImpl<TModel extends Model = Model>
   }
 
   public unregister(): void {
-    const container = this._getCurrentContainer();
-    if (container !== this) {
-      return container.unregister();
-    }
-
     if (this.isRegistered) {
       this._storeContext.store.dispatch(
         batchUnregisterActionHelper.create([
