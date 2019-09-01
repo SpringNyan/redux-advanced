@@ -28,7 +28,8 @@ export type Selector<
   TActionHelpers extends ActionHelpers = any,
   TResult = any
 > = (
-  context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+  context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+  oldValue: TResult | undefined
 ) => TResult;
 
 export interface SelectorCache {
@@ -44,18 +45,8 @@ export type SelectorInternal<
   TResult = any
 > = (
   context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+  oldValue: TResult | undefined,
   cache: SelectorCache
-) => TResult;
-
-export type SelectorDependency<
-  TDependencies = any,
-  TState extends object = any,
-  TGetters extends Getters = any,
-  TActionHelpers extends ActionHelpers = any,
-  TResult = any
-> = (
-  context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-  oldValue: TResult | undefined
 ) => TResult;
 
 export interface Selectors<
@@ -105,7 +96,7 @@ export type ExtractGettersFromSelectors<TSelectors extends Selectors> = {
     ? ExtractSelectorResult<TSelectors[P]>
     : TSelectors[P] extends {}
     ? ExtractGettersFromSelectors<TSelectors[P]>
-    : never
+    : never;
 };
 
 export type ExtractSelectors<T extends Model> = T extends Model<
@@ -141,7 +132,7 @@ export type OverrideSelectors<
         TState,
         TGetters,
         TActionHelpers
-      >
+      >;
 };
 
 export interface CreateSelector<
@@ -152,29 +143,14 @@ export interface CreateSelector<
 > {
   <TResult>(
     combiner: (
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <
     T extends
-      | Array<
-          SelectorDependency<
-            TDependencies,
-            TState,
-            TGetters,
-            TActionHelpers,
-            any
-          >
-        >
-      | [
-          SelectorDependency<
-            TDependencies,
-            TState,
-            TGetters,
-            TActionHelpers,
-            any
-          >
-        ],
+      | Array<Selector<TDependencies, TState, TGetters, TActionHelpers, any>>
+      | [Selector<TDependencies, TState, TGetters, TActionHelpers, any>],
     TResult
   >(
     selectors: T,
@@ -188,199 +164,79 @@ export interface CreateSelector<
           any
         >
           ? ReturnType<T[P]>
-          : never
+          : never;
       },
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
     combiner: (
       res1: T1,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, T2, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
+    selector2: Selector<TDependencies, TState, TGetters, TActionHelpers, T2>,
     combiner: (
       res1: T1,
       res2: T2,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, T2, T3, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
+    selector2: Selector<TDependencies, TState, TGetters, TActionHelpers, T2>,
+    selector3: Selector<TDependencies, TState, TGetters, TActionHelpers, T3>,
     combiner: (
       res1: T1,
       res2: T2,
       res3: T3,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, T2, T3, T4, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
+    selector2: Selector<TDependencies, TState, TGetters, TActionHelpers, T2>,
+    selector3: Selector<TDependencies, TState, TGetters, TActionHelpers, T3>,
+    selector4: Selector<TDependencies, TState, TGetters, TActionHelpers, T4>,
     combiner: (
       res1: T1,
       res2: T2,
       res3: T3,
       res4: T4,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, T2, T3, T4, T5, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
+    selector2: Selector<TDependencies, TState, TGetters, TActionHelpers, T2>,
+    selector3: Selector<TDependencies, TState, TGetters, TActionHelpers, T3>,
+    selector4: Selector<TDependencies, TState, TGetters, TActionHelpers, T4>,
+    selector5: Selector<TDependencies, TState, TGetters, TActionHelpers, T5>,
     combiner: (
       res1: T1,
       res2: T2,
       res3: T3,
       res4: T4,
       res5: T5,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, T2, T3, T4, T5, T6, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    selector6: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T6
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
+    selector2: Selector<TDependencies, TState, TGetters, TActionHelpers, T2>,
+    selector3: Selector<TDependencies, TState, TGetters, TActionHelpers, T3>,
+    selector4: Selector<TDependencies, TState, TGetters, TActionHelpers, T4>,
+    selector5: Selector<TDependencies, TState, TGetters, TActionHelpers, T5>,
+    selector6: Selector<TDependencies, TState, TGetters, TActionHelpers, T6>,
     combiner: (
       res1: T1,
       res2: T2,
@@ -388,59 +244,18 @@ export interface CreateSelector<
       res4: T4,
       res5: T5,
       res6: T6,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, T2, T3, T4, T5, T6, T7, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    selector6: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T6
-    >,
-    selector7: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T7
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
+    selector2: Selector<TDependencies, TState, TGetters, TActionHelpers, T2>,
+    selector3: Selector<TDependencies, TState, TGetters, TActionHelpers, T3>,
+    selector4: Selector<TDependencies, TState, TGetters, TActionHelpers, T4>,
+    selector5: Selector<TDependencies, TState, TGetters, TActionHelpers, T5>,
+    selector6: Selector<TDependencies, TState, TGetters, TActionHelpers, T6>,
+    selector7: Selector<TDependencies, TState, TGetters, TActionHelpers, T7>,
     combiner: (
       res1: T1,
       res2: T2,
@@ -449,66 +264,19 @@ export interface CreateSelector<
       res5: T5,
       res6: T6,
       res7: T7,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, T2, T3, T4, T5, T6, T7, T8, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    selector6: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T6
-    >,
-    selector7: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T7
-    >,
-    selector8: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T8
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
+    selector2: Selector<TDependencies, TState, TGetters, TActionHelpers, T2>,
+    selector3: Selector<TDependencies, TState, TGetters, TActionHelpers, T3>,
+    selector4: Selector<TDependencies, TState, TGetters, TActionHelpers, T4>,
+    selector5: Selector<TDependencies, TState, TGetters, TActionHelpers, T5>,
+    selector6: Selector<TDependencies, TState, TGetters, TActionHelpers, T6>,
+    selector7: Selector<TDependencies, TState, TGetters, TActionHelpers, T7>,
+    selector8: Selector<TDependencies, TState, TGetters, TActionHelpers, T8>,
     combiner: (
       res1: T1,
       res2: T2,
@@ -518,73 +286,20 @@ export interface CreateSelector<
       res6: T6,
       res7: T7,
       res8: T8,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
   <T1, T2, T3, T4, T5, T6, T7, T8, T9, TResult>(
-    selector1: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    selector6: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T6
-    >,
-    selector7: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T7
-    >,
-    selector8: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T8
-    >,
-    selector9: SelectorDependency<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T9
-    >,
+    selector1: Selector<TDependencies, TState, TGetters, TActionHelpers, T1>,
+    selector2: Selector<TDependencies, TState, TGetters, TActionHelpers, T2>,
+    selector3: Selector<TDependencies, TState, TGetters, TActionHelpers, T3>,
+    selector4: Selector<TDependencies, TState, TGetters, TActionHelpers, T4>,
+    selector5: Selector<TDependencies, TState, TGetters, TActionHelpers, T5>,
+    selector6: Selector<TDependencies, TState, TGetters, TActionHelpers, T6>,
+    selector7: Selector<TDependencies, TState, TGetters, TActionHelpers, T7>,
+    selector8: Selector<TDependencies, TState, TGetters, TActionHelpers, T8>,
+    selector9: Selector<TDependencies, TState, TGetters, TActionHelpers, T9>,
     combiner: (
       res1: T1,
       res2: T2,
@@ -595,7 +310,8 @@ export interface CreateSelector<
       res7: T7,
       res8: T8,
       res9: T9,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>
+      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
+      oldValue: TResult | undefined
     ) => TResult
   ): Selector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
 }
@@ -603,13 +319,17 @@ export interface CreateSelector<
 export const createSelector: CreateSelector = ((...args: any[]) => {
   const arrayMode = Array.isArray(args[0]);
 
-  const selectors: SelectorDependency[] = arrayMode
+  const selectors: Selector[] = arrayMode
     ? args[0]
     : args.slice(0, args.length - 1);
 
   const combiner: Function = args[args.length - 1];
 
-  const resultSelector = (context: SelectorContext, cache: SelectorCache) => {
+  const resultSelector = (
+    context: SelectorContext,
+    oldValue: any,
+    cache: SelectorCache
+  ) => {
     let needUpdate = cache.lastParams == null;
     const lastParams = cache.lastParams || [];
 
@@ -626,8 +346,8 @@ export const createSelector: CreateSelector = ((...args: any[]) => {
     if (needUpdate) {
       cache.lastParams = params;
       cache.lastResult = arrayMode
-        ? combiner(params, context)
-        : combiner(...params, context);
+        ? combiner(params, context, cache.lastResult)
+        : combiner(...params, context, cache.lastResult);
     }
 
     return cache.lastResult;
@@ -657,7 +377,7 @@ export function createGetters<TModel extends Model>(
             cacheByPath.set(fullPath, cache);
           }
 
-          return selector(
+          cache.lastResult = selector(
             {
               dependencies: storeContext.getDependencies(),
               namespace: container.namespace,
@@ -669,8 +389,11 @@ export function createGetters<TModel extends Model>(
 
               getContainer: storeContext.getContainer
             },
+            cache.lastResult,
             cache
           );
+
+          return cache.lastResult;
         },
         enumerable: true,
         configurable: true
