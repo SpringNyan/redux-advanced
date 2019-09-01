@@ -93,5 +93,5 @@ export type OverrideEffects<
         TState,
         TGetters,
         TActionHelpers
-      >
+      >;
 };

@@ -47,7 +47,7 @@ export type ExtractActionHelperPayloadResultPairFromReducers<
     ? [ExtractActionPayload<TReducers[P]>]
     : TReducers[P] extends {}
     ? ExtractActionHelperPayloadResultPairFromReducers<TReducers[P]>
-    : never
+    : never;
 };
 
 export type ExtractActionHelperPayloadResultPairFromEffects<
@@ -57,7 +57,7 @@ export type ExtractActionHelperPayloadResultPairFromEffects<
     ? [ExtractActionPayload<TEffects[P]>, ExtractEffectResult<TEffects[P]>]
     : TEffects[P] extends {}
     ? ExtractActionHelperPayloadResultPairFromEffects<TEffects[P]>
-    : never
+    : never;
 };
 
 export type ExtractActionHelpersFromPayloadResultPairObject<T> = {
@@ -65,7 +65,7 @@ export type ExtractActionHelpersFromPayloadResultPairObject<T> = {
     ? ActionHelper<T[P][0], T[P][1]>
     : T[P] extends {}
     ? ExtractActionHelpersFromPayloadResultPairObject<T[P]>
-    : never
+    : never;
 };
 
 export type ExtractActionHelpersFromReducersEffects<

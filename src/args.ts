@@ -41,7 +41,7 @@ export type ToArgs<T> = Pick<
   {
     [P in keyof T]: T[P] extends RequiredArg
       ? ExtractRequiredArgType<T[P]>
-      : never
+      : never;
   },
   { [P in keyof T]: T[P] extends RequiredArg ? P : never }[keyof T]
 > &
