@@ -181,7 +181,7 @@ export class ModelBuilder<
           {},
           model.selectors,
           (oldSelector: SelectorInternal) => {
-            const newSelector: SelectorInternal = (context, cache) =>
+            const newSelector: SelectorInternal = (context, oldValue, cache) =>
               oldSelector(
                 {
                   ...context,
@@ -189,6 +189,7 @@ export class ModelBuilder<
                   getters: context.getters[namespace],
                   actions: context.actions[namespace]
                 },
+                oldValue,
                 cache
               );
 

@@ -57,7 +57,7 @@ export type OverrideReducers<
 > = {
   [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
     ? Reducer<TDependencies, TState, ExtractActionPayload<TReducers[P]>>
-    : OverrideReducers<TReducers[P], TDependencies, TState>
+    : OverrideReducers<TReducers[P], TDependencies, TState>;
 };
 
 export function createReduxReducer(storeContext: StoreContext): ReduxReducer {

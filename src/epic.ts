@@ -78,7 +78,7 @@ export type OverrideEpics<
 > = {
   [P in keyof TEpics]: TEpics[P] extends (...args: any[]) => any
     ? Epic<TDependencies, TState, TGetters, TActionHelpers>
-    : OverrideEpics<TEpics[P], TDependencies, TState, TGetters, TActionHelpers>
+    : OverrideEpics<TEpics[P], TDependencies, TState, TGetters, TActionHelpers>;
 };
 
 export function createReduxObservableEpic(
