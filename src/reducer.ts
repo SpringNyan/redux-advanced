@@ -161,36 +161,25 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
       rootState = {};
     }
 
-    const [namespace, actionName] = splitLastPart(action.type);
-
     if (batchRegisterActionHelper.is(action)) {
       rootState = register(rootState, action.payload);
     } else if (batchUnregisterActionHelper.is(action)) {
       rootState = unregister(rootState, action.payload);
     }
 
-    const parsed = storeContext.parseNamespace(namespace);
-    if (parsed == null) {
+    const [namespace, actionName] = splitLastPart(action.type);
+
+    const container = storeContext.containerByNamespace.get(namespace);
+    if (container == null || !container.isRegistered) {
       return rootState;
     }
+    const { key } = container;
 
-    const { baseNamespace, key, models } = parsed;
-    const basePath = convertNamespaceToPath(baseNamespace);
-
-    const modelIndex =
-      key !== undefined
-        ? getSubState(rootState[basePath], stateModelsKey, key)
-        : 0;
-
-    if (typeof modelIndex !== "number") {
-      return rootState;
-    }
-
-    const model = models[modelIndex];
-    const modelContext = storeContext.contextByModel.get(model);
+    const modelContext = storeContext.contextByModel.get(container.model);
     if (modelContext == null) {
       return rootState;
     }
+    const { basePath } = modelContext;
 
     const reducer = modelContext.reducerByActionName.get(actionName);
     if (reducer == null) {
