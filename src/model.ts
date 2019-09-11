@@ -18,8 +18,8 @@ import {
   createSelector,
   ExtractGettersFromSelectors,
   ExtractSelectors,
+  OutputSelector,
   OverrideSelectors,
-  SelectorInternal,
   Selectors,
   SelectorsFactory
 } from "./selector";
@@ -180,8 +180,8 @@ export class ModelBuilder<
         [namespace]: mapObjectDeeply(
           {},
           model.selectors,
-          (oldSelector: SelectorInternal) => {
-            const newSelector: SelectorInternal = (context, oldValue, cache) =>
+          (oldSelector: OutputSelector) => {
+            const newSelector: OutputSelector = (context, cache) =>
               oldSelector(
                 {
                   ...context,
@@ -189,7 +189,6 @@ export class ModelBuilder<
                   getters: context.getters[namespace],
                   actions: context.actions[namespace]
                 },
-                oldValue,
                 cache
               );
 
