@@ -1,4 +1,6 @@
-import { ActionHelpers } from "./action";
+import { Observable } from "rxjs";
+
+import { ActionHelpers, AnyAction } from "./action";
 import { ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
@@ -10,6 +12,9 @@ export interface SelectorContext<
   TGetters extends Getters = any,
   TActionHelpers extends ActionHelpers = any
 > {
+  rootAction$: Observable<AnyAction>;
+  rootState$: Observable<any>;
+
   dependencies: TDependencies;
   namespace: string;
   key: string | undefined;
@@ -665,6 +670,9 @@ export function createGetters<TModel extends Model>(
 
           return selector(
             {
+              rootAction$: storeContext.rootAction$,
+              rootState$: storeContext.rootState$,
+
               dependencies: storeContext.getDependencies(),
               namespace: container.namespace,
               key: container.key,

@@ -1,6 +1,7 @@
 import { Store } from "redux";
 import { Epic as ReduxObservableEpic } from "redux-observable";
-import { Subject } from "rxjs";
+import { Observable, Subject } from "rxjs";
+import { distinctUntilChanged } from "rxjs/operators";
 
 import { AnyAction } from "./action";
 import { ContainerImpl, createGetContainer, GetContainer } from "./container";
@@ -34,6 +35,11 @@ export interface StoreContext {
 
   adHocRootState: any;
 
+  rootActionSubject: Subject<AnyAction>;
+  rootAction$: Observable<AnyAction>;
+  rootStateSubject: Subject<any>;
+  rootState$: Observable<any>;
+
   contextByModel: Map<Model, ModelContext>;
   modelsByBaseNamespace: Map<string, Model[]>;
   containerByNamespace: Map<string, ContainerImpl>;
@@ -57,6 +63,12 @@ export interface StoreContext {
 }
 
 export function createStoreContext(): StoreContext {
+  const rootActionSubject = new Subject<AnyAction>();
+  const rootAction$ = rootActionSubject;
+
+  const rootStateSubject = new Subject<any>();
+  const rootState$ = rootStateSubject.pipe(distinctUntilChanged());
+
   const storeContext: StoreContext = {
     store: undefined!,
     options: undefined!,
@@ -67,6 +79,11 @@ export function createStoreContext(): StoreContext {
     switchEpic$: new Subject(),
 
     adHocRootState: undefined,
+
+    rootActionSubject,
+    rootAction$,
+    rootStateSubject,
+    rootState$,
 
     contextByModel: new Map(),
     modelsByBaseNamespace: new Map(),
