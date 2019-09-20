@@ -1,6 +1,6 @@
 {
   "name": "redux-advanced",
-  "version": "1.0.0-alpha.12",
+  "version": "1.0.0-alpha.13",
   "description": "A state management library based on Redux",
   "authors": "SpringNyan",
   "license": "MIT",
@@ -17,14 +17,14 @@
   "module": "dist/redux-advanced.esm.js",
   "typings": "lib/index.d.ts",
   "devDependencies": {
-    "@types/chai": "^4.2.2",
+    "@types/chai": "^4.2.3",
     "@types/mocha": "^5.2.7",
     "chai": "^4.2.0",
-    "immer": "^3.2.1",
+    "immer": "^4.0.0",
     "mocha": "^6.2.0",
     "redux": "^4.0.4",
-    "redux-observable": "^1.1.0",
-    "rollup": "^1.21.2",
+    "redux-observable": "^1.2.0",
+    "rollup": "^1.21.4",
     "rollup-plugin-cleanup": "^3.1.1",
     "rollup-plugin-commonjs": "^10.1.0",
     "rollup-plugin-node-resolve": "^5.2.0",
@@ -33,8 +33,8 @@
     "tslint": "^5.20.0",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.6.3",
-    "webpack": "^4.39.3",
-    "webpack-cli": "^3.3.8"
+    "webpack": "^4.40.2",
+    "webpack-cli": "^3.3.9"
   },
   "scripts": {
     "build": "tsc -p . && rollup -c",

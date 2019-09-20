@@ -1,6 +1,4 @@
 import { Middleware } from "redux";
-import { Subject } from "rxjs";
-import { distinctUntilChanged } from "rxjs/operators";
 
 import {
   AnyAction,
@@ -18,12 +16,6 @@ import { stateModelsKey } from "./state";
 import { joinLastPart, splitLastPart } from "./util";
 
 export function createMiddleware(storeContext: StoreContext): Middleware {
-  const rootActionSubject = new Subject<AnyAction>();
-  const rootAction$ = rootActionSubject;
-
-  const rootStateSubject = new Subject<any>();
-  const rootState$ = rootStateSubject.pipe(distinctUntilChanged());
-
   function register(payloads: RegisterPayload[]) {
     payloads.forEach((payload) => {
       const namespace = payload.namespace;
@@ -107,8 +99,8 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
     const result = next(action);
 
-    rootStateSubject.next(store.getState());
-    rootActionSubject.next(action);
+    storeContext.rootStateSubject.next(store.getState());
+    storeContext.rootActionSubject.next(action);
 
     const [namespace, actionName] = splitLastPart(action.type);
     const container = storeContext.containerByNamespace.get(namespace);
@@ -121,8 +113,8 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
       if (effect != null) {
         const promise = effect(
           {
-            rootAction$,
-            rootState$,
+            rootAction$: storeContext.rootAction$,
+            rootState$: storeContext.rootState$,
 
             dependencies: storeContext.getDependencies(),
             namespace: container.namespace,

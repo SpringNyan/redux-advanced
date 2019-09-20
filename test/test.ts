@@ -1,7 +1,7 @@
 import { expect } from "chai";
 
 import { empty, timer } from "rxjs";
-import { mergeMapTo, tap } from "rxjs/operators";
+import { filter, mergeMapTo, take, tap } from "rxjs/operators";
 
 import { createModelBuilder, init } from "../lib";
 
@@ -23,6 +23,9 @@ describe("redux-advanced", () => {
         name: "",
         age: 0
       }))
+      .selectors({
+        rootAction$: ({ rootAction$ }) => rootAction$
+      })
       .selectors({
         _: {
           name: ({ getState }) => getState().name
@@ -185,6 +188,21 @@ describe("redux-advanced", () => {
     const staticModelContainer = storeGetContainer(staticModel);
     expect(staticModelContainer.namespace).eq("staticModel");
 
+    let setAge233Dispatched = false;
+    staticModelContainer.getters.rootAction$
+      .pipe(
+        filter(
+          (action) =>
+            staticModelContainer.actions.setAge.is(action) &&
+            action.payload === 233
+        ),
+        take(1),
+        tap(() => {
+          setAge233Dispatched = true;
+        })
+      )
+      .toPromise();
+
     expect(staticModelContainer.isRegistered).eq(true);
     expect(staticModelContainer.canRegister).eq(false);
 
@@ -210,6 +228,7 @@ describe("redux-advanced", () => {
     staticModelContainer.getters.setName("haha");
     expect(staticModelContainer.getState().name).eq("haha");
 
+    expect(setAge233Dispatched).eq(false);
     const staticModelSetAgePromise = staticModelContainer.actions.setAgeAsync.dispatch(
       233
     );
@@ -217,6 +236,7 @@ describe("redux-advanced", () => {
     const staticModelSetAgeResult = await staticModelSetAgePromise;
     expect(staticModelSetAgeResult).eq("233");
     expect(staticModelContainer.getState().age).eq(233);
+    expect(setAge233Dispatched).eq(true);
 
     await staticModelContainer.actions._.setName1.dispatch("_1");
     expect(staticModelContainer.getState().name).eq("_1");
