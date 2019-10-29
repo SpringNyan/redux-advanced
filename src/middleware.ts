@@ -1,5 +1,4 @@
 import { Middleware } from "redux";
-
 import {
   AnyAction,
   batchRegisterActionHelper,

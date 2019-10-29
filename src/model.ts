@@ -65,6 +65,19 @@ export interface Models<TDependencies = any> {
 
 export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
+function cloneModel<T extends Model>(model: T): T {
+  return {
+    options: merge({}, model.options),
+
+    args: model.args,
+    state: model.state,
+    selectors: merge({}, model.selectors),
+    reducers: merge({}, model.reducers),
+    effects: merge({}, model.effects),
+    epics: merge({}, model.epics)
+  } as T;
+}
+
 export class ModelBuilder<
   TDependencies = any,
   TArgs extends object = any,
@@ -74,7 +87,7 @@ export class ModelBuilder<
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
-  private static _nextEpicId: number = 1;
+  private static _nextEpicId = 1;
 
   private readonly _model: Model<
     TDependencies,
@@ -85,7 +98,7 @@ export class ModelBuilder<
     TEffects,
     TEpics
   >;
-  private _isFrozen: boolean = false;
+  private _isFrozen = false;
 
   constructor(
     model: Model<
@@ -741,19 +754,6 @@ export class ModelBuilder<
   > {
     return cloneModel(this._model);
   }
-}
-
-function cloneModel<T extends Model>(model: T): T {
-  return {
-    options: merge({}, model.options),
-
-    args: model.args,
-    state: model.state,
-    selectors: merge({}, model.selectors),
-    reducers: merge({}, model.reducers),
-    effects: merge({}, model.effects),
-    epics: merge({}, model.epics)
-  } as T;
 }
 
 export function isModel(obj: any): obj is Model {

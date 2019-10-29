@@ -1,5 +1,4 @@
 import { Observable } from "rxjs";
-
 import { ActionHelpers, AnyAction, ExtractActionPayload } from "./action";
 import { GetContainer } from "./container";
 import { Model } from "./model";

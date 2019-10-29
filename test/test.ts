@@ -1,16 +1,14 @@
 import { expect } from "chai";
-
 import { empty, timer } from "rxjs";
 import { filter, mergeMapTo, take, tap } from "rxjs/operators";
-
 import { createModelBuilder, init } from "../lib";
 
-interface IDependencies {
+interface Dependencies {
   appId: number;
 }
 
 const defaultModelBuilder = createModelBuilder()
-  .dependencies<IDependencies>()
+  .dependencies<Dependencies>()
   .freeze();
 
 describe("redux-advanced", () => {
@@ -85,7 +83,7 @@ describe("redux-advanced", () => {
             await actions.setAge.dispatch(payload);
           }
         },
-        setName: async ({ actions, getState }, payload: string) => {
+        setName: async ({}, payload: string) => {
           return payload;
         },
         innerThrow: async () => {
@@ -103,6 +101,7 @@ describe("redux-advanced", () => {
         },
         setAgeAsync: async ({ getContainer }, payload: number) => {
           await timer(50).toPromise();
+          // eslint-disable-next-line @typescript-eslint/no-use-before-define
           await getContainer(staticModel).actions.setAge.dispatch(payload);
           return "" + payload;
         },
@@ -169,7 +168,7 @@ describe("redux-advanced", () => {
       })
       .build();
 
-    const appDependencies: IDependencies = { appId: 233 };
+    const appDependencies: Dependencies = { appId: 233 };
 
     let unhandledEffectErrorCount = 0;
     const { getContainer: storeGetContainer, registerModels } = init({

@@ -8,7 +8,6 @@ import {
 import { createEpicMiddleware, Epic } from "redux-observable";
 import { Observable } from "rxjs";
 import { mergeMap, switchMap } from "rxjs/operators";
-
 import { AnyAction, reloadActionHelper } from "./action";
 import { GetContainer } from "./container";
 import { createStoreContext } from "./context";
