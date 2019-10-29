@@ -1,5 +1,4 @@
 import { Observable } from "rxjs";
-
 import { ActionHelpers, AnyAction } from "./action";
 import { ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";

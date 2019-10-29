@@ -68,7 +68,7 @@ export function convertPathToNamespace(path: string): string {
 export function joinLastPart(
   str: string,
   lastPart: string | undefined,
-  splitter: string = "/"
+  splitter = "/"
 ): string {
   if (!lastPart) {
     return str;
@@ -81,10 +81,7 @@ export function joinLastPart(
   return `${str}${splitter}${lastPart}`;
 }
 
-export function splitLastPart(
-  str: string,
-  splitter: string = "/"
-): [string, string] {
+export function splitLastPart(str: string, splitter = "/"): [string, string] {
   const index = str.lastIndexOf(splitter);
   return index >= 0
     ? [str.substring(0, index), str.substring(index + 1)]
@@ -94,7 +91,7 @@ export function splitLastPart(
 export class PatchedPromise<T> implements Promise<T> {
   public [Symbol.toStringTag]: string;
 
-  public hasRejectionHandler: boolean = false;
+  public hasRejectionHandler = false;
 
   private readonly _promise: Promise<T>;
 

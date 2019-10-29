@@ -2,7 +2,6 @@ import { Store } from "redux";
 import { Epic as ReduxObservableEpic } from "redux-observable";
 import { Observable, Subject } from "rxjs";
 import { distinctUntilChanged } from "rxjs/operators";
-
 import { AnyAction } from "./action";
 import { ContainerImpl, createGetContainer, GetContainer } from "./container";
 import { Effect } from "./effect";

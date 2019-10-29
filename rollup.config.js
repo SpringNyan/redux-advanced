@@ -1,6 +1,6 @@
-import resolve from "rollup-plugin-node-resolve";
-import commonjs from "rollup-plugin-commonjs";
 import cleanup from "rollup-plugin-cleanup";
+import commonjs from "rollup-plugin-commonjs";
+import resolve from "rollup-plugin-node-resolve";
 
 export default {
   input: "./lib/index.js",
