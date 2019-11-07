@@ -867,3 +867,27 @@ export function createRegisterModels(
     storeContext.store.dispatch(batchRegisterActionHelper.create(payloads));
   };
 }
+
+export function generateNamespaceModelMappings(models: Models, prefix = "") {
+  const mappings: Record<string, Model> = {};
+
+  Object.keys(models).forEach((key) => {
+    const model = models[key];
+    const namespace = joinLastPart(prefix, key);
+
+    if (Array.isArray(model)) {
+      model.forEach((item, index) => {
+        mappings[joinLastPart(namespace, "" + index)] = item;
+      });
+    } else if (isModel(model)) {
+      mappings[namespace] = model;
+    } else {
+      const subMappings = generateNamespaceModelMappings(model, namespace);
+      Object.keys(subMappings).forEach((subKey) => {
+        mappings[subKey] = subMappings[subKey];
+      });
+    }
+  });
+
+  return mappings;
+}
