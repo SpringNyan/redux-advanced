@@ -5,9 +5,12 @@ export { ExtractDependencies } from "./dependencies";
 export {
   createModelBuilder,
   ExtractModel,
+  generateNamespaceModelMappings,
+  isModel,
   Model,
   ModelBuilder,
-  ModelOptions
+  ModelOptions,
+  Models
 } from "./model";
 export { ExtractState } from "./state";
 export { init, ReduxAdvancedContext, ReduxAdvancedOptions } from "./store";

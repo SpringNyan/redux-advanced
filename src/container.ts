@@ -210,13 +210,28 @@ export class ContainerImpl<TModel extends Model = Model>
 export interface GetContainer {
   <TModel extends Model>(model: TModel): Container<TModel>;
   <TModel extends Model>(model: TModel, key: string): Container<TModel>;
+  <TModel extends Model>(namespace: string): Container<TModel>;
+  <TModel extends Model>(namespace: string, key: string): Container<TModel>;
 }
 
 export function createGetContainer(storeContext: StoreContext): GetContainer {
-  return (model: Model, key?: string) => {
+  return (model: Model | string, key?: string) => {
+    if (typeof model === "string") {
+      const parsed = storeContext.parseNamespace(model);
+      if (parsed == null) {
+        throw new Error("namespace is not registered");
+      }
+
+      let index = 0;
+      if (parsed.key != null) {
+        index = parseInt(parsed.key, 10);
+      }
+      model = parsed.models[index];
+    }
+
     const modelContext = storeContext.contextByModel.get(model);
     if (modelContext == null) {
-      throw new Error("model is not registered yet");
+      throw new Error("model is not registered");
     }
 
     if (key === undefined && modelContext.isDynamic) {

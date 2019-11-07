@@ -83,7 +83,7 @@ describe("redux-advanced", () => {
             await actions.setAge.dispatch(payload);
           }
         },
-        setName: async ({}, payload: string) => {
+        setName: async (context, payload: string) => {
           return payload;
         },
         innerThrow: async () => {
@@ -187,6 +187,8 @@ describe("redux-advanced", () => {
     const staticModelContainer = storeGetContainer(staticModel);
     expect(staticModelContainer.namespace).eq("staticModel");
 
+    expect(storeGetContainer("staticModel")).eq(staticModelContainer);
+
     let setAge233Dispatched = false;
     staticModelContainer.getters.rootAction$
       .pipe(
@@ -276,6 +278,10 @@ describe("redux-advanced", () => {
     // expect(dynamicModelContainer.namespace).eq("dynamicModels");
 
     const dynamicModel1Container = storeGetContainer(dynamicModel, "1");
+    expect(storeGetContainer("dynamicModels/0", "1")).eq(
+      dynamicModel1Container
+    );
+
     expect(dynamicModel1Container.isRegistered).eq(false);
     expect(dynamicModel1Container.namespace).eq("dynamicModels/1");
     expect(dynamicModel1Container.getState().name).eq("fake");
