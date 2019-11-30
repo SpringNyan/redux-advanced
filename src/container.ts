@@ -13,23 +13,27 @@ import { createGetters, ExtractGetters, ExtractSelectors } from "./selector";
 import { ExtractState, getSubState } from "./state";
 import { joinLastPart, nothingToken } from "./util";
 
-export interface Container<TModel extends Model = any> {
+export interface ContainerInternal<TArgs, TState, TGetters, TActionHelpers> {
   namespace: string;
   key: string | undefined;
 
-  getState: () => ExtractState<TModel>;
-  getters: ExtractGetters<ExtractSelectors<TModel>>;
-  actions: ExtractActionHelpers<
-    ExtractReducers<TModel>,
-    ExtractEffects<TModel>
-  >;
+  getState: () => TState;
+  getters: TGetters;
+  actions: TActionHelpers;
 
   isRegistered: boolean;
   canRegister: boolean;
 
-  register(args?: ExtractArgs<TModel>): void;
+  register(args?: TArgs): void;
   unregister(): void;
 }
+
+export type Container<TModel extends Model = any> = ContainerInternal<
+  ExtractArgs<TModel>,
+  ExtractState<TModel>,
+  ExtractGetters<ExtractSelectors<TModel>>,
+  ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>
+>;
 
 export class ContainerImpl<TModel extends Model = Model>
   implements Container<TModel> {
@@ -259,5 +263,49 @@ export function createGetContainer(storeContext: StoreContext): GetContainer {
     }
 
     return container;
+  };
+}
+
+export function createSubContainer<
+  TModel extends Model,
+  TSubKey extends string
+>(
+  container: Container<TModel>,
+  subKey: TSubKey
+): ContainerInternal<
+  ExtractArgs<TModel>[TSubKey],
+  ExtractState<TModel>[TSubKey],
+  ExtractGetters<ExtractSelectors<TModel>>[TSubKey],
+  ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>[TSubKey]
+> {
+  return {
+    get namespace(): string {
+      throw new Error(`Sub container doesn't support namespace`);
+    },
+    get key(): string | undefined {
+      throw new Error(`Sub container doesn't support key`);
+    },
+
+    getState: () => container.getState()[subKey],
+    get getters() {
+      return container.getters[subKey] as any;
+    },
+    get actions() {
+      return container.actions[subKey] as any;
+    },
+
+    get isRegistered(): boolean {
+      return container.isRegistered;
+    },
+    get canRegister(): boolean {
+      throw new Error(`Sub container doesn't support canRegister`);
+    },
+
+    register: () => {
+      throw new Error(`Sub container doesn't support register`);
+    },
+    unregister: () => {
+      throw new Error(`Sub container doesn't support unregister`);
+    },
   };
 }

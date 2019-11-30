@@ -151,21 +151,21 @@ export class ModelBuilder<
     TEffects & ExtractEffects<TModel>,
     TEpics & ExtractEpics<TModel>
   >;
-  public extend<TModel extends Model, TNamespace extends string>(
+  public extend<TModel extends Model, TSubKey extends string>(
     model: TModel,
-    namespace: TNamespace
+    subKey: TSubKey
   ): ModelBuilder<
     TDependencies & ExtractDependencies<TModel>,
-    TArgs & { [P in TNamespace]: ExtractArgs<TModel> },
-    TState & { [P in TNamespace]: ExtractState<TModel> },
-    TSelectors & { [P in TNamespace]: ExtractSelectors<TModel> },
-    TReducers & { [P in TNamespace]: ExtractReducers<TModel> },
-    TEffects & { [P in TNamespace]: ExtractEffects<TModel> },
-    TEpics & { [P in TNamespace]: ExtractEpics<TModel> }
+    TArgs & { [P in TSubKey]: ExtractArgs<TModel> },
+    TState & { [P in TSubKey]: ExtractState<TModel> },
+    TSelectors & { [P in TSubKey]: ExtractSelectors<TModel> },
+    TReducers & { [P in TSubKey]: ExtractReducers<TModel> },
+    TEffects & { [P in TSubKey]: ExtractEffects<TModel> },
+    TEpics & { [P in TSubKey]: ExtractEpics<TModel> }
   >;
-  public extend(model: Model, namespace?: string) {
+  public extend(model: Model, subKey?: string) {
     if (this._isFrozen) {
-      return this.clone().extend(model, namespace!);
+      return this.clone().extend(model, subKey!);
     }
 
     let args = model.args;
@@ -176,22 +176,22 @@ export class ModelBuilder<
     let epics = model.epics;
     let options = model.options;
 
-    if (namespace !== undefined) {
+    if (subKey !== undefined) {
       args = (context) => ({
-        [namespace]: model.args({
+        [subKey]: model.args({
           ...context,
         }),
       });
 
       state = (context) => ({
-        [namespace]: model.state({
+        [subKey]: model.state({
           ...context,
-          args: context.args?.[namespace],
+          args: context.args?.[subKey],
         }),
       });
 
       selectors = {
-        [namespace]: assignObjectDeeply(
+        [subKey]: assignObjectDeeply(
           {},
           model.selectors,
           (oldSelector: OutputSelector) => {
@@ -199,9 +199,9 @@ export class ModelBuilder<
               oldSelector(
                 {
                   ...context,
-                  getState: () => context.getState()?.[namespace],
-                  getters: context.getters[namespace],
-                  actions: context.actions[namespace],
+                  getState: () => context.getState()?.[subKey],
+                  getters: context.getters[subKey],
+                  actions: context.actions[subKey],
                 },
                 cache
               );
@@ -212,12 +212,12 @@ export class ModelBuilder<
       };
 
       reducers = {
-        [namespace]: assignObjectDeeply(
+        [subKey]: assignObjectDeeply(
           {},
           model.reducers,
           (oldReducer: Reducer) => {
             const newReducer: Reducer = (_state, payload, context) =>
-              oldReducer(_state[namespace], payload, {
+              oldReducer(_state[subKey], payload, {
                 ...context,
               });
 
@@ -227,34 +227,30 @@ export class ModelBuilder<
       };
 
       effects = {
-        [namespace]: assignObjectDeeply(
-          {},
-          model.effects,
-          (oldEffect: Effect) => {
-            const newEffect: Effect = (context, payload) =>
-              oldEffect(
-                {
-                  ...context,
-                  getState: () => context.getState()?.[namespace],
-                  getters: context.getters[namespace],
-                  actions: context.actions[namespace],
-                },
-                payload
-              );
+        [subKey]: assignObjectDeeply({}, model.effects, (oldEffect: Effect) => {
+          const newEffect: Effect = (context, payload) =>
+            oldEffect(
+              {
+                ...context,
+                getState: () => context.getState()?.[subKey],
+                getters: context.getters[subKey],
+                actions: context.actions[subKey],
+              },
+              payload
+            );
 
-            return newEffect;
-          }
-        ),
+          return newEffect;
+        }),
       };
 
       epics = {
-        [namespace]: assignObjectDeeply({}, model.epics, (oldEpic: Epic) => {
+        [subKey]: assignObjectDeeply({}, model.epics, (oldEpic: Epic) => {
           const newEpic: Epic = (context) =>
             oldEpic({
               ...context,
-              getState: () => context.getState()?.[namespace],
-              getters: context.getters[namespace],
-              actions: context.actions[namespace],
+              getState: () => context.getState()?.[subKey],
+              getters: context.getters[subKey],
+              actions: context.actions[subKey],
             });
 
           return newEpic;
