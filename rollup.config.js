@@ -7,13 +7,19 @@ export default {
   output: [
     {
       file: "./dist/redux-advanced.js",
-      format: "cjs"
+      format: "cjs",
     },
     {
       file: "./dist/redux-advanced.esm.js",
-      format: "esm"
-    }
+      format: "esm",
+    },
   ],
-  plugins: [resolve(), commonjs(), cleanup({ comments: "none" })],
-  external: ["redux", "redux-observable", "rxjs", "rxjs/operators", "immer"]
+  plugins: [
+    resolve(),
+    commonjs(),
+    cleanup({
+      comments: "none",
+    }),
+  ],
+  external: ["redux", "redux-observable", "rxjs", "rxjs/operators", "immer"],
 };

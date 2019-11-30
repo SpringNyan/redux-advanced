@@ -1,19 +1,19 @@
 import produce from "immer";
 import { Reducer as ReduxReducer } from "redux";
 import {
-  batchRegisterActionHelper,
-  batchUnregisterActionHelper,
   ExtractActionPayload,
-  RegisterPayload,
+  registerActionHelper,
+  RegisterOptions,
   reloadActionHelper,
-  ReloadPayload,
-  UnregisterPayload
+  ReloadOptions,
+  unregisterActionHelper,
+  UnregisterOptions,
 } from "./action";
-import { generateArgs, requiredArgFunc } from "./args";
+import { createRequiredArg, generateArgs } from "./args";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { getSubState, setSubState, stateModelsKey } from "./state";
-import { convertNamespaceToPath, splitLastPart } from "./util";
+import { convertNamespaceToPath, nothingToken, splitLastPart } from "./util";
 
 export interface ReducerContext<TDependencies = any> {
   dependencies: TDependencies;
@@ -60,20 +60,24 @@ export type OverrideReducers<
 };
 
 export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
-  function register(rootState: any, payloads: RegisterPayload[]) {
-    payloads.forEach((payload) => {
-      const namespace = payload.namespace;
-      const modelIndex = payload.model || 0;
+  function register(rootState: any, optionsList: RegisterOptions[]) {
+    optionsList.forEach((options) => {
+      const namespace = options.namespace;
 
-      const { baseNamespace, key, models } = storeContext.parseNamespace(
-        namespace
-      )!;
-      const basePath = convertNamespaceToPath(baseNamespace);
+      const parsed = storeContext.parseNamespace(namespace);
+      if (parsed == null) {
+        throw new Error(
+          `Failed to register reducer: no model found for namespace "${namespace}"`
+        );
+      }
+      const { baseNamespace, key, models } = parsed;
+
+      const modelIndex = options.model ?? 0;
       const model = models[modelIndex];
 
       let state: any;
-      if (payload.state !== undefined) {
-        state = payload.state;
+      if (options.state !== undefined) {
+        state = options.state;
       } else {
         const args = generateArgs(
           model,
@@ -84,9 +88,9 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
             getContainer: storeContext.getContainer,
 
-            required: requiredArgFunc
+            required: createRequiredArg,
           },
-          payload.args
+          options.args
         );
 
         state = model.state({
@@ -96,11 +100,11 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
           args,
 
-          getContainer: storeContext.getContainer
+          getContainer: storeContext.getContainer,
         });
       }
 
-      rootState = setSubState(rootState, state, basePath, key);
+      const basePath = convertNamespaceToPath(baseNamespace);
 
       if (key !== undefined) {
         rootState = {
@@ -110,59 +114,68 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
             modelIndex,
             stateModelsKey,
             key
-          )
+          ),
         };
       }
+
+      rootState = setSubState(rootState, state, basePath, key);
     });
 
     return rootState;
   }
 
-  function unregister(rootState: any, payloads: UnregisterPayload[]) {
-    payloads.forEach((payload) => {
-      const namespace = payload.namespace;
+  function unregister(rootState: any, optionsList: UnregisterOptions[]) {
+    optionsList.forEach((options) => {
+      const namespace = options.namespace;
 
-      const { baseNamespace, key } = storeContext.parseNamespace(namespace)!;
+      const parsed = storeContext.parseNamespace(namespace);
+      if (parsed == null) {
+        throw new Error(
+          `Failed to unregister reducer: no model found for namespace "${namespace}"`
+        );
+      }
+      const { baseNamespace, key } = parsed;
+
       const basePath = convertNamespaceToPath(baseNamespace);
-
-      rootState = setSubState(rootState, undefined, basePath, key);
 
       if (key !== undefined) {
         rootState = {
           ...rootState,
           [basePath]: setSubState(
             rootState[basePath],
-            undefined,
+            nothingToken,
             stateModelsKey,
             key
-          )
+          ),
         };
       }
+
+      rootState = setSubState(rootState, nothingToken, basePath, key);
     });
 
     return rootState;
   }
 
-  function reload(rootState: any, payload: ReloadPayload) {
-    if (payload && payload.state !== undefined) {
-      return payload.state;
+  function reload(rootState: any, options: ReloadOptions) {
+    if (options && options.state !== undefined) {
+      return options.state;
     } else {
       return rootState;
     }
   }
 
   const reduxReducer: ReduxReducer = (rootState, action) => {
-    if (reloadActionHelper.is(action)) {
-      return reload(rootState, action.payload);
-    }
-
     if (rootState === undefined) {
       rootState = {};
     }
 
-    if (batchRegisterActionHelper.is(action)) {
+    if (reloadActionHelper.is(action)) {
+      return reload(rootState, action.payload);
+    }
+
+    if (registerActionHelper.is(action)) {
       rootState = register(rootState, action.payload);
-    } else if (batchUnregisterActionHelper.is(action)) {
+    } else if (unregisterActionHelper.is(action)) {
       rootState = unregister(rootState, action.payload);
     }
 
@@ -172,25 +185,26 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
     if (container == null || !container.isRegistered) {
       return rootState;
     }
-    const { key } = container;
 
     const modelContext = storeContext.contextByModel.get(container.model);
     if (modelContext == null) {
       return rootState;
     }
-    const { basePath } = modelContext;
 
     const reducer = modelContext.reducerByActionName.get(actionName);
     if (reducer == null) {
       return rootState;
     }
 
+    const { key } = container;
+    const { basePath } = modelContext;
+
     const state = getSubState(rootState, basePath, key);
     const newState = produce(state, (draft: any) => {
       reducer(draft, action.payload, {
         dependencies: storeContext.getDependencies(),
         namespace,
-        key
+        key,
       });
     });
 
@@ -198,9 +212,9 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
   };
 
   return (rootState, action) => {
-    storeContext.adHocRootState = rootState;
+    storeContext.reducerRootState = rootState;
     rootState = reduxReducer(rootState, action);
-    storeContext.adHocRootState = undefined;
+    storeContext.reducerRootState = nothingToken;
     return rootState;
   };
 }

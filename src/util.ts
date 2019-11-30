@@ -1,46 +1,60 @@
+export const nothingToken: unique symbol = "@@REDUX_ADVANCED_NOTHING" as any;
+
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends ((...args: any[]) => any) | any[]
     ? T[P]
     : DeepPartial<T[P]>;
 };
 
-export function factoryWrapper<T, U extends any[]>(
-  obj: T | ((...args: U) => T)
-): (...args: U) => T {
-  return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
-}
+export type DeepRequired<T> = {
+  [P in keyof T]-?: T[P] extends ((...args: any[]) => any) | any[]
+    ? T[P]
+    : DeepRequired<T[P]>;
+};
 
 export function isObject(obj: any): boolean {
   return obj != null && typeof obj === "object" && !Array.isArray(obj);
 }
 
-export function mapObjectDeeply(
+export function wrapFunctionFactory<T, U extends any[]>(
+  obj: T | ((...args: U) => T)
+): (...args: U) => T {
+  return typeof obj === "function" ? (obj as (...args: U) => T) : () => obj;
+}
+
+export function assignObjectDeeply(
   target: any,
   source: any,
   func: (value: any, paths: string[], target: any) => any,
   paths: string[] = []
 ): any {
+  if (!isObject(source)) {
+    throw new Error(`Failed to assign object deeply: source is not an object`);
+  }
+
   Object.keys(source).forEach((key) => {
-    if (key === "constructor" || key === "prototype" || key === "__proto__") {
-      throw new Error("illegal object key");
+    if (key === "__proto__") {
+      return;
     }
 
     const value = source[key];
 
     if (isObject(value)) {
-      if (target[key] === undefined) {
+      if (!(key in target)) {
         target[key] = {};
       }
-
       if (isObject(target[key])) {
-        mapObjectDeeply(target[key], value, func, [...paths, key]);
-        return;
+        assignObjectDeeply(target[key], value, func, [...paths, key]);
+      } else {
+        throw new Error(
+          `Failed to assign object deeply: target["${key}"] is not an object`
+        );
       }
-    }
-
-    const result = func(value, [...paths, key], target);
-    if (result !== undefined) {
-      target[key] = result;
+    } else {
+      const result = func(value, [...paths, key], target);
+      if (result !== undefined) {
+        target[key] = result !== nothingToken ? result : undefined;
+      }
     }
   });
 
@@ -49,9 +63,9 @@ export function mapObjectDeeply(
 
 export function merge(target: any, ...sources: any[]): any {
   sources.forEach((source) => {
-    if (isObject(source)) {
-      mapObjectDeeply(target, source, (value) => value);
-    }
+    assignObjectDeeply(target, source, (value, paths, target) => {
+      target[paths[paths.length - 1]] = value;
+    });
   });
 
   return target;

@@ -1,16 +1,13 @@
-export { Action, ActionHelper, actionTypes, AnyAction } from "./action";
+export { Action, ActionHelper, AnyAction } from "./action";
 export { ExtractArgs } from "./args";
-export { Container, GetContainer } from "./container";
+export { Container, createSubContainer, GetContainer } from "./container";
 export { ExtractDependencies } from "./dependencies";
 export {
   createModelBuilder,
   ExtractModel,
   generateNamespaceModelMappings,
-  isModel,
   Model,
-  ModelBuilder,
   ModelOptions,
-  Models
 } from "./model";
 export { ExtractState } from "./state";
-export { init, ReduxAdvancedContext, ReduxAdvancedOptions } from "./store";
+export { init, ReduxAdvancedInstance, ReduxAdvancedOptions } from "./store";

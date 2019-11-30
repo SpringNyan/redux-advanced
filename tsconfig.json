@@ -2,13 +2,16 @@
   "compilerOptions": {
     "target": "es5",
     "lib": ["esnext"],
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "module": "esnext",
     "moduleResolution": "node",
-    "outDir": "lib",
     "declaration": true,
-    "strict": true,
-    "allowSyntheticDefaultImports": true,
-    "importHelpers": true
+    "importHelpers": true,
+    "outDir": "lib"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src"]
 }

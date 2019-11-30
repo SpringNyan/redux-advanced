@@ -1,26 +1,33 @@
 import { Middleware } from "redux";
 import {
   AnyAction,
-  batchRegisterActionHelper,
-  batchUnregisterActionHelper,
-  RegisterPayload,
+  registerActionHelper,
+  RegisterOptions,
   reloadActionHelper,
-  ReloadPayload,
-  UnregisterPayload
+  ReloadOptions,
+  unregisterActionHelper,
+  UnregisterOptions,
 } from "./action";
 import { ContainerImpl } from "./container";
 import { StoreContext } from "./context";
 import { createReduxObservableEpic } from "./epic";
 import { stateModelsKey } from "./state";
-import { joinLastPart, splitLastPart } from "./util";
+import { isObject, joinLastPart, splitLastPart } from "./util";
 
 export function createMiddleware(storeContext: StoreContext): Middleware {
-  function register(payloads: RegisterPayload[]) {
-    payloads.forEach((payload) => {
-      const namespace = payload.namespace;
-      const modelIndex = payload.model || 0;
+  function register(optionsList: RegisterOptions[]) {
+    optionsList.forEach((options) => {
+      const namespace = options.namespace;
 
-      const { key, models } = storeContext.parseNamespace(namespace)!;
+      const parsed = storeContext.parseNamespace(namespace);
+      if (parsed == null) {
+        throw new Error(
+          `Failed to register container: no model found for namespace "${namespace}"`
+        );
+      }
+      const { key, models } = parsed;
+
+      const modelIndex = options.model ?? 0;
       const model = models[modelIndex];
 
       const container = storeContext.getContainer(model, key!) as ContainerImpl;
@@ -32,20 +39,22 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
     });
   }
 
-  function unregister(payloads: UnregisterPayload[]) {
-    payloads.forEach((payload) => {
-      const namespace = payload.namespace;
+  function unregister(optionsList: UnregisterOptions[]) {
+    optionsList.forEach((options) => {
+      const namespace = options.namespace;
 
-      const container = storeContext.containerByNamespace.get(namespace)!;
-      storeContext.contextByModel
-        .get(container.model)!
-        .containerByKey.delete(container.key);
+      const container = storeContext.containerByNamespace.get(namespace);
+      if (container) {
+        storeContext.contextByModel
+          .get(container.model)
+          ?.containerByKey.delete(container.key);
+      }
 
       storeContext.containerByNamespace.delete(namespace);
     });
   }
 
-  function reload(payload: ReloadPayload) {
+  function reload(options: ReloadOptions) {
     storeContext.containerByNamespace.clear();
 
     storeContext.contextByModel.forEach((context) => {
@@ -54,28 +63,28 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
     storeContext.switchEpic$.next();
 
-    const batchRegisterPayloads: RegisterPayload[] = [];
-
     const rootState =
-      payload && payload.state !== undefined
-        ? payload.state
+      options && options.state !== undefined
+        ? options.state
         : storeContext.store.getState();
-    if (rootState != null) {
+
+    const registerOptionsList: RegisterOptions[] = [];
+    if (isObject(rootState)) {
       storeContext.contextByModel.forEach((context) => {
         const state = rootState[context.basePath];
-        if (state != null) {
+        if (isObject(state)) {
           if (!context.isDynamic) {
-            batchRegisterPayloads.push({
-              namespace: context.baseNamespace
+            registerOptionsList.push({
+              namespace: context.baseNamespace,
             });
           } else {
             const models = state[stateModelsKey] || {};
             Object.keys(models).forEach((key) => {
               const modelIndex = models[key];
               if (typeof modelIndex === "number") {
-                batchRegisterPayloads.push({
+                registerOptionsList.push({
                   namespace: joinLastPart(context.baseNamespace, key),
-                  model: modelIndex
+                  model: modelIndex,
                 });
               }
             });
@@ -84,13 +93,13 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
       });
     }
 
-    register(batchRegisterPayloads);
+    register(registerOptionsList);
   }
 
   return (store) => (next) => (action: AnyAction) => {
-    if (batchRegisterActionHelper.is(action)) {
+    if (registerActionHelper.is(action)) {
       register(action.payload);
-    } else if (batchUnregisterActionHelper.is(action)) {
+    } else if (unregisterActionHelper.is(action)) {
       unregister(action.payload);
     } else if (reloadActionHelper.is(action)) {
       reload(action.payload);
@@ -106,10 +115,11 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
     if (container && container.isRegistered) {
       const deferred = storeContext.deferredByAction.get(action);
 
-      const modelContext = storeContext.contextByModel.get(container.model)!;
-      const effect = modelContext.effectByActionName.get(actionName);
+      const effect = storeContext.contextByModel
+        .get(container.model)
+        ?.effectByActionName.get(actionName);
 
-      if (effect != null) {
+      if (effect) {
         const promise = effect(
           {
             rootAction$: storeContext.rootAction$,
@@ -119,35 +129,31 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
             namespace: container.namespace,
             key: container.key,
 
-            getState: () => container!.getState(),
+            getState: () => container.getState(),
             getters: container.getters,
             actions: container.actions,
 
-            getContainer: storeContext.getContainer
+            getContainer: storeContext.getContainer,
           },
           action.payload
         );
 
         promise.then(
           (value) => {
-            if (deferred) {
-              deferred.resolve(value);
-            }
+            deferred?.resolve(value);
           },
           (reason) => {
             if (deferred) {
               deferred.reject(reason);
-            } else if (storeContext.options.defaultEffectErrorHandler) {
-              storeContext.options.defaultEffectErrorHandler(reason);
+            } else if (storeContext.options.onUnhandledEffectError) {
+              storeContext.options.onUnhandledEffectError(reason);
             } else {
               throw reason;
             }
           }
         );
       } else {
-        if (deferred) {
-          deferred.resolve(undefined);
-        }
+        deferred?.resolve(undefined);
       }
     }
 

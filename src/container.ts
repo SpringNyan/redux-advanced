@@ -1,39 +1,39 @@
 import {
-  batchRegisterActionHelper,
-  batchUnregisterActionHelper,
   createActionHelpers,
-  ExtractActionHelpersFromReducersEffects
+  ExtractActionHelpers,
+  registerActionHelper,
+  unregisterActionHelper,
 } from "./action";
-import { ExtractArgs, generateArgs, requiredArgFunc } from "./args";
+import { createRequiredArg, ExtractArgs, generateArgs } from "./args";
 import { ModelContext, StoreContext } from "./context";
 import { ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers } from "./reducer";
-import {
-  createGetters,
-  ExtractGettersFromSelectors,
-  ExtractSelectors
-} from "./selector";
+import { createGetters, ExtractGetters, ExtractSelectors } from "./selector";
 import { ExtractState, getSubState } from "./state";
-import { joinLastPart } from "./util";
+import { joinLastPart, nothingToken } from "./util";
 
-export interface Container<TModel extends Model = any> {
+export interface ContainerInternal<TArgs, TState, TGetters, TActionHelpers> {
   namespace: string;
   key: string | undefined;
 
-  getState: () => ExtractState<TModel>;
-  getters: ExtractGettersFromSelectors<ExtractSelectors<TModel>>;
-  actions: ExtractActionHelpersFromReducersEffects<
-    ExtractReducers<TModel>,
-    ExtractEffects<TModel>
-  >;
+  getState: () => TState;
+  getters: TGetters;
+  actions: TActionHelpers;
 
   isRegistered: boolean;
   canRegister: boolean;
 
-  register(args?: ExtractArgs<TModel>): void;
+  register(args?: TArgs): void;
   unregister(): void;
 }
+
+export type Container<TModel extends Model = any> = ContainerInternal<
+  ExtractArgs<TModel>,
+  ExtractState<TModel>,
+  ExtractGetters<ExtractSelectors<TModel>>,
+  ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>
+>;
 
 export class ContainerImpl<TModel extends Model = Model>
   implements Container<TModel> {
@@ -47,7 +47,7 @@ export class ContainerImpl<TModel extends Model = Model>
 
   private _getStateCache = {
     rootState: {} as any,
-    value: undefined as any
+    value: undefined as any,
   };
 
   constructor(
@@ -63,7 +63,7 @@ export class ContainerImpl<TModel extends Model = Model>
     const container = this._storeContext.containerByNamespace.get(
       this.namespace
     );
-    return container != null && container.model === this.model;
+    return container?.model === this.model;
   }
 
   public get canRegister(): boolean {
@@ -71,8 +71,8 @@ export class ContainerImpl<TModel extends Model = Model>
   }
 
   public getRootState(): any {
-    return this._storeContext.adHocRootState !== undefined
-      ? this._storeContext.adHocRootState
+    return this._storeContext.reducerRootState !== nothingToken
+      ? this._storeContext.reducerRootState
       : this._storeContext.store.getState();
   }
 
@@ -111,7 +111,7 @@ export class ContainerImpl<TModel extends Model = Model>
 
             getContainer: this._storeContext.getContainer,
 
-            required: requiredArgFunc
+            required: createRequiredArg,
           },
           undefined,
           true
@@ -124,17 +124,19 @@ export class ContainerImpl<TModel extends Model = Model>
 
           args,
 
-          getContainer: this._storeContext.getContainer
+          getContainer: this._storeContext.getContainer,
         });
       }
 
       return this._cachedState;
     }
 
-    throw new Error("namespace is already registered by other model");
+    throw new Error(
+      `Failed to initialize container: namespace "${this.namespace}" is already registered by other container`
+    );
   }
 
-  public get getters(): ExtractGettersFromSelectors<ExtractSelectors<TModel>> {
+  public get getters(): ExtractGetters<ExtractSelectors<TModel>> {
     const container = this._getCurrentContainer();
     if (container !== this) {
       return container.getters;
@@ -148,10 +150,12 @@ export class ContainerImpl<TModel extends Model = Model>
       return this._cachedGetters;
     }
 
-    throw new Error("namespace is already registered by other model");
+    throw new Error(
+      `Failed to initialize container: namespace "${this.namespace}" is already registered by other container`
+    );
   }
 
-  public get actions(): ExtractActionHelpersFromReducersEffects<
+  public get actions(): ExtractActionHelpers<
     ExtractReducers<TModel>,
     ExtractEffects<TModel>
   > {
@@ -168,21 +172,25 @@ export class ContainerImpl<TModel extends Model = Model>
       return this._cachedActions;
     }
 
-    throw new Error("namespace is already registered by other model");
+    throw new Error(
+      `Failed to initialize container: namespace "${this.namespace}" is already registered by other container`
+    );
   }
 
   public register(args?: ExtractArgs<TModel>): void {
     if (!this.canRegister) {
-      throw new Error("namespace is already registered");
+      throw new Error(
+        `Failed to register container: namespace "${this.namespace}" is already registered`
+      );
     }
 
     this._storeContext.store.dispatch(
-      batchRegisterActionHelper.create([
+      registerActionHelper.create([
         {
           namespace: this.namespace,
           model: this._modelContext.modelIndex,
-          args
-        }
+          args,
+        },
       ])
     );
   }
@@ -190,10 +198,10 @@ export class ContainerImpl<TModel extends Model = Model>
   public unregister(): void {
     if (this.isRegistered) {
       this._storeContext.store.dispatch(
-        batchUnregisterActionHelper.create([
+        unregisterActionHelper.create([
           {
-            namespace: this.namespace
-          }
+            namespace: this.namespace,
+          },
         ])
       );
     }
@@ -219,7 +227,9 @@ export function createGetContainer(storeContext: StoreContext): GetContainer {
     if (typeof model === "string") {
       const parsed = storeContext.parseNamespace(model);
       if (parsed == null) {
-        throw new Error("namespace is not registered");
+        throw new Error(
+          `Failed to get container: namespace "${model}" is not registered by model`
+        );
       }
 
       let index = 0;
@@ -231,15 +241,19 @@ export function createGetContainer(storeContext: StoreContext): GetContainer {
 
     const modelContext = storeContext.contextByModel.get(model);
     if (modelContext == null) {
-      throw new Error("model is not registered");
+      throw new Error(`Failed to get container: model is not registered`);
     }
 
     if (key === undefined && modelContext.isDynamic) {
-      throw new Error("key should be provided for dynamic model");
+      throw new Error(
+        `Failed to get container: key is required for dynamic model`
+      );
     }
 
     if (key !== undefined && !modelContext.isDynamic) {
-      throw new Error("key should not be provided for static model");
+      throw new Error(
+        `Failed to get container: key is unavailable for static model`
+      );
     }
 
     let container = modelContext.containerByKey.get(key);
@@ -249,5 +263,49 @@ export function createGetContainer(storeContext: StoreContext): GetContainer {
     }
 
     return container;
+  };
+}
+
+export function createSubContainer<
+  TModel extends Model,
+  TSubKey extends string
+>(
+  container: Container<TModel>,
+  subKey: TSubKey
+): ContainerInternal<
+  ExtractArgs<TModel>[TSubKey],
+  ExtractState<TModel>[TSubKey],
+  ExtractGetters<ExtractSelectors<TModel>>[TSubKey],
+  ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>[TSubKey]
+> {
+  return {
+    get namespace(): string {
+      throw new Error(`Sub container doesn't support namespace`);
+    },
+    get key(): string | undefined {
+      throw new Error(`Sub container doesn't support key`);
+    },
+
+    getState: () => container.getState()[subKey],
+    get getters() {
+      return container.getters[subKey] as any;
+    },
+    get actions() {
+      return container.actions[subKey] as any;
+    },
+
+    get isRegistered(): boolean {
+      return container.isRegistered;
+    },
+    get canRegister(): boolean {
+      throw new Error(`Sub container doesn't support canRegister`);
+    },
+
+    register: () => {
+      throw new Error(`Sub container doesn't support register`);
+    },
+    unregister: () => {
+      throw new Error(`Sub container doesn't support unregister`);
+    },
   };
 }

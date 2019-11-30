@@ -3,7 +3,7 @@ import { ActionHelpers, AnyAction } from "./action";
 import { ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
-import { DeepPartial, mapObjectDeeply } from "./util";
+import { assignObjectDeeply, DeepPartial } from "./util";
 
 export interface SelectorContext<
   TDependencies = any,
@@ -104,11 +104,11 @@ export type ExtractSelectorResult<T extends Selector> = T extends Selector<
   ? TResult
   : never;
 
-export type ExtractGettersFromSelectors<TSelectors extends Selectors> = {
+export type ExtractGetters<TSelectors extends Selectors> = {
   [P in keyof TSelectors]: TSelectors[P] extends (...args: any[]) => any
     ? ExtractSelectorResult<TSelectors[P]>
     : TSelectors[P] extends {}
-    ? ExtractGettersFromSelectors<TSelectors[P]>
+    ? ExtractGetters<TSelectors[P]>
     : never;
 };
 
@@ -170,7 +170,7 @@ export interface CreateSelector<
   >(
     selectors: T,
     combiner: (
-      results: {
+      args: {
         [P in keyof T]: T[P] extends InputSelector<
           TDependencies,
           TState,
@@ -185,429 +185,12 @@ export interface CreateSelector<
       oldValue: TResult | undefined
     ) => TResult
   ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    combiner: (
-      res1: T1,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, T2, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    combiner: (
-      res1: T1,
-      res2: T2,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, T2, T3, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    combiner: (
-      res1: T1,
-      res2: T2,
-      res3: T3,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, T2, T3, T4, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    combiner: (
-      res1: T1,
-      res2: T2,
-      res3: T3,
-      res4: T4,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, T2, T3, T4, T5, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    combiner: (
-      res1: T1,
-      res2: T2,
-      res3: T3,
-      res4: T4,
-      res5: T5,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, T2, T3, T4, T5, T6, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    selector6: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T6
-    >,
-    combiner: (
-      res1: T1,
-      res2: T2,
-      res3: T3,
-      res4: T4,
-      res5: T5,
-      res6: T6,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, T2, T3, T4, T5, T6, T7, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    selector6: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T6
-    >,
-    selector7: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T7
-    >,
-    combiner: (
-      res1: T1,
-      res2: T2,
-      res3: T3,
-      res4: T4,
-      res5: T5,
-      res6: T6,
-      res7: T7,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, T2, T3, T4, T5, T6, T7, T8, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    selector6: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T6
-    >,
-    selector7: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T7
-    >,
-    selector8: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T8
-    >,
-    combiner: (
-      res1: T1,
-      res2: T2,
-      res3: T3,
-      res4: T4,
-      res5: T5,
-      res6: T6,
-      res7: T7,
-      res8: T8,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
-  <T1, T2, T3, T4, T5, T6, T7, T8, T9, TResult>(
-    selector1: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T1
-    >,
-    selector2: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T2
-    >,
-    selector3: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T3
-    >,
-    selector4: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T4
-    >,
-    selector5: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T5
-    >,
-    selector6: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T6
-    >,
-    selector7: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T7
-    >,
-    selector8: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T8
-    >,
-    selector9: InputSelector<
-      TDependencies,
-      TState,
-      TGetters,
-      TActionHelpers,
-      T9
-    >,
-    combiner: (
-      res1: T1,
-      res2: T2,
-      res3: T3,
-      res4: T4,
-      res5: T5,
-      res6: T6,
-      res7: T7,
-      res8: T8,
-      res9: T9,
-      context: SelectorContext<TDependencies, TState, TGetters, TActionHelpers>,
-      oldValue: TResult | undefined
-    ) => TResult
-  ): OutputSelector<TDependencies, TState, TGetters, TActionHelpers, TResult>;
 }
 
 export const createSelector: CreateSelector = (...args: any[]) => {
-  const arrayMode = Array.isArray(args[0]);
+  const isSingleton = args.length === 1;
 
-  const selectors: InputSelector[] = arrayMode
-    ? args[0]
-    : args.slice(0, args.length - 1);
-
+  const selectors: InputSelector[] = !isSingleton ? args[0] : [];
   const combiner: Function = args[args.length - 1];
 
   let defaultCache: SelectorCache | undefined;
@@ -617,27 +200,25 @@ export const createSelector: CreateSelector = (...args: any[]) => {
       if (defaultCache == null) {
         defaultCache = {};
       }
-
       cache = defaultCache;
     }
 
-    let needUpdate = cache.lastArgs == null;
-    const lastArgs = cache.lastArgs || [];
+    let shouldUpdate = cache.lastArgs == null;
+    const lastArgs = cache.lastArgs ?? [];
 
     const currArgs: any[] = [];
     for (let i = 0; i < selectors.length; ++i) {
       currArgs.push(selectors[i](context, lastArgs[i]));
-
-      if (!needUpdate && currArgs[i] !== lastArgs[i]) {
-        needUpdate = true;
+      if (!shouldUpdate && currArgs[i] !== lastArgs[i]) {
+        shouldUpdate = true;
       }
     }
 
-    if (needUpdate) {
+    if (shouldUpdate) {
       cache.lastArgs = currArgs;
-      cache.lastResult = arrayMode
+      cache.lastResult = !isSingleton
         ? combiner(currArgs, context, cache.lastResult)
-        : combiner(...currArgs, context, cache.lastResult);
+        : combiner(context, cache.lastResult);
     }
 
     return cache.lastResult;
@@ -649,11 +230,11 @@ export const createSelector: CreateSelector = (...args: any[]) => {
 export function createGetters<TModel extends Model>(
   storeContext: StoreContext,
   container: ContainerImpl<TModel>
-): ExtractGettersFromSelectors<ExtractSelectors<TModel>> {
+): ExtractGetters<ExtractSelectors<TModel>> {
   const getters: Getters = {};
   const cacheByPath = new Map<string, SelectorCache>();
 
-  mapObjectDeeply(
+  assignObjectDeeply(
     getters,
     container.model.selectors,
     (selector, paths, target) => {
@@ -680,13 +261,13 @@ export function createGetters<TModel extends Model>(
               getters: container.getters,
               actions: container.actions,
 
-              getContainer: storeContext.getContainer
+              getContainer: storeContext.getContainer,
             },
             cache
           );
         },
         enumerable: true,
-        configurable: true
+        configurable: true,
       });
     }
   );
