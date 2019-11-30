@@ -188,7 +188,9 @@ export interface CreateSelector<
 }
 
 export const createSelector: CreateSelector = (...args: any[]) => {
-  const selectors: InputSelector[] = Array.isArray(args[0]) ? args[0] : [];
+  const isSingleton = args.length === 1;
+
+  const selectors: InputSelector[] = !isSingleton ? args[0] : [];
   const combiner: Function = args[args.length - 1];
 
   let defaultCache: SelectorCache | undefined;
@@ -214,7 +216,9 @@ export const createSelector: CreateSelector = (...args: any[]) => {
 
     if (shouldUpdate) {
       cache.lastArgs = currArgs;
-      cache.lastResult = combiner(currArgs, context, cache.lastResult);
+      cache.lastResult = !isSingleton
+        ? combiner(currArgs, context, cache.lastResult)
+        : combiner(context, cache.lastResult);
     }
 
     return cache.lastResult;

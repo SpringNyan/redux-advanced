@@ -9,8 +9,6 @@
     "forceConsistentCasingInFileNames": true,
     "module": "esnext",
     "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
     "declaration": true,
     "importHelpers": true,
     "outDir": "lib"

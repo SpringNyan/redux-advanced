@@ -19,40 +19,40 @@ describe("redux-advanced", () => {
     const testModelBuilder = defaultModelBuilder
       .state(() => ({
         name: "",
-        age: 0
+        age: 0,
       }))
       .selectors({
-        rootAction$: ({ rootAction$ }) => rootAction$
+        rootAction$: ({ rootAction$ }) => rootAction$,
       })
       .selectors({
         _: {
-          name: ({ getState }) => getState().name
+          name: ({ getState }) => getState().name,
         },
-        summary: ({ getState }) => `${getState().name} - ${getState().age}`
+        summary: ({ getState }) => `${getState().name} - ${getState().age}`,
       })
       .selectors((createSelector) => ({
         _: {
           age: createSelector(
-            ({ getState }) => getState().age,
-            (age) => age
-          )
+            [({ getState }) => getState().age],
+            ([age]) => age
+          ),
         },
         fullSummary: createSelector(
-          ({ getters }) => getters.summary,
-          (summary, { dependencies }) => `${dependencies.appId} - ${summary}`
+          [({ getters }) => getters.summary],
+          ([summary], { dependencies }) => `${dependencies.appId} - ${summary}`
         ),
         summary2: createSelector(
           [({ getState }) => getState().name, ({ getState }) => getState().age],
           ([name, age]) => `${name} - ${age}`
         ),
-        getName: createSelector(({ getState }) => () => getState().name)
+        getName: createSelector(({ getState }) => () => getState().name),
       }))
       .selectors({
         _: {
           $: {
-            summary: ({ getters }) => `${getters._.name} - ${getters._.age}`
-          }
-        }
+            summary: ({ getters }) => `${getters._.name} - ${getters._.age}`,
+          },
+        },
       })
       .reducers({
         _: {
@@ -62,26 +62,26 @@ describe("redux-advanced", () => {
           nested: {
             setName2(state, payload: string) {
               state.name = payload;
-            }
-          }
+            },
+          },
         },
         setName(state, payload: string) {
           state.name = payload;
         },
         setAge(state, payload: number) {
           state.age = payload;
-        }
+        },
       })
       .effects({
         _: {
           setAge1: async ({ actions }, payload: number) => {
             await actions.setAge.dispatch(payload);
-          }
+          },
         },
         $: {
           setAge2: async ({ actions }, payload: number) => {
             await actions.setAge.dispatch(payload);
-          }
+          },
         },
         setName: async (context, payload: string) => {
           return payload;
@@ -91,7 +91,7 @@ describe("redux-advanced", () => {
         },
         overrideSetInfo: async ({ actions }) => {
           await actions.setName.dispatch("haha");
-        }
+        },
       })
       .effects({
         setNameAsync: async ({ actions, getState }, payload: string) => {
@@ -107,18 +107,18 @@ describe("redux-advanced", () => {
         },
         outerThrow: async ({ actions }) => {
           await actions.innerThrow.dispatch({});
-        }
+        },
       })
       .selectors((createSelector) => ({
         setName: createSelector(({ actions }) => (name: string) => {
           actions.setName.dispatch(name);
-        })
+        }),
       }))
       .overrideEffects((base) => ({
         overrideSetInfo: async (context) => {
           await base.overrideSetInfo(context);
           await context.actions.setAge.dispatch(666);
-        }
+        },
       }))
       .epics({
         "@@": {
@@ -126,8 +126,8 @@ describe("redux-advanced", () => {
             rootAction$.ofType(actions.$.setAge2.type).pipe(
               tap(() => (setAge2Count += 1)),
               mergeMapTo(empty())
-            )
-        }
+            ),
+        },
       })
       .epics([
         ({ rootAction$, actions }) =>
@@ -139,32 +139,32 @@ describe("redux-advanced", () => {
           rootAction$.ofType(actions.$.setAge2.type).pipe(
             tap(() => (setAge2Count2 += 2)),
             mergeMapTo(empty())
-          )
+          ),
       ])
       .freeze();
 
     const staticModel = testModelBuilder
       .overrideState(() => ({
-        name: "nyan"
+        name: "nyan",
       }))
       .build();
 
     const dynamicModel = testModelBuilder
       .args(({ required }) => ({
-        name: required("fake")
+        name: required("fake"),
       }))
       .overrideState(() => ({ args }) => ({
-        name: args.name
+        name: args.name,
       }))
       .selectors({
         staticSummary: ({ getContainer }) =>
-          getContainer(staticModel).getters.summary
+          getContainer(staticModel).getters.summary,
       })
       .build();
 
     const autoRegisteredDynamicModel = testModelBuilder
       .options({
-        autoRegister: true
+        autoRegister: true,
       })
       .build();
 
@@ -174,14 +174,14 @@ describe("redux-advanced", () => {
     const { getContainer: storeGetContainer, registerModels } = init({
       dependencies: appDependencies,
 
-      defaultEffectErrorHandler: () => {
+      onUnhandledEffectError: () => {
         unhandledEffectErrorCount += 1;
-      }
+      },
     });
     registerModels({
       staticModel,
       dynamicModels: [dynamicModel],
-      autoRegisteredDynamicModel: [autoRegisteredDynamicModel]
+      autoRegisteredDynamicModel: [autoRegisteredDynamicModel],
     });
 
     const staticModelContainer = storeGetContainer(staticModel);
@@ -263,9 +263,10 @@ describe("redux-advanced", () => {
     expect(staticModelContainer.getters._.age).eq(666);
     expect(staticModelContainer.getters._.$.summary).eq("haha - 666");
 
-    staticModelContainer.actions.outerThrow
-      .dispatch({})
-      .then(() => undefined, () => undefined);
+    staticModelContainer.actions.outerThrow.dispatch({}).then(
+      () => undefined,
+      () => undefined
+    );
     await timer(10).toPromise();
     expect(unhandledEffectErrorCount).eq(0);
 
@@ -287,7 +288,7 @@ describe("redux-advanced", () => {
     expect(dynamicModel1Container.getState().name).eq("fake");
 
     dynamicModel1Container.register({
-      name: "hahaha"
+      name: "hahaha",
     });
     expect(dynamicModel1Container.isRegistered).eq(true);
     expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
@@ -299,7 +300,7 @@ describe("redux-advanced", () => {
     expect(dynamicModel2Container.namespace).eq("dynamicModels/2");
 
     dynamicModel2Container.register({
-      name: "zzzzzz"
+      name: "zzzzzz",
     });
     expect(dynamicModel2Container.isRegistered).eq(true);
     expect(dynamicModel2Container.getters.summary).eq("zzzzzz - 0");
