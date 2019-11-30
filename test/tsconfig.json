@@ -2,8 +2,8 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "lib": ["dom", "esnext"],
-    "outDir": "",
-    "declaration": false
+    "declaration": false,
+    "outDir": ""
   },
-  "include": ["./**/*.ts"]
+  "include": ["test.ts"]
 }

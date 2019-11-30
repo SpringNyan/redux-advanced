@@ -1,6 +1,8 @@
 import { GetContainer } from "./container";
 import { Model } from "./model";
-import { mapObjectDeeply, merge } from "./util";
+import { assignObjectDeeply, merge, nothingToken } from "./util";
+
+export const requiredArgToken: unique symbol = "@@REDUX_ADVANCED_REQUIRED_ARG" as any;
 
 export interface ArgsContext<TDependencies = any> {
   dependencies: TDependencies;
@@ -9,14 +11,38 @@ export interface ArgsContext<TDependencies = any> {
 
   getContainer: GetContainer;
 
-  required: RequiredArgFunc;
+  required: RequiredArgFactory;
 }
 
 export type ArgsFactory<TDependencies, TArgs extends object> = (
   context: ArgsContext<TDependencies>
 ) => TArgs;
 
-export type ExtractArgs<T extends Model> = T extends Model<
+export type RequiredArg<T = any> = [
+  typeof requiredArgToken,
+  T | typeof nothingToken
+];
+export type ExtractRequiredArgType<T> = T extends RequiredArg<infer TType>
+  ? TType
+  : never;
+
+export type ModelArgs<T> = T extends object
+  ? Pick<
+      { [P in keyof T]: ExtractRequiredArgType<T[P]> },
+      { [P in keyof T]: T[P] extends RequiredArg ? P : never }[keyof T]
+    > &
+      Partial<
+        Pick<
+          {
+            [P in keyof T]: T[P] extends ((...args: any[]) => any) | any[]
+              ? T[P]
+              : ModelArgs<T[P]>;
+          },
+          { [P in keyof T]: T[P] extends RequiredArg ? never : P }[keyof T]
+        >
+      >
+  : T;
+export type ExtractModelArgs<T extends Model> = T extends Model<
   any,
   infer TArgs,
   any,
@@ -28,30 +54,13 @@ export type ExtractArgs<T extends Model> = T extends Model<
   ? TArgs
   : never;
 
-export const requiredArgToken: unique symbol = `@@REQUIRED_ARG__${Date.now()}` as any;
+export type RequiredArgFactory = <T = undefined>(
+  fakeValue?: T
+) => RequiredArg<T>;
 
-export type RequiredArg<T = any> = [typeof requiredArgToken, T | undefined];
-export type RequiredArgFunc = <T>(fakeValue?: T) => RequiredArg<T>;
-
-export type ExtractRequiredArgType<
-  T extends RequiredArg
-> = T extends RequiredArg<infer TType> ? TType : never;
-
-export type ToArgs<T> = Pick<
-  {
-    [P in keyof T]: T[P] extends RequiredArg
-      ? ExtractRequiredArgType<T[P]>
-      : never;
-  },
-  { [P in keyof T]: T[P] extends RequiredArg ? P : never }[keyof T]
-> &
-  Partial<
-    Pick<T, { [P in keyof T]: T[P] extends RequiredArg ? never : P }[keyof T]>
-  >;
-
-export const requiredArgFunc: RequiredArgFunc = (fakeValue) => [
+export const requiredArgFactory: RequiredArgFactory = (...args) => [
   requiredArgToken,
-  fakeValue
+  args.length > 0 ? args[0]! : nothingToken,
 ];
 
 export function isRequiredArg(obj: any): obj is RequiredArg {
@@ -70,12 +79,14 @@ export function generateArgs(
     merge(result, args);
   }
 
-  mapObjectDeeply(result, result, (value) => {
+  assignObjectDeeply(result, result, (value, paths) => {
     if (isRequiredArg(value)) {
       if (optional) {
-        return value[1];
+        return value[1] !== nothingToken ? value[1] : undefined;
       } else {
-        throw new Error("arg is required");
+        throw new Error(
+          `Failed to generate args: arg "${paths.join(".")}" is required`
+        );
       }
     }
   });

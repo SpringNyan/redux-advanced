@@ -1,9 +1,14 @@
 import { ContainerImpl } from "./container";
 import { StoreContext } from "./context";
-import { Effect, Effects, ExtractEffectResult, ExtractEffects } from "./effect";
+import { Effect, Effects, ExtractEffects } from "./effect";
 import { Model } from "./model";
 import { ExtractReducers, Reducer, Reducers } from "./reducer";
-import { joinLastPart, mapObjectDeeply, merge, PatchedPromise } from "./util";
+import {
+  assignObjectDeeply,
+  joinLastPart,
+  merge,
+  PatchedPromise,
+} from "./util";
 
 export interface AnyAction {
   type: string;
@@ -36,44 +41,41 @@ export type ExtractActionPayload<
   ? TPayload
   : never;
 
-export type ExtractActionHelperResult<
-  T extends ActionHelper
-> = T extends ActionHelper<any, infer TResult> ? TResult : never;
+export type ExtractActionDispatchResult<
+  T extends ActionHelper | Effect
+> = T extends
+  | ActionHelper<any, infer TResult>
+  | Effect<any, any, any, any, any, infer TResult>
+  ? TResult
+  : never;
 
-export type ExtractActionHelperPayloadResultPairFromReducers<
-  TReducers extends Reducers
+export type ExtractActionHelperPayloadResultPairs<
+  T extends Reducers | Effects
 > = {
-  [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
-    ? [ExtractActionPayload<TReducers[P]>]
-    : TReducers[P] extends {}
-    ? ExtractActionHelperPayloadResultPairFromReducers<TReducers[P]>
+  [P in keyof T]: T[P] extends (...args: any[]) => any
+    ? [
+        ExtractActionPayload<T[P]>,
+        T[P] extends Effect ? ExtractActionDispatchResult<T[P]> : unknown
+      ]
+    : T[P] extends {}
+    ? ExtractActionHelperPayloadResultPairs<T[P]>
     : never;
 };
 
-export type ExtractActionHelperPayloadResultPairFromEffects<
-  TEffects extends Effects
-> = {
-  [P in keyof TEffects]: TEffects[P] extends (...args: any[]) => any
-    ? [ExtractActionPayload<TEffects[P]>, ExtractEffectResult<TEffects[P]>]
-    : TEffects[P] extends {}
-    ? ExtractActionHelperPayloadResultPairFromEffects<TEffects[P]>
-    : never;
-};
-
-export type ExtractActionHelpersFromPayloadResultPairObject<T> = {
+export type ExtractActionHelpersFromPayloadResultPairs<T> = {
   [P in keyof T]: T[P] extends any[]
     ? ActionHelper<T[P][0], T[P][1]>
     : T[P] extends {}
-    ? ExtractActionHelpersFromPayloadResultPairObject<T[P]>
+    ? ExtractActionHelpersFromPayloadResultPairs<T[P]>
     : never;
 };
 
-export type ExtractActionHelpersFromReducersEffects<
+export type ExtractActionHelpers<
   TReducers extends Reducers,
   TEffects extends Effects
-> = ExtractActionHelpersFromPayloadResultPairObject<
-  ExtractActionHelperPayloadResultPairFromReducers<TReducers> &
-    ExtractActionHelperPayloadResultPairFromEffects<TEffects>
+> = ExtractActionHelpersFromPayloadResultPairs<
+  ExtractActionHelperPayloadResultPairs<TReducers> &
+    ExtractActionHelperPayloadResultPairs<TEffects>
 >;
 
 export class ActionHelperImpl<TPayload = any, TResult = any>
@@ -91,7 +93,7 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
   public create(payload: TPayload): Action<TPayload> {
     return {
       type: this.type,
-      payload
+      payload,
     };
   }
 
@@ -120,7 +122,7 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
               );
             }
           });
-        }
+        },
       });
     });
 
@@ -133,16 +135,13 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
 export function createActionHelpers<TModel extends Model>(
   storeContext: StoreContext,
   container: ContainerImpl<TModel>
-): ExtractActionHelpersFromReducersEffects<
-  ExtractReducers<TModel>,
-  ExtractEffects<TModel>
-> {
+): ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>> {
   const actionHelpers: ActionHelpers = {};
 
-  mapObjectDeeply(
+  assignObjectDeeply(
     actionHelpers,
     merge({}, container.model.reducers, container.model.effects),
-    (obj, paths) =>
+    (o, paths) =>
       new ActionHelperImpl(
         storeContext,
         container,
@@ -153,38 +152,38 @@ export function createActionHelpers<TModel extends Model>(
   return actionHelpers as any;
 }
 
-export const actionTypes = {
-  register: "@@REGISTER",
-  unregister: "@@UNREGISTER",
-  reload: "@@RELOAD"
-};
-
-export interface RegisterPayload {
+export interface RegisterOptions {
   namespace: string;
   model?: number;
   args?: any;
   state?: any;
 }
 
-export const batchRegisterActionHelper = new ActionHelperImpl<
-  RegisterPayload[],
-  void
->(undefined!, undefined!, actionTypes.register);
-
-export interface UnregisterPayload {
+export interface UnregisterOptions {
   namespace: string;
 }
 
-export const batchUnregisterActionHelper = new ActionHelperImpl<
-  UnregisterPayload[],
-  void
->(undefined!, undefined!, actionTypes.unregister);
-
-export interface ReloadPayload {
+export interface ReloadOptions {
   state?: any;
 }
 
-export const reloadActionHelper = new ActionHelperImpl<ReloadPayload, void>(
+export const actionTypes = {
+  register: "@@REGISTER",
+  unregister: "@@UNREGISTER",
+  reload: "@@RELOAD",
+};
+
+export const registerActionHelper = new ActionHelperImpl<
+  RegisterOptions[],
+  void
+>(undefined!, undefined!, actionTypes.register);
+
+export const unregisterActionHelper = new ActionHelperImpl<
+  UnregisterOptions[],
+  void
+>(undefined!, undefined!, actionTypes.unregister);
+
+export const reloadActionHelper = new ActionHelperImpl<ReloadOptions, void>(
   undefined!,
   undefined!,
   actionTypes.reload

@@ -1,5 +1,6 @@
 import { GetContainer } from "./container";
 import { Model } from "./model";
+import { DeepRequired } from "./util";
 
 export const stateModelsKey = "@@models";
 
@@ -8,7 +9,7 @@ export interface StateContext<TDependencies = any, TArgs extends object = any> {
   namespace: string;
   key: string | undefined;
 
-  args: StateArgs<TArgs>;
+  args: DeepRequired<TArgs>;
 
   getContainer: GetContainer;
 }
@@ -31,15 +32,13 @@ export type ExtractState<T extends Model> = T extends Model<
   ? TState
   : never;
 
-export type StateArgs<TArgs> = TArgs extends object ? Required<TArgs> : TArgs;
-
 export function getSubState(
   rootState: any,
   basePath: string,
   key: string | undefined
 ) {
   if (rootState == null) {
-    return rootState;
+    return undefined;
   }
 
   let state = rootState[basePath];
@@ -86,7 +85,7 @@ export function setSubState(
 
     return {
       ...rootState,
-      [basePath]: state
+      [basePath]: state,
     };
   }
 }

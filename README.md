@@ -8,15 +8,15 @@ A state management library based on Redux.
 
 1. Install dependencies
 
-```sh
-npm i redux redux-observable rxjs immer
-```
+   ```sh
+   npm i redux redux-observable rxjs immer
+   ```
 
 2. Install redux-advanced
 
-```sh
-npm i redux-advanced
-```
+   ```sh
+   npm i redux-advanced
+   ```
 
 ## License
 
