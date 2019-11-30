@@ -3,12 +3,11 @@ import {
   createStore,
   Middleware,
   Reducer,
-  Store
+  Store,
 } from "redux";
 import { createEpicMiddleware, Epic } from "redux-observable";
-import { Observable } from "rxjs";
 import { mergeMap, switchMap } from "rxjs/operators";
-import { AnyAction, reloadActionHelper } from "./action";
+import { reloadActionHelper } from "./action";
 import { GetContainer } from "./container";
 import { createStoreContext } from "./context";
 import { createMiddleware } from "./middleware";
@@ -26,21 +25,18 @@ export interface ReduxAdvancedOptions {
 
   resolveActionName?: (paths: string[]) => string;
 
-  defaultEffectErrorHandler?: (error: any) => void;
-  defaultEpicErrorHandler?: (
-    error: any,
-    caught: Observable<AnyAction>
-  ) => Observable<AnyAction>;
+  onUnhandledEffectError?: (error: any) => void;
+  onUnhandledEpicError?: (error: any) => void;
 }
 
-export interface ReduxAdvancedContext {
+export interface ReduxAdvancedInstance {
   store: Store;
   getContainer: GetContainer;
   registerModels: RegisterModels;
   reload: (state?: any) => void;
 }
 
-export function init(options: ReduxAdvancedOptions): ReduxAdvancedContext {
+export function init(options: ReduxAdvancedOptions): ReduxAdvancedInstance {
   const storeContext = createStoreContext();
   storeContext.options = options;
 
@@ -55,11 +51,11 @@ export function init(options: ReduxAdvancedOptions): ReduxAdvancedContext {
     );
   const middleware = createMiddleware(storeContext);
 
-  if (options.createStore != null) {
+  if (options.createStore) {
     storeContext.store = options.createStore({
       reducer: rootReducer,
       epic: rootEpic,
-      middleware
+      middleware,
     });
   } else {
     const epicMiddleware = createEpicMiddleware();
@@ -78,6 +74,6 @@ export function init(options: ReduxAdvancedOptions): ReduxAdvancedContext {
     registerModels: createRegisterModels(storeContext),
     reload: (state) => {
       storeContext.store.dispatch(reloadActionHelper.create({ state }));
-    }
+    },
   };
 }

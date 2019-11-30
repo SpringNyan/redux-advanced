@@ -87,7 +87,7 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
   ) {}
 
   public is(action: any): action is Action<TPayload> {
-    return action != null && action.type === this.type;
+    return action?.type === this.type;
   }
 
   public create(payload: TPayload): Action<TPayload> {
@@ -115,11 +115,9 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
           Promise.resolve().then(() => {
             if (
               !promise.hasRejectionHandler &&
-              this._storeContext.options.defaultEffectErrorHandler
+              this._storeContext.options.onUnhandledEffectError
             ) {
-              promise.catch(
-                this._storeContext.options.defaultEffectErrorHandler
-              );
+              promise.catch(this._storeContext.options.onUnhandledEffectError);
             }
           });
         },

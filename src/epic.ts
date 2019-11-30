@@ -1,20 +1,16 @@
 import {
   ActionsObservable,
   Epic as ReduxObservableEpic,
-  StateObservable
+  StateObservable,
 } from "redux-observable";
 import { merge, Observable } from "rxjs";
 import { catchError, filter, takeUntil } from "rxjs/operators";
-import {
-  ActionHelpers,
-  AnyAction,
-  batchUnregisterActionHelper
-} from "./action";
+import { ActionHelpers, AnyAction, unregisterActionHelper } from "./action";
 import { ContainerImpl, GetContainer } from "./container";
 import { StoreContext } from "./context";
 import { Model } from "./model";
 import { Getters } from "./selector";
-import { mapObjectDeeply } from "./util";
+import { assignObjectDeeply } from "./util";
 
 export interface EpicContext<
   TDependencies = any,
@@ -87,8 +83,8 @@ export function createReduxObservableEpic(
   return (rootAction$, rootState$) => {
     const outputObservables: Array<Observable<AnyAction>> = [];
 
-    mapObjectDeeply({}, container.model.epics, (epic) => {
-      let output$ = epic({
+    assignObjectDeeply({}, container.model.epics, (epic: Epic) => {
+      const output$ = epic({
         rootAction$,
         rootState$,
 
@@ -100,22 +96,21 @@ export function createReduxObservableEpic(
         getters: container.getters,
         actions: container.actions,
 
-        getContainer: storeContext.getContainer
-      });
-
-      if (storeContext.options.defaultEpicErrorHandler != null) {
-        output$ = output$.pipe(
-          catchError(storeContext.options.defaultEpicErrorHandler)
-        );
-      }
+        getContainer: storeContext.getContainer,
+      }).pipe(
+        catchError((error, caught) => {
+          storeContext.options.onUnhandledEpicError?.(error);
+          return caught;
+        })
+      );
 
       outputObservables.push(output$);
     });
 
     const takeUntil$ = rootAction$.pipe(
       filter((action) => {
-        if (batchUnregisterActionHelper.is(action)) {
-          return (action.payload || []).some(
+        if (unregisterActionHelper.is(action)) {
+          return action.payload.some(
             (payload) => payload.namespace === container.namespace
           );
         }

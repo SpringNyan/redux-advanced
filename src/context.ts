@@ -8,7 +8,7 @@ import { Effect } from "./effect";
 import { Model } from "./model";
 import { Reducer } from "./reducer";
 import { ReduxAdvancedOptions } from "./store";
-import { splitLastPart } from "./util";
+import { nothingToken, splitLastPart } from "./util";
 
 export interface ModelContext {
   isDynamic: boolean;
@@ -32,7 +32,7 @@ export interface StoreContext {
   addEpic$: Subject<ReduxObservableEpic>;
   switchEpic$: Subject<void>;
 
-  adHocRootState: any;
+  reducerRootState: any;
 
   rootActionSubject: Subject<AnyAction>;
   rootAction$: Observable<AnyAction>;
@@ -46,7 +46,7 @@ export interface StoreContext {
     AnyAction,
     {
       resolve: (value: any) => void;
-      reject: (err: any) => void;
+      reject: (error: any) => void;
     }
   >;
 
@@ -77,7 +77,7 @@ export function createStoreContext(): StoreContext {
     addEpic$: new Subject(),
     switchEpic$: new Subject(),
 
-    adHocRootState: undefined,
+    reducerRootState: nothingToken,
 
     rootActionSubject,
     rootAction$,
@@ -93,11 +93,7 @@ export function createStoreContext(): StoreContext {
       return storeContext.options.dependencies;
     },
     resolveActionName: (paths) => {
-      if (storeContext.options.resolveActionName) {
-        return storeContext.options.resolveActionName(paths);
-      }
-
-      return paths.join(".");
+      return storeContext.options.resolveActionName?.(paths) ?? paths.join(".");
     },
     parseNamespace: (namespace) => {
       let baseNamespace: string = namespace;
@@ -115,9 +111,9 @@ export function createStoreContext(): StoreContext {
       return {
         baseNamespace,
         key,
-        models
+        models,
       };
-    }
+    },
   };
 
   storeContext.getContainer = createGetContainer(storeContext);

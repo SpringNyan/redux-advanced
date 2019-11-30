@@ -1,9 +1,9 @@
 import {
-  batchRegisterActionHelper,
-  ExtractActionHelpersFromReducersEffects,
-  RegisterPayload
+  ExtractActionHelpers,
+  registerActionHelper,
+  RegisterOptions,
 } from "./action";
-import { ArgsFactory, ExtractArgs, ToArgs } from "./args";
+import { ArgsFactory, ExtractArgs, ModelArgs } from "./args";
 import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
 import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
@@ -12,25 +12,25 @@ import {
   ExtractReducers,
   OverrideReducers,
   Reducer,
-  Reducers
+  Reducers,
 } from "./reducer";
 import {
   createSelector,
-  ExtractGettersFromSelectors,
+  ExtractGetters,
   ExtractSelectors,
   OutputSelector,
   OverrideSelectors,
   Selectors,
-  SelectorsFactory
+  SelectorsFactory,
 } from "./selector";
 import { ExtractState, StateFactory } from "./state";
 import {
+  assignObjectDeeply,
   convertNamespaceToPath,
   DeepPartial,
-  factoryWrapper,
   joinLastPart,
-  mapObjectDeeply,
-  merge
+  merge,
+  wrapFunctionFactory,
 } from "./util";
 
 export interface ModelOptions {
@@ -65,7 +65,7 @@ export interface Models<TDependencies = any> {
 
 export type ExtractModel<T extends ModelBuilder> = ReturnType<T["build"]>;
 
-function cloneModel<T extends Model>(model: T): T {
+export function cloneModel<T extends Model>(model: T): T {
   return {
     options: merge({}, model.options),
 
@@ -74,7 +74,7 @@ function cloneModel<T extends Model>(model: T): T {
     selectors: merge({}, model.selectors),
     reducers: merge({}, model.reducers),
     effects: merge({}, model.effects),
-    epics: merge({}, model.epics)
+    epics: merge({}, model.epics),
   } as T;
 }
 
@@ -87,7 +87,8 @@ export class ModelBuilder<
   TEffects extends Effects = any,
   TEpics extends Epics = any
 > {
-  private static _nextEpicId = 1;
+  private static readonly _globalId = Date.now();
+  private static _nextAnonymousEpicId = 1;
 
   private readonly _model: Model<
     TDependencies,
@@ -155,7 +156,7 @@ export class ModelBuilder<
     namespace: TNamespace
   ): ModelBuilder<
     TDependencies & ExtractDependencies<TModel>,
-    TArgs & ToArgs<{ [P in TNamespace]: ExtractArgs<TModel> }>,
+    TArgs & { [P in TNamespace]: ExtractArgs<TModel> },
     TState & { [P in TNamespace]: ExtractState<TModel> },
     TSelectors & { [P in TNamespace]: ExtractSelectors<TModel> },
     TReducers & { [P in TNamespace]: ExtractReducers<TModel> },
@@ -178,19 +179,19 @@ export class ModelBuilder<
     if (namespace !== undefined) {
       args = (context) => ({
         [namespace]: model.args({
-          ...context
-        })
+          ...context,
+        }),
       });
 
       state = (context) => ({
         [namespace]: model.state({
           ...context,
-          args: (context.args || {})[namespace]
-        })
+          args: context.args?.[namespace],
+        }),
       });
 
       selectors = {
-        [namespace]: mapObjectDeeply(
+        [namespace]: assignObjectDeeply(
           {},
           model.selectors,
           (oldSelector: OutputSelector) => {
@@ -198,68 +199,70 @@ export class ModelBuilder<
               oldSelector(
                 {
                   ...context,
-                  getState: () => (context.getState() || {})[namespace],
+                  getState: () => context.getState()?.[namespace],
                   getters: context.getters[namespace],
-                  actions: context.actions[namespace]
+                  actions: context.actions[namespace],
                 },
                 cache
               );
 
             return newSelector;
           }
-        )
+        ),
       };
 
       reducers = {
-        [namespace]: mapObjectDeeply(
+        [namespace]: assignObjectDeeply(
           {},
           model.reducers,
           (oldReducer: Reducer) => {
             const newReducer: Reducer = (_state, payload, context) =>
               oldReducer(_state[namespace], payload, {
-                ...context
+                ...context,
               });
 
             return newReducer;
           }
-        )
+        ),
       };
 
       effects = {
-        [namespace]: mapObjectDeeply({}, model.effects, (oldEffect: Effect) => {
-          const newEffect: Effect = (context, payload) =>
-            oldEffect(
-              {
-                ...context,
-                getState: () => (context.getState() || {})[namespace],
-                getters: context.getters[namespace],
-                actions: context.actions[namespace]
-              },
-              payload
-            );
+        [namespace]: assignObjectDeeply(
+          {},
+          model.effects,
+          (oldEffect: Effect) => {
+            const newEffect: Effect = (context, payload) =>
+              oldEffect(
+                {
+                  ...context,
+                  getState: () => context.getState()?.[namespace],
+                  getters: context.getters[namespace],
+                  actions: context.actions[namespace],
+                },
+                payload
+              );
 
-          return newEffect;
-        })
+            return newEffect;
+          }
+        ),
       };
 
       epics = {
-        [namespace]: mapObjectDeeply({}, model.epics, (oldEpic: Epic) => {
+        [namespace]: assignObjectDeeply({}, model.epics, (oldEpic: Epic) => {
           const newEpic: Epic = (context) =>
             oldEpic({
               ...context,
-              getState: () => (context.getState() || {})[namespace],
+              getState: () => context.getState()?.[namespace],
               getters: context.getters[namespace],
-              actions: context.actions[namespace]
+              actions: context.actions[namespace],
             });
 
           return newEpic;
-        })
+        }),
       };
 
-      options = {
-        ...options,
-        autoRegister: undefined
-      };
+      options = { ...options };
+      delete options.autoRegister;
     }
 
     this.dependencies()
@@ -294,7 +297,7 @@ export class ModelBuilder<
     args: T | ArgsFactory<TDependencies, T>
   ): ModelBuilder<
     TDependencies,
-    TArgs & ToArgs<T>,
+    TArgs & ModelArgs<T>,
     TState,
     TSelectors,
     TReducers,
@@ -306,7 +309,7 @@ export class ModelBuilder<
     }
 
     const oldArgsFn = this._model.args;
-    const newArgsFn = factoryWrapper(args);
+    const newArgsFn = wrapFunctionFactory(args);
 
     this._model.args = (context) => {
       const oldArgs = oldArgsFn(context);
@@ -339,7 +342,7 @@ export class ModelBuilder<
 
     this._model.args = (context) => {
       const oldArgs = oldArgsFn(context);
-      const newArgs = factoryWrapper(override(oldArgs))(context);
+      const newArgs = wrapFunctionFactory(override(oldArgs))(context);
 
       return merge({}, oldArgs, newArgs);
     };
@@ -363,7 +366,7 @@ export class ModelBuilder<
     }
 
     const oldStateFn = this._model.state;
-    const newStateFn = factoryWrapper(state);
+    const newStateFn = wrapFunctionFactory(state);
 
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
@@ -398,7 +401,7 @@ export class ModelBuilder<
 
     this._model.state = (context) => {
       const oldState = oldStateFn(context);
-      const newState = factoryWrapper(override(oldState))(context);
+      const newState = wrapFunctionFactory(override(oldState))(context);
 
       return merge({}, oldState, newState);
     };
@@ -410,8 +413,8 @@ export class ModelBuilder<
     T extends Selectors<
       TDependencies,
       TState,
-      ExtractGettersFromSelectors<TSelectors>,
-      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+      ExtractGetters<TSelectors>,
+      ExtractActionHelpers<TReducers, TEffects>
     >
   >(
     selectors:
@@ -419,8 +422,8 @@ export class ModelBuilder<
       | SelectorsFactory<
           TDependencies,
           TState,
-          ExtractGettersFromSelectors<TSelectors>,
-          ExtractActionHelpersFromReducersEffects<TReducers, TEffects>,
+          ExtractGetters<TSelectors>,
+          ExtractActionHelpers<TReducers, TEffects>,
           T
         >
   ): ModelBuilder<
@@ -454,22 +457,22 @@ export class ModelBuilder<
             TSelectors,
             TDependencies,
             TState,
-            ExtractGettersFromSelectors<TSelectors>,
-            ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+            ExtractGetters<TSelectors>,
+            ExtractActionHelpers<TReducers, TEffects>
           >
         >
       | SelectorsFactory<
           TDependencies,
           TState,
-          ExtractGettersFromSelectors<TSelectors>,
-          ExtractActionHelpersFromReducersEffects<TReducers, TEffects>,
+          ExtractGetters<TSelectors>,
+          ExtractActionHelpers<TReducers, TEffects>,
           DeepPartial<
             OverrideSelectors<
               TSelectors,
               TDependencies,
               TState,
-              ExtractGettersFromSelectors<TSelectors>,
-              ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+              ExtractGetters<TSelectors>,
+              ExtractActionHelpers<TReducers, TEffects>
             >
           >
         >
@@ -481,8 +484,8 @@ export class ModelBuilder<
       TSelectors,
       TDependencies,
       TState,
-      ExtractGettersFromSelectors<TSelectors>,
-      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+      ExtractGetters<TSelectors>,
+      ExtractActionHelpers<TReducers, TEffects>
     >,
     TReducers,
     TEffects,
@@ -552,8 +555,8 @@ export class ModelBuilder<
     T extends Effects<
       TDependencies,
       TState,
-      ExtractGettersFromSelectors<TSelectors>,
-      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+      ExtractGetters<TSelectors>,
+      ExtractActionHelpers<TReducers, TEffects>
     >
   >(
     effects: T
@@ -583,8 +586,8 @@ export class ModelBuilder<
         TEffects,
         TDependencies,
         TState,
-        ExtractGettersFromSelectors<TSelectors>,
-        ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+        ExtractGetters<TSelectors>,
+        ExtractActionHelpers<TReducers, TEffects>
       >
     >
   ): ModelBuilder<
@@ -597,8 +600,8 @@ export class ModelBuilder<
       TEffects,
       TDependencies,
       TState,
-      ExtractGettersFromSelectors<TSelectors>,
-      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+      ExtractGetters<TSelectors>,
+      ExtractActionHelpers<TReducers, TEffects>
     >,
     TEpics
   > {
@@ -619,8 +622,8 @@ export class ModelBuilder<
     T extends Epics<
       TDependencies,
       TState,
-      ExtractGettersFromSelectors<TSelectors>,
-      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+      ExtractGetters<TSelectors>,
+      ExtractActionHelpers<TReducers, TEffects>
     >
   >(
     epics:
@@ -629,8 +632,8 @@ export class ModelBuilder<
           Epic<
             TDependencies,
             TState,
-            ExtractGettersFromSelectors<TSelectors>,
-            ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+            ExtractGetters<TSelectors>,
+            ExtractActionHelpers<TReducers, TEffects>
           >
         >
   ): ModelBuilder<
@@ -648,8 +651,10 @@ export class ModelBuilder<
 
     if (Array.isArray(epics)) {
       epics = epics.reduce<{ [key: string]: Epic }>((obj, epic) => {
-        obj["@@EPIC_" + ModelBuilder._nextEpicId] = epic;
-        ModelBuilder._nextEpicId += 1;
+        obj[
+          `@@REDUX_ADVANCED_ANONYMOUS_EPIC_${ModelBuilder._globalId}_${ModelBuilder._nextAnonymousEpicId}`
+        ] = epic;
+        ModelBuilder._nextAnonymousEpicId += 1;
         return obj;
       }, {}) as T;
     }
@@ -667,8 +672,8 @@ export class ModelBuilder<
         TEpics,
         TDependencies,
         TState,
-        ExtractGettersFromSelectors<TSelectors>,
-        ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+        ExtractGetters<TSelectors>,
+        ExtractActionHelpers<TReducers, TEffects>
       >
     >
   ): ModelBuilder<
@@ -682,8 +687,8 @@ export class ModelBuilder<
       TEpics,
       TDependencies,
       TState,
-      ExtractGettersFromSelectors<TSelectors>,
-      ExtractActionHelpersFromReducersEffects<TReducers, TEffects>
+      ExtractGetters<TSelectors>,
+      ExtractActionHelpers<TReducers, TEffects>
     >
   > {
     if (this._isFrozen) {
@@ -770,7 +775,7 @@ export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}, {}> {
     selectors: {},
     reducers: {},
     effects: {},
-    epics: {}
+    epics: {},
   });
 }
 
@@ -786,37 +791,37 @@ export function registerModel<TModel extends Model>(
     registeredModels = [];
     storeContext.modelsByBaseNamespace.set(namespace, registeredModels);
   }
-  const prevRegisteredModelsLength = registeredModels.length;
-  registeredModels.push(...models);
 
-  models.forEach((_model, index) => {
+  models.forEach((_model) => {
     if (storeContext.contextByModel.has(_model)) {
-      throw new Error("model is already registered");
+      throw new Error("Failed to register model: model is already registered");
     }
 
     const reducerByActionName = new Map<string, Reducer>();
-    mapObjectDeeply({}, _model.reducers, (reducer, paths) => {
+    assignObjectDeeply({}, _model.reducers, (reducer, paths) => {
       const actionName = storeContext.resolveActionName(paths);
       if (reducerByActionName.has(actionName)) {
-        throw new Error("action name of reducer should be unique");
+        throw new Error(
+          "Failed to register model: action name of reducer should be unique"
+        );
       }
-
       reducerByActionName.set(actionName, reducer);
     });
 
     const effectByActionName = new Map<string, Effect>();
-    mapObjectDeeply({}, _model.effects, (effect, paths) => {
+    assignObjectDeeply({}, _model.effects, (effect, paths) => {
       const actionName = storeContext.resolveActionName(paths);
       if (effectByActionName.has(actionName)) {
-        throw new Error("action name of effect should be unique");
+        throw new Error(
+          "Failed to register model: action name of effect should be unique"
+        );
       }
-
       effectByActionName.set(actionName, effect);
     });
 
     storeContext.contextByModel.set(_model, {
       isDynamic: Array.isArray(model),
-      modelIndex: prevRegisteredModelsLength + index,
+      modelIndex: registeredModels!.length,
 
       baseNamespace: namespace,
       basePath: convertNamespaceToPath(namespace),
@@ -824,8 +829,10 @@ export function registerModel<TModel extends Model>(
       reducerByActionName,
       effectByActionName,
 
-      containerByKey: new Map()
+      containerByKey: new Map(),
     });
+
+    registeredModels!.push(_model);
   });
 }
 
@@ -833,8 +840,8 @@ export function registerModels(
   storeContext: StoreContext,
   namespace: string,
   models: Models
-): RegisterPayload[] {
-  const payloads: RegisterPayload[] = [];
+): RegisterOptions[] {
+  const registerOptionsList: RegisterOptions[] = [];
 
   Object.keys(models).forEach((key) => {
     const model = models[key];
@@ -844,27 +851,28 @@ export function registerModels(
       registerModel(storeContext, modelNamespace, model);
     } else if (isModel(model)) {
       registerModel(storeContext, modelNamespace, model);
-      payloads.push({
-        namespace: modelNamespace
+      registerOptionsList.push({
+        namespace: modelNamespace,
       });
     } else {
-      payloads.push(
+      registerOptionsList.push(
         ...registerModels(storeContext, modelNamespace, model as Models)
       );
     }
   });
 
-  return payloads;
+  return registerOptionsList;
 }
 
 export type RegisterModels = (models: Models) => void;
-
 export function createRegisterModels(
   storeContext: StoreContext
 ): RegisterModels {
   return (models) => {
-    const payloads = registerModels(storeContext, "", models);
-    storeContext.store.dispatch(batchRegisterActionHelper.create(payloads));
+    const registerOptionsList = registerModels(storeContext, "", models);
+    storeContext.store.dispatch(
+      registerActionHelper.create(registerOptionsList)
+    );
   };
 }
 
@@ -882,10 +890,7 @@ export function generateNamespaceModelMappings(models: Models, prefix = "") {
     } else if (isModel(model)) {
       mappings[namespace] = model;
     } else {
-      const subMappings = generateNamespaceModelMappings(model, namespace);
-      Object.keys(subMappings).forEach((subKey) => {
-        mappings[subKey] = subMappings[subKey];
-      });
+      Object.assign(mappings, generateNamespaceModelMappings(model, namespace));
     }
   });
 

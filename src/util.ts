@@ -1,3 +1,5 @@
+export const nothingToken: unique symbol = "@@REDUX_ADVANCED_NOTHING" as any;
+
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends ((...args: any[]) => any) | any[]
     ? T[P]
@@ -51,7 +53,7 @@ export function assignObjectDeeply(
     } else {
       const result = func(value, [...paths, key], target);
       if (result !== undefined) {
-        target[key] = result;
+        target[key] = result !== nothingToken ? result : undefined;
       }
     }
   });

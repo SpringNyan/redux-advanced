@@ -11,7 +11,7 @@ export interface ArgsContext<TDependencies = any> {
 
   getContainer: GetContainer;
 
-  required: RequiredArgFactory;
+  required: CreateRequiredArg;
 }
 
 export type ArgsFactory<TDependencies, TArgs extends object> = (
@@ -42,7 +42,8 @@ export type ModelArgs<T> = T extends object
         >
       >
   : T;
-export type ExtractModelArgs<T extends Model> = T extends Model<
+
+export type ExtractArgs<T extends Model> = T extends Model<
   any,
   infer TArgs,
   any,
@@ -54,11 +55,8 @@ export type ExtractModelArgs<T extends Model> = T extends Model<
   ? TArgs
   : never;
 
-export type RequiredArgFactory = <T = undefined>(
-  fakeValue?: T
-) => RequiredArg<T>;
-
-export const requiredArgFactory: RequiredArgFactory = (...args) => [
+export type CreateRequiredArg = <T>(defaultValue?: T) => RequiredArg<T>;
+export const createRequiredArg: CreateRequiredArg = (...args) => [
   requiredArgToken,
   args.length > 0 ? args[0]! : nothingToken,
 ];
@@ -82,7 +80,15 @@ export function generateArgs(
   assignObjectDeeply(result, result, (value, paths) => {
     if (isRequiredArg(value)) {
       if (optional) {
-        return value[1] !== nothingToken ? value[1] : undefined;
+        value = value[1];
+        if (value === nothingToken) {
+          throw new Error(
+            `Failed to generate args: arg "${paths.join(
+              "."
+            )}" has no default value`
+          );
+        }
+        return value;
       } else {
         throw new Error(
           `Failed to generate args: arg "${paths.join(".")}" is required`

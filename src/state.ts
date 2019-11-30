@@ -1,6 +1,6 @@
 import { GetContainer } from "./container";
 import { Model } from "./model";
-import { DeepRequired } from "./util";
+import { DeepRequired, isObject, nothingToken } from "./util";
 
 export const stateModelsKey = "@@models";
 
@@ -9,7 +9,7 @@ export interface StateContext<TDependencies = any, TArgs extends object = any> {
   namespace: string;
   key: string | undefined;
 
-  args: DeepRequired<TArgs>;
+  args: StateArgs<TArgs>;
 
   getContainer: GetContainer;
 }
@@ -32,13 +32,17 @@ export type ExtractState<T extends Model> = T extends Model<
   ? TState
   : never;
 
+export type StateArgs<TArgs> = TArgs extends object
+  ? DeepRequired<TArgs>
+  : TArgs;
+
 export function getSubState(
   rootState: any,
   basePath: string,
   key: string | undefined
 ) {
-  if (rootState == null) {
-    return undefined;
+  if (!isObject(rootState)) {
+    throw new Error(`Failed to get sub state: rootState is not an object`);
   }
 
   let state = rootState[basePath];
@@ -46,8 +50,8 @@ export function getSubState(
     return state;
   }
 
-  if (state == null) {
-    return undefined;
+  if (!isObject(state)) {
+    throw new Error(`Failed to get sub state: state is not an object`);
   }
   state = state[key];
 
@@ -60,8 +64,11 @@ export function setSubState(
   basePath: string,
   key: string | undefined
 ): any {
-  if (rootState == null) {
+  if (rootState === undefined) {
     rootState = {};
+  }
+  if (!isObject(rootState)) {
+    throw new Error(`Failed to set sub state: rootState is not an object`);
   }
 
   if (key === undefined) {
@@ -70,7 +77,7 @@ export function setSubState(
     }
 
     rootState = { ...rootState };
-    if (value === undefined) {
+    if (value === nothingToken) {
       delete rootState[basePath];
     } else {
       rootState[basePath] = value;
