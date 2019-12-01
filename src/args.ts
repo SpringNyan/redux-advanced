@@ -31,25 +31,35 @@ export type ArgsObject = {
 };
 
 export type ModelArgs<TArgs> = ArgsObject &
-  {
-    [P in {
-      [K in keyof TArgs]: TArgs[K] extends RequiredArg ? K : never;
-    }[keyof TArgs]]: ExtractRequiredArgType<TArgs[P]>;
-  } &
-  Partial<
+  Pick<
+    { [P in keyof TArgs]: ExtractRequiredArgType<TArgs[P]> },
     {
-      [P in {
-        [K in keyof TArgs]: TArgs[K] extends RequiredArg ? never : K;
-      }[keyof TArgs]]: TArgs[P];
-    }
+      [P in keyof TArgs]: TArgs[P] extends RequiredArg ? P : never;
+    }[keyof TArgs]
+  > &
+  Partial<
+    Pick<
+      TArgs,
+      {
+        [P in keyof TArgs]: TArgs[P] extends RequiredArg ? never : P;
+      }[keyof TArgs]
+    >
   >;
 
 export type ContainerArgs<TArgs> = TArgs extends ArgsObject
-  ? { [P in Exclude<keyof TArgs, keyof ArgsObject>]: ContainerArgs<TArgs[P]> }
+  ? Pick<
+      { [P in keyof TArgs]: ContainerArgs<TArgs[P]> },
+      Exclude<keyof TArgs, keyof ArgsObject>
+    >
   : TArgs;
 
 export type StateArgs<TArgs> = TArgs extends ArgsObject
-  ? { [P in keyof TArgs]-?: StateArgs<TArgs[P]> }
+  ? Required<
+      Pick<
+        { [P in keyof TArgs]: StateArgs<TArgs[P]> },
+        Exclude<keyof TArgs, keyof ArgsObject>
+      >
+    >
   : TArgs;
 
 export type ExtractArgs<T extends Model> = T extends Model<
