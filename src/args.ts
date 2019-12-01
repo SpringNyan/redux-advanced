@@ -46,32 +46,29 @@ export type ModelArgs<TArgs> = ArgsObject &
     >
   >;
 
-export type ContainerArgs<TArgs> = TArgs extends ArgsObject
+export type NormalizedArgs<TArgs> = TArgs extends ArgsObject
   ? Pick<
-      { [P in keyof TArgs]: ContainerArgs<TArgs[P]> },
+      { [P in keyof TArgs]: NormalizedArgs<TArgs[P]> },
       Exclude<keyof TArgs, keyof ArgsObject>
     >
   : TArgs;
 
-export type StateArgs<TArgs> = TArgs extends ArgsObject
+export type RequiredNormalizedArgs<TArgs> = TArgs extends ArgsObject
   ? Required<
       Pick<
-        { [P in keyof TArgs]: StateArgs<TArgs[P]> },
+        { [P in keyof TArgs]: RequiredNormalizedArgs<TArgs[P]> },
         Exclude<keyof TArgs, keyof ArgsObject>
       >
     >
   : TArgs;
 
-export type ExtractArgs<T extends Model> = T extends Model<
-  any,
-  infer TArgs,
-  any,
-  any,
-  any,
-  any,
-  any
->
-  ? TArgs
+export type ExtractArgs<
+  T extends Model,
+  TNormalized extends boolean = false
+> = T extends Model<any, infer TArgs, any, any, any, any, any>
+  ? TNormalized extends true
+    ? NormalizedArgs<TArgs>
+    : TArgs
   : never;
 
 export type CreateRequiredArg = <T>(defaultValue?: T) => RequiredArg<T>;
