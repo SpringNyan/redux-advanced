@@ -4,10 +4,11 @@ export { Container, createSubContainer, GetContainer } from "./container";
 export { ExtractDependencies } from "./dependencies";
 export {
   createModelBuilder,
+  createNamespaceModelMappings,
   ExtractModel,
-  generateNamespaceModelMappings,
   Model,
   ModelOptions,
+  Models,
 } from "./model";
 export { ExtractState } from "./state";
 export { init, ReduxAdvancedInstance, ReduxAdvancedOptions } from "./store";

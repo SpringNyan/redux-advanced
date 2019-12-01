@@ -1,8 +1,4 @@
-import {
-  ExtractActionHelpers,
-  registerActionHelper,
-  RegisterOptions,
-} from "./action";
+import { ExtractActionHelpers, RegisterOptions } from "./action";
 import { ArgsFactory, ExtractArgs, ModelArgs } from "./args";
 import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
@@ -860,19 +856,7 @@ export function registerModels(
   return registerOptionsList;
 }
 
-export type RegisterModels = (models: Models) => void;
-export function createRegisterModels(
-  storeContext: StoreContext
-): RegisterModels {
-  return (models) => {
-    const registerOptionsList = registerModels(storeContext, "", models);
-    storeContext.store.dispatch(
-      registerActionHelper.create(registerOptionsList)
-    );
-  };
-}
-
-export function generateNamespaceModelMappings(models: Models, prefix = "") {
+export function createNamespaceModelMappings(models: Models, prefix = "") {
   const mappings: Record<string, Model> = {};
 
   Object.keys(models).forEach((key) => {
@@ -886,7 +870,7 @@ export function generateNamespaceModelMappings(models: Models, prefix = "") {
     } else if (isModel(model)) {
       mappings[namespace] = model;
     } else {
-      Object.assign(mappings, generateNamespaceModelMappings(model, namespace));
+      Object.assign(mappings, createNamespaceModelMappings(model, namespace));
     }
   });
 

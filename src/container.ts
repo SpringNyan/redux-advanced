@@ -4,7 +4,12 @@ import {
   registerActionHelper,
   unregisterActionHelper,
 } from "./action";
-import { createRequiredArg, ExtractArgs, generateArgs } from "./args";
+import {
+  ContainerArgs,
+  createRequiredArg,
+  ExtractArgs,
+  generateArgs,
+} from "./args";
 import { ModelContext, StoreContext } from "./context";
 import { ExtractEffects } from "./effect";
 import { Model } from "./model";
@@ -31,7 +36,7 @@ export interface ContainerInternal<TArgs, TState, TGetters, TActionHelpers> {
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Container<TModel extends Model = any>
   extends ContainerInternal<
-    ExtractArgs<TModel>,
+    ContainerArgs<ExtractArgs<TModel>>,
     ExtractState<TModel>,
     ExtractGetters<ExtractSelectors<TModel>>,
     ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>
@@ -179,7 +184,7 @@ export class ContainerImpl<TModel extends Model = Model>
     );
   }
 
-  public register(args?: ExtractArgs<TModel>): void {
+  public register(args?: ContainerArgs<ExtractArgs<TModel>>): void {
     if (!this.canRegister) {
       throw new Error(
         `Failed to register container: namespace "${this.namespace}" is already registered`
@@ -275,7 +280,7 @@ export function createSubContainer<
   container: Container<TModel>,
   subKey: TSubKey
 ): ContainerInternal<
-  ExtractArgs<TModel>[TSubKey],
+  ContainerArgs<ExtractArgs<TModel>>[TSubKey],
   ExtractState<TModel>[TSubKey],
   ExtractGetters<ExtractSelectors<TModel>>[TSubKey],
   ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>[TSubKey]

@@ -1,6 +1,7 @@
+import { StateArgs } from "./args";
 import { GetContainer } from "./container";
 import { Model } from "./model";
-import { DeepRequired, isObject, nothingToken } from "./util";
+import { isObject, nothingToken } from "./util";
 
 export const stateModelsKey = "@@models";
 
@@ -31,10 +32,6 @@ export type ExtractState<T extends Model> = T extends Model<
 >
   ? TState
   : never;
-
-export type StateArgs<TArgs> = TArgs extends object
-  ? DeepRequired<TArgs>
-  : TArgs;
 
 export function getSubState(
   rootState: any,
