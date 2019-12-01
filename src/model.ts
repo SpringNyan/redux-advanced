@@ -152,7 +152,7 @@ export class ModelBuilder<
     subKey: TSubKey
   ): ModelBuilder<
     TDependencies & ExtractDependencies<TModel>,
-    TArgs & { [P in TSubKey]: ExtractArgs<TModel> },
+    TArgs & { [P in TSubKey]?: ExtractArgs<TModel> },
     TState & { [P in TSubKey]: ExtractState<TModel> },
     TSelectors & { [P in TSubKey]: ExtractSelectors<TModel> },
     TReducers & { [P in TSubKey]: ExtractReducers<TModel> },
@@ -856,7 +856,7 @@ export function registerModels(
   return registerOptionsList;
 }
 
-export function createNamespaceModelMappings(models: Models, prefix = "") {
+export function generateNamespaceModelMappings(models: Models, prefix = "") {
   const mappings: Record<string, Model> = {};
 
   Object.keys(models).forEach((key) => {
@@ -870,7 +870,7 @@ export function createNamespaceModelMappings(models: Models, prefix = "") {
     } else if (isModel(model)) {
       mappings[namespace] = model;
     } else {
-      Object.assign(mappings, createNamespaceModelMappings(model, namespace));
+      Object.assign(mappings, generateNamespaceModelMappings(model, namespace));
     }
   });
 
