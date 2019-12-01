@@ -28,12 +28,14 @@ export interface ContainerInternal<TArgs, TState, TGetters, TActionHelpers> {
   unregister(): void;
 }
 
-export type Container<TModel extends Model = any> = ContainerInternal<
-  ExtractArgs<TModel>,
-  ExtractState<TModel>,
-  ExtractGetters<ExtractSelectors<TModel>>,
-  ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>
->;
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface Container<TModel extends Model = any>
+  extends ContainerInternal<
+    ExtractArgs<TModel>,
+    ExtractState<TModel>,
+    ExtractGetters<ExtractSelectors<TModel>>,
+    ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>
+  > {}
 
 export class ContainerImpl<TModel extends Model = Model>
   implements Container<TModel> {
