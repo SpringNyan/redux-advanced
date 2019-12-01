@@ -1,5 +1,10 @@
 import { ExtractActionHelpers, RegisterOptions } from "./action";
-import { ArgsFactory, ExtractArgs, ModelArgs } from "./args";
+import {
+  ArgsFactory,
+  argsObjectKeyToken,
+  ExtractArgs,
+  ModelArgs,
+} from "./args";
 import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
 import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
@@ -152,7 +157,14 @@ export class ModelBuilder<
     subKey: TSubKey
   ): ModelBuilder<
     TDependencies & ExtractDependencies<TModel>,
-    TArgs & { [P in TSubKey]?: ExtractArgs<TModel> },
+    Omit<TArgs, typeof argsObjectKeyToken> &
+      ({} extends ExtractArgs<TModel>
+        ? { [P in TSubKey]?: ExtractArgs<TModel> }
+        : { [P in TSubKey]: ExtractArgs<TModel> }) & {
+        [argsObjectKeyToken]?: TArgs extends { [argsObjectKeyToken]?: string }
+          ? TArgs[typeof argsObjectKeyToken] | TSubKey
+          : TSubKey;
+      },
     TState & { [P in TSubKey]: ExtractState<TModel> },
     TSelectors & { [P in TSubKey]: ExtractSelectors<TModel> },
     TReducers & { [P in TSubKey]: ExtractReducers<TModel> },
