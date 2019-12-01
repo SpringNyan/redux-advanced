@@ -152,7 +152,33 @@ describe("redux-advanced", () => {
     const dynamicModel = testModelBuilder
       .args(({ required }) => ({
         name: required("fake"),
+        aaa: 123,
+        bbb: "123",
+        ccc: {
+          foo: "foo",
+          bar: 666,
+        },
       }))
+      .extend(
+        defaultModelBuilder
+          .args(({ required }) => ({
+            a: 1,
+            b: 2,
+            z: required("z"),
+          }))
+          .build(),
+        "foo"
+      )
+      .extend(
+        defaultModelBuilder
+          .args(() => ({
+            a: 1,
+            b: 2,
+            z: "z",
+          }))
+          .build(),
+        "bar"
+      )
       .overrideState(() => ({ args }) => ({
         name: args.name,
       }))
@@ -289,6 +315,9 @@ describe("redux-advanced", () => {
 
     dynamicModel1Container.register({
       name: "hahaha",
+      foo: {
+        z: "zzz",
+      },
     });
     expect(dynamicModel1Container.isRegistered).eq(true);
     expect(dynamicModel1Container.getters.summary).eq("hahaha - 0");
@@ -301,6 +330,9 @@ describe("redux-advanced", () => {
 
     dynamicModel2Container.register({
       name: "zzzzzz",
+      foo: {
+        z: "zzz",
+      },
     });
     expect(dynamicModel2Container.isRegistered).eq(true);
     expect(dynamicModel2Container.getters.summary).eq("zzzzzz - 0");

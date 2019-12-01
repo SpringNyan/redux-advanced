@@ -43,18 +43,16 @@ export type ModelArgs<TArgs> = Pick<
   >;
 
 export type StateArgs<TArgs> = TArgs extends object
-  ? TArgs extends { [argsObjectKeyToken]?: string }
-    ? Required<
-        Pick<TArgs, Exclude<keyof TArgs, TArgs[typeof argsObjectKeyToken]>>
-      > &
+  ? TArgs extends { [argsObjectKeyToken]?: infer TArgsObject | undefined }
+    ? Required<Pick<TArgs, Exclude<keyof TArgs, keyof TArgsObject>>> &
         Required<
           Pick<
             {
-              [P in keyof TArgs]: P extends TArgs[typeof argsObjectKeyToken]
+              [P in keyof TArgs]: P extends keyof TArgsObject
                 ? StateArgs<TArgs[P]>
                 : never;
             },
-            Extract<TArgs[typeof argsObjectKeyToken], keyof TArgs>
+            Extract<keyof TArgsObject, keyof TArgs>
           >
         >
     : Required<TArgs>
