@@ -33,13 +33,13 @@ describe("redux-advanced", () => {
       .selectors((createSelector) => ({
         _: {
           age: createSelector(
-            [({ getState }) => getState().age],
-            ([age]) => age
+            ({ getState }) => getState().age,
+            (age) => age
           ),
         },
         fullSummary: createSelector(
-          [({ getters }) => getters.summary],
-          ([summary], { dependencies }) => `${dependencies.appId} - ${summary}`
+          ({ getters }) => getters.summary,
+          (summary, { dependencies }) => `${dependencies.appId} - ${summary}`
         ),
         summary2: createSelector(
           [({ getState }) => getState().name, ({ getState }) => getState().age],
