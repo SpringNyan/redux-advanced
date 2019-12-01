@@ -4,8 +4,8 @@ export { Container, createSubContainer, GetContainer } from "./container";
 export { ExtractDependencies } from "./dependencies";
 export {
   createModelBuilder,
-  createNamespaceModelMappings,
   ExtractModel,
+  generateNamespaceModelMappings,
   Model,
   ModelOptions,
   Models,
