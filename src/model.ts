@@ -161,9 +161,13 @@ export class ModelBuilder<
       ({} extends ExtractArgs<TModel>
         ? { [P in TSubKey]?: ExtractArgs<TModel> }
         : { [P in TSubKey]: ExtractArgs<TModel> }) & {
-        [argsObjectKeyToken]?: TArgs extends { [argsObjectKeyToken]?: string }
-          ? TArgs[typeof argsObjectKeyToken] | TSubKey
-          : TSubKey;
+        [argsObjectKeyToken]?:
+          | TSubKey
+          | (TArgs extends { [argsObjectKeyToken]?: string }
+              ? TArgs[typeof argsObjectKeyToken] extends string | undefined
+                ? TArgs[typeof argsObjectKeyToken]
+                : never
+              : never);
       },
     TState & { [P in TSubKey]: ExtractState<TModel> },
     TSelectors & { [P in TSubKey]: ExtractSelectors<TModel> },
