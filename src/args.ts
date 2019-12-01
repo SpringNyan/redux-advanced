@@ -2,6 +2,7 @@ import { GetContainer } from "./container";
 import { Model } from "./model";
 import { assignObjectDeeply, merge, nothingToken } from "./util";
 
+export const argsObjectKeyToken: unique symbol = "@@REDUX_ADVANCED_ARGS_OBJECT_KEY" as any;
 export const requiredArgToken: unique symbol = "@@REDUX_ADVANCED_REQUIRED_ARG" as any;
 
 export interface ArgsContext<TDependencies = any> {
@@ -26,17 +27,12 @@ export type ExtractRequiredArgType<T> = T extends RequiredArg<infer TType>
   ? TType
   : never;
 
-export type ArgsObject = {
-  "@@REDUX_ADVANCED_ARGS_OBJECT": never;
-};
-
-export type ModelArgs<TArgs> = ArgsObject &
-  Pick<
-    { [P in keyof TArgs]: ExtractRequiredArgType<TArgs[P]> },
-    {
-      [P in keyof TArgs]: TArgs[P] extends RequiredArg ? P : never;
-    }[keyof TArgs]
-  > &
+export type ModelArgs<TArgs> = Pick<
+  { [P in keyof TArgs]: ExtractRequiredArgType<TArgs[P]> },
+  {
+    [P in keyof TArgs]: TArgs[P] extends RequiredArg ? P : never;
+  }[keyof TArgs]
+> &
   Partial<
     Pick<
       TArgs,
@@ -46,29 +42,34 @@ export type ModelArgs<TArgs> = ArgsObject &
     >
   >;
 
-export type NormalizedArgs<TArgs> = TArgs extends ArgsObject
-  ? Pick<
-      { [P in keyof TArgs]: NormalizedArgs<TArgs[P]> },
-      Exclude<keyof TArgs, keyof ArgsObject>
-    >
+export type StateArgs<TArgs> = TArgs extends object
+  ? TArgs extends { [argsObjectKeyToken]?: string }
+    ? Required<
+        Pick<TArgs, Exclude<keyof TArgs, TArgs[typeof argsObjectKeyToken]>>
+      > &
+        Required<
+          Pick<
+            {
+              [P in keyof TArgs]: P extends TArgs[typeof argsObjectKeyToken]
+                ? StateArgs<TArgs[P]>
+                : never;
+            },
+            Extract<TArgs[typeof argsObjectKeyToken], keyof TArgs>
+          >
+        >
+    : Required<TArgs>
   : TArgs;
 
-export type RequiredNormalizedArgs<TArgs> = TArgs extends ArgsObject
-  ? Required<
-      Pick<
-        { [P in keyof TArgs]: RequiredNormalizedArgs<TArgs[P]> },
-        Exclude<keyof TArgs, keyof ArgsObject>
-      >
-    >
-  : TArgs;
-
-export type ExtractArgs<
-  T extends Model,
-  TNormalized extends boolean = false
-> = T extends Model<any, infer TArgs, any, any, any, any, any>
-  ? TNormalized extends true
-    ? NormalizedArgs<TArgs>
-    : TArgs
+export type ExtractArgs<T extends Model> = T extends Model<
+  any,
+  infer TArgs,
+  any,
+  any,
+  any,
+  any,
+  any
+>
+  ? TArgs
   : never;
 
 export type CreateRequiredArg = <T>(defaultValue?: T) => RequiredArg<T>;

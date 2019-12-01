@@ -1,4 +1,4 @@
-import { RequiredNormalizedArgs } from "./args";
+import { StateArgs } from "./args";
 import { GetContainer } from "./container";
 import { Model } from "./model";
 import { isObject, nothingToken } from "./util";
@@ -10,7 +10,7 @@ export interface StateContext<TDependencies = any, TArgs extends object = any> {
   namespace: string;
   key: string | undefined;
 
-  args: RequiredNormalizedArgs<TArgs>;
+  args: StateArgs<TArgs>;
 
   getContainer: GetContainer;
 }
