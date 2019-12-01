@@ -7,11 +7,11 @@ import {
 } from "redux";
 import { createEpicMiddleware, Epic } from "redux-observable";
 import { mergeMap, switchMap } from "rxjs/operators";
-import { reloadActionHelper } from "./action";
+import { registerActionHelper, reloadActionHelper } from "./action";
 import { GetContainer } from "./container";
 import { createStoreContext } from "./context";
 import { createMiddleware } from "./middleware";
-import { createRegisterModels, RegisterModels } from "./model";
+import { Models, registerModels } from "./model";
 import { createReduxReducer } from "./reducer";
 
 export interface ReduxAdvancedOptions {
@@ -32,7 +32,7 @@ export interface ReduxAdvancedOptions {
 export interface ReduxAdvancedInstance {
   store: Store;
   getContainer: GetContainer;
-  registerModels: RegisterModels;
+  registerModels: (models: Models) => void;
   reload: (state?: any) => void;
 }
 
@@ -71,7 +71,12 @@ export function init(options: ReduxAdvancedOptions): ReduxAdvancedInstance {
   return {
     store: storeContext.store,
     getContainer: storeContext.getContainer,
-    registerModels: createRegisterModels(storeContext),
+    registerModels: (models) => {
+      const registerOptionsList = registerModels(storeContext, "", models);
+      storeContext.store.dispatch(
+        registerActionHelper.create(registerOptionsList)
+      );
+    },
     reload: (state) => {
       storeContext.store.dispatch(reloadActionHelper.create({ state }));
     },

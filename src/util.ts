@@ -6,12 +6,6 @@ export type DeepPartial<T> = {
     : DeepPartial<T[P]>;
 };
 
-export type DeepRequired<T> = {
-  [P in keyof T]-?: T[P] extends ((...args: any[]) => any) | any[]
-    ? T[P]
-    : DeepRequired<T[P]>;
-};
-
 export function isObject(obj: any): boolean {
   return obj != null && typeof obj === "object" && !Array.isArray(obj);
 }
@@ -28,6 +22,10 @@ export function assignObjectDeeply(
   func: (value: any, paths: string[], target: any) => any,
   paths: string[] = []
 ): any {
+  if (!isObject(target)) {
+    throw new Error(`Failed to assign object deeply: target is not an object`);
+  }
+
   if (!isObject(source)) {
     throw new Error(`Failed to assign object deeply: source is not an object`);
   }
@@ -40,7 +38,7 @@ export function assignObjectDeeply(
     const value = source[key];
 
     if (isObject(value)) {
-      if (!(key in target)) {
+      if (target[key] === undefined) {
         target[key] = {};
       }
       if (isObject(target[key])) {

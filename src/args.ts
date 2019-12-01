@@ -26,33 +26,49 @@ export type ExtractRequiredArgType<T> = T extends RequiredArg<infer TType>
   ? TType
   : never;
 
-export type ModelArgs<T> = T extends object
-  ? Pick<
-      { [P in keyof T]: ExtractRequiredArgType<T[P]> },
-      { [P in keyof T]: T[P] extends RequiredArg ? P : never }[keyof T]
-    > &
-      Partial<
-        Pick<
-          {
-            [P in keyof T]: T[P] extends ((...args: any[]) => any) | any[]
-              ? T[P]
-              : ModelArgs<T[P]>;
-          },
-          { [P in keyof T]: T[P] extends RequiredArg ? never : P }[keyof T]
-        >
-      >
-  : T;
+export type ArgsObject = {
+  "@@REDUX_ADVANCED_ARGS_OBJECT": never;
+};
 
-export type ExtractArgs<T extends Model> = T extends Model<
-  any,
-  infer TArgs,
-  any,
-  any,
-  any,
-  any,
-  any
->
-  ? TArgs
+export type ModelArgs<TArgs> = ArgsObject &
+  Pick<
+    { [P in keyof TArgs]: ExtractRequiredArgType<TArgs[P]> },
+    {
+      [P in keyof TArgs]: TArgs[P] extends RequiredArg ? P : never;
+    }[keyof TArgs]
+  > &
+  Partial<
+    Pick<
+      TArgs,
+      {
+        [P in keyof TArgs]: TArgs[P] extends RequiredArg ? never : P;
+      }[keyof TArgs]
+    >
+  >;
+
+export type NormalizedArgs<TArgs> = TArgs extends ArgsObject
+  ? Pick<
+      { [P in keyof TArgs]: NormalizedArgs<TArgs[P]> },
+      Exclude<keyof TArgs, keyof ArgsObject>
+    >
+  : TArgs;
+
+export type RequiredNormalizedArgs<TArgs> = TArgs extends ArgsObject
+  ? Required<
+      Pick<
+        { [P in keyof TArgs]: RequiredNormalizedArgs<TArgs[P]> },
+        Exclude<keyof TArgs, keyof ArgsObject>
+      >
+    >
+  : TArgs;
+
+export type ExtractArgs<
+  T extends Model,
+  TNormalized extends boolean = false
+> = T extends Model<any, infer TArgs, any, any, any, any, any>
+  ? TNormalized extends true
+    ? NormalizedArgs<TArgs>
+    : TArgs
   : never;
 
 export type CreateRequiredArg = <T>(defaultValue?: T) => RequiredArg<T>;
