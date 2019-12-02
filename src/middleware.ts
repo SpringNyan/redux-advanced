@@ -145,10 +145,8 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
           (reason) => {
             if (deferred) {
               deferred.reject(reason);
-            } else if (storeContext.options.onUnhandledEffectError) {
-              storeContext.options.onUnhandledEffectError(reason);
             } else {
-              throw reason;
+              storeContext.onUnhandledEffectError(reason);
             }
           }
         );

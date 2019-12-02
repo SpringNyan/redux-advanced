@@ -99,7 +99,7 @@ export function createReduxObservableEpic(
         getContainer: storeContext.getContainer,
       }).pipe(
         catchError((error, caught) => {
-          storeContext.options.onUnhandledEpicError?.(error);
+          storeContext.onUnhandledEpicError(error);
           return caught;
         })
       );
