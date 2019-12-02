@@ -1,10 +1,5 @@
 import { ExtractActionHelpers, RegisterOptions } from "./action";
-import {
-  ArgsFactory,
-  argsObjectKeyToken,
-  ExtractArgs,
-  ModelArgs,
-} from "./args";
+import { ArgsFactory, argsObjectToken, ExtractArgs, ModelArgs } from "./args";
 import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
 import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
@@ -161,8 +156,8 @@ export class ModelBuilder<
       ({} extends ExtractArgs<TModel>
         ? { [P in TSubKey]?: ExtractArgs<TModel> }
         : { [P in TSubKey]: ExtractArgs<TModel> }) & {
-        [argsObjectKeyToken]?: {
-          [P in TSubKey]: never;
+        [argsObjectToken]?: {
+          [P in TSubKey]: true;
         };
       },
     TState & { [P in TSubKey]: ExtractState<TModel> },
@@ -186,6 +181,9 @@ export class ModelBuilder<
 
     if (subKey !== undefined) {
       args = (context) => ({
+        [argsObjectToken]: {
+          [subKey]: true,
+        },
         [subKey]: model.args({
           ...context,
         }),
