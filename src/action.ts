@@ -113,11 +113,11 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
         reject: (reason) => {
           reject(reason);
           Promise.resolve().then(() => {
-            if (
-              !promise.hasRejectionHandler &&
-              this._storeContext.options.onUnhandledEffectError
-            ) {
-              promise.catch(this._storeContext.options.onUnhandledEffectError);
+            if (!promise.hasRejectionHandler) {
+              promise.then(
+                undefined,
+                this._storeContext.onUnhandledEffectError
+              );
             }
           });
         },

@@ -164,7 +164,7 @@ describe("redux-advanced", () => {
           .args(({ required }) => ({
             a: 1,
             b: 2,
-            z: required("z"),
+            z: required({ foo: 1 }),
           }))
           .build(),
         "foo"
@@ -316,7 +316,7 @@ describe("redux-advanced", () => {
     dynamicModel1Container.register({
       name: "hahaha",
       foo: {
-        z: "zzz",
+        z: { foo: 233 },
       },
     });
     expect(dynamicModel1Container.isRegistered).eq(true);
@@ -331,7 +331,7 @@ describe("redux-advanced", () => {
     dynamicModel2Container.register({
       name: "zzzzzz",
       foo: {
-        z: "zzz",
+        z: { foo: 998 },
       },
     });
     expect(dynamicModel2Container.isRegistered).eq(true);

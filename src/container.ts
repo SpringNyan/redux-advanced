@@ -300,7 +300,7 @@ export function createSubContainer<
       return container.isRegistered;
     },
     get canRegister(): boolean {
-      throw new Error(`Sub container doesn't support canRegister`);
+      return false;
     },
 
     register: () => {

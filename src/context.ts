@@ -52,6 +52,9 @@ export interface StoreContext {
 
   getDependencies: () => any;
   resolveActionName: (paths: string[]) => string;
+  onUnhandledEffectError: (error: any) => void;
+  onUnhandledEpicError: (error: any) => void;
+
   parseNamespace: (
     namespace: string
   ) => {
@@ -95,6 +98,21 @@ export function createStoreContext(): StoreContext {
     resolveActionName: (paths) => {
       return storeContext.options.resolveActionName?.(paths) ?? paths.join(".");
     },
+    onUnhandledEffectError: (error) => {
+      if (storeContext.options.onUnhandledEffectError) {
+        storeContext.options.onUnhandledEffectError(error);
+      } else {
+        console.error(error);
+      }
+    },
+    onUnhandledEpicError: (error) => {
+      if (storeContext.options.onUnhandledEpicError) {
+        storeContext.options.onUnhandledEpicError(error);
+      } else {
+        console.error(error);
+      }
+    },
+
     parseNamespace: (namespace) => {
       let baseNamespace: string = namespace;
       let key: string | undefined;
