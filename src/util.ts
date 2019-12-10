@@ -103,17 +103,23 @@ export function splitLastPart(str: string, splitter = "/"): [string, string] {
 export class PatchedPromise<T> implements Promise<T> {
   public [Symbol.toStringTag]: string;
 
-  public hasRejectionHandler = false;
-
   private readonly _promise: Promise<T>;
+
+  private _hasThen = false;
 
   constructor(
     executor: (
       resolve: (value?: T | PromiseLike<T>) => void,
       reject: (reason?: any) => void
-    ) => void
+    ) => void,
+    private readonly _onunhandledrejection: (reason?: any) => void
   ) {
     this._promise = new Promise(executor);
+    this._promise.then(undefined, (reason) => {
+      if (!this._hasThen) {
+        this._onunhandledrejection(reason);
+      }
+    });
   }
 
   public then<TResult1 = T, TResult2 = never>(
@@ -126,11 +132,10 @@ export class PatchedPromise<T> implements Promise<T> {
       | undefined
       | null
   ): Promise<TResult1 | TResult2> {
-    if (onrejected) {
-      this.hasRejectionHandler = true;
-    }
-
-    return this._promise.then(onfulfilled, onrejected);
+    this._hasThen = true;
+    return new PatchedPromise((resolve) => {
+      resolve(this._promise.then(onfulfilled, onrejected));
+    }, this._onunhandledrejection);
   }
 
   public catch<TResult = never>(
@@ -139,14 +144,16 @@ export class PatchedPromise<T> implements Promise<T> {
       | undefined
       | null
   ): Promise<T | TResult> {
-    if (onrejected) {
-      this.hasRejectionHandler = true;
-    }
-
-    return this._promise.catch(onrejected);
+    this._hasThen = true;
+    return new PatchedPromise((resolve) => {
+      resolve(this._promise.catch(onrejected));
+    }, this._onunhandledrejection);
   }
 
   public finally(onfinally?: (() => void) | undefined | null): Promise<T> {
-    return this._promise.finally(onfinally);
+    this._hasThen = true;
+    return new PatchedPromise((resolve) => {
+      resolve(this._promise.finally(onfinally));
+    }, this._onunhandledrejection);
   }
 }
