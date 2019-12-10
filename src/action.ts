@@ -108,21 +108,8 @@ export class ActionHelperImpl<TPayload = any, TResult = any>
     const action = this.create(payload);
 
     const promise = new PatchedPromise<TResult>((resolve, reject) => {
-      this._storeContext.deferredByAction.set(action, {
-        resolve,
-        reject: (reason) => {
-          reject(reason);
-          Promise.resolve().then(() => {
-            if (!promise.hasRejectionHandler) {
-              promise.then(
-                undefined,
-                this._storeContext.onUnhandledEffectError
-              );
-            }
-          });
-        },
-      });
-    });
+      this._storeContext.deferredByAction.set(action, { resolve, reject });
+    }, this._storeContext.onUnhandledEffectError);
 
     this._storeContext.store.dispatch(action);
 
