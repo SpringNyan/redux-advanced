@@ -151,14 +151,16 @@ export function createActionHelpers<TModel extends Model>(
 }
 
 export interface RegisterOptions {
-  namespace: string;
-  model?: number;
+  baseNamespace: string;
+  key?: string;
+  modelIndex?: number;
   args?: any;
   state?: any;
 }
 
 export interface UnregisterOptions {
-  namespace: string;
+  baseNamespace: string;
+  key?: string;
 }
 
 export interface ReloadOptions {

@@ -22,8 +22,10 @@ export interface EpicContext<
   rootState$: StateObservable<any>;
 
   dependencies: TDependencies;
-  namespace: string;
+
+  baseNamespace: string;
   key: string | undefined;
+  modelIndex: number | undefined;
 
   getState: () => TState;
   getters: TGetters;
@@ -81,23 +83,13 @@ export function createReduxObservableEpic(
   container: ContainerImpl
 ): ReduxObservableEpic {
   return (rootAction$, rootState$) => {
+    container.epicContext.rootAction$ = rootAction$;
+    container.epicContext.rootState$ = rootState$;
+
     const outputObservables: Array<Observable<AnyAction>> = [];
 
     assignObjectDeeply({}, container.model.epics, (epic: Epic) => {
-      const output$ = epic({
-        rootAction$,
-        rootState$,
-
-        dependencies: storeContext.getDependencies(),
-        namespace: container.namespace,
-        key: container.key,
-
-        getState: () => container.getState(),
-        getters: container.getters,
-        actions: container.actions,
-
-        getContainer: storeContext.getContainer,
-      }).pipe(
+      const output$ = epic(container.epicContext).pipe(
         catchError((error, caught) => {
           storeContext.onUnhandledEpicError(error);
           return caught;
@@ -111,7 +103,9 @@ export function createReduxObservableEpic(
       filter((action) => {
         if (unregisterActionHelper.is(action)) {
           return action.payload.some(
-            (payload) => payload.namespace === container.namespace
+            (payload) =>
+              payload.baseNamespace === container.baseNamespace &&
+              payload.key === container.key
           );
         }
 

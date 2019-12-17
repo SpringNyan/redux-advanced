@@ -17,22 +17,19 @@ import { isObject, joinLastPart, splitLastPart } from "./util";
 export function createMiddleware(storeContext: StoreContext): Middleware {
   function register(optionsList: RegisterOptions[]) {
     optionsList.forEach((options) => {
-      const namespace = options.namespace;
+      const { baseNamespace, key, modelIndex } = options;
 
-      const parsed = storeContext.parseNamespace(namespace);
-      if (parsed == null) {
+      const models = storeContext.modelsByBaseNamespace.get(baseNamespace);
+      if (models == null) {
         throw new Error(
-          `Failed to register container: no model found for namespace "${namespace}"`
+          `Failed to register container: no model found for namespace "${baseNamespace}"`
         );
       }
-      const { key, models } = parsed;
 
-      const modelIndex = options.model ?? 0;
-      const model = models[modelIndex];
-
+      const model = models[modelIndex ?? 0];
       const container = storeContext.getContainer(model, key!) as ContainerImpl;
 
-      storeContext.containerByNamespace.set(namespace, container);
+      storeContext.containerByNamespace.set(container.namespace, container);
 
       const epic = createReduxObservableEpic(storeContext, container);
       storeContext.addEpic$.next(epic);
@@ -41,7 +38,8 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
 
   function unregister(optionsList: UnregisterOptions[]) {
     optionsList.forEach((options) => {
-      const namespace = options.namespace;
+      const { baseNamespace, key } = options;
+      const namespace = joinLastPart(baseNamespace, key);
 
       const container = storeContext.containerByNamespace.get(namespace);
       if (container) {
@@ -75,7 +73,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
         if (isObject(state)) {
           if (!context.isDynamic) {
             registerOptionsList.push({
-              namespace: context.baseNamespace,
+              baseNamespace: context.baseNamespace,
             });
           } else {
             const models = state[stateModelsKey] || {};
@@ -83,8 +81,9 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
               const modelIndex = models[key];
               if (typeof modelIndex === "number") {
                 registerOptionsList.push({
-                  namespace: joinLastPart(context.baseNamespace, key),
-                  model: modelIndex,
+                  baseNamespace: context.baseNamespace,
+                  key,
+                  modelIndex,
                 });
               }
             });
@@ -120,23 +119,7 @@ export function createMiddleware(storeContext: StoreContext): Middleware {
         ?.effectByActionName.get(actionName);
 
       if (effect) {
-        const promise = effect(
-          {
-            rootAction$: storeContext.rootAction$,
-            rootState$: storeContext.rootState$,
-
-            dependencies: storeContext.getDependencies(),
-            namespace: container.namespace,
-            key: container.key,
-
-            getState: () => container.getState(),
-            getters: container.getters,
-            actions: container.actions,
-
-            getContainer: storeContext.getContainer,
-          },
-          action.payload
-        );
+        const promise = effect(container.effectContext, action.payload);
 
         promise.then(
           (value) => {

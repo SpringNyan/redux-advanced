@@ -17,8 +17,10 @@ import { convertNamespaceToPath, nothingToken, splitLastPart } from "./util";
 
 export interface ReducerContext<TDependencies = any> {
   dependencies: TDependencies;
-  namespace: string;
+
+  baseNamespace: string;
   key: string | undefined;
+  modelIndex: number | undefined;
 }
 
 export type Reducer<
@@ -62,18 +64,16 @@ export type OverrideReducers<
 export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
   function register(rootState: any, optionsList: RegisterOptions[]) {
     optionsList.forEach((options) => {
-      const namespace = options.namespace;
+      const { baseNamespace, key, modelIndex } = options;
 
-      const parsed = storeContext.parseNamespace(namespace);
-      if (parsed == null) {
+      const models = storeContext.modelsByBaseNamespace.get(baseNamespace);
+      if (models == null) {
         throw new Error(
-          `Failed to register reducer: no model found for namespace "${namespace}"`
+          `Failed to register reducer: no model found for namespace "${baseNamespace}"`
         );
       }
-      const { baseNamespace, key, models } = parsed;
 
-      const modelIndex = options.model ?? 0;
-      const model = models[modelIndex];
+      const model = models[modelIndex ?? 0];
 
       let state: any;
       if (options.state !== undefined) {
@@ -83,8 +83,10 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
           model,
           {
             dependencies: storeContext.getDependencies(),
-            namespace,
+
+            baseNamespace,
             key,
+            modelIndex,
 
             getContainer: storeContext.getContainer,
 
@@ -95,8 +97,10 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
         state = model.state({
           dependencies: storeContext.getDependencies(),
-          namespace,
+
+          baseNamespace,
           key,
+          modelIndex,
 
           args,
 
@@ -126,15 +130,14 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
   function unregister(rootState: any, optionsList: UnregisterOptions[]) {
     optionsList.forEach((options) => {
-      const namespace = options.namespace;
+      const { baseNamespace, key } = options;
 
-      const parsed = storeContext.parseNamespace(namespace);
-      if (parsed == null) {
+      const models = storeContext.modelsByBaseNamespace.get(baseNamespace);
+      if (models == null) {
         throw new Error(
-          `Failed to unregister reducer: no model found for namespace "${namespace}"`
+          `Failed to unregister reducer: no model found for namespace "${baseNamespace}"`
         );
       }
-      const { baseNamespace, key } = parsed;
 
       const basePath = convertNamespaceToPath(baseNamespace);
 
@@ -201,11 +204,7 @@ export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
 
     const state = getSubState(rootState, basePath, key);
     const newState = produce(state, (draft: any) => {
-      reducer(draft, action.payload, {
-        dependencies: storeContext.getDependencies(),
-        namespace,
-        key,
-      });
+      reducer(draft, action.payload, container.reducerContext);
     });
 
     return setSubState(rootState, newState, basePath, key);

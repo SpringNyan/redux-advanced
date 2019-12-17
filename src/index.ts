@@ -5,7 +5,7 @@ export { ExtractDependencies } from "./dependencies";
 export {
   createModelBuilder,
   ExtractModel,
-  generateNamespaceModelMappings,
+  flattenModels,
   Model,
   ModelOptions,
   Models,

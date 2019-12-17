@@ -6,16 +6,23 @@ import {
 } from "./action";
 import { createRequiredArg, ExtractArgs, generateArgs } from "./args";
 import { ModelContext, StoreContext } from "./context";
-import { ExtractEffects } from "./effect";
+import { EffectContext, ExtractEffects } from "./effect";
+import { EpicContext } from "./epic";
 import { Model } from "./model";
-import { ExtractReducers } from "./reducer";
-import { createGetters, ExtractGetters, ExtractSelectors } from "./selector";
+import { ExtractReducers, ReducerContext } from "./reducer";
+import {
+  createGetters,
+  ExtractGetters,
+  ExtractSelectors,
+  SelectorContext,
+} from "./selector";
 import { ExtractState, getSubState } from "./state";
 import { joinLastPart, nothingToken } from "./util";
 
 export interface ContainerInternal<TArgs, TState, TGetters, TActionHelpers> {
-  namespace: string;
+  baseNamespace: string;
   key: string | undefined;
+  modelIndex: number | undefined;
 
   getState: () => TState;
   getters: TGetters;
@@ -39,9 +46,143 @@ export interface Container<TModel extends Model = any>
 
 export class ContainerImpl<TModel extends Model = Model>
   implements Container<TModel> {
+  public readonly baseNamespace: string;
+  public readonly modelIndex: number | undefined;
   public readonly namespace: string;
 
   private readonly _modelContext: ModelContext;
+
+  public get reducerContext(): ReducerContext {
+    if (this._reducerContext == null) {
+      const self = this;
+      this._reducerContext = {
+        get dependencies() {
+          return self._storeContext.getDependencies();
+        },
+
+        baseNamespace: self.baseNamespace,
+        key: self.key,
+        modelIndex: self.modelIndex,
+      };
+    }
+
+    return this._reducerContext;
+  }
+
+  public get selectorContext(): SelectorContext {
+    if (this._selectorContext == null) {
+      const self = this;
+      this._selectorContext = {
+        get rootAction$() {
+          return self._storeContext.rootAction$;
+        },
+        get rootState$() {
+          return self._storeContext.rootState$;
+        },
+
+        get dependencies() {
+          return self._storeContext.getDependencies();
+        },
+
+        baseNamespace: self.baseNamespace,
+        key: self.key,
+        modelIndex: self.modelIndex,
+
+        getState() {
+          return self.getState();
+        },
+        get getters() {
+          return self.getters;
+        },
+        get actions() {
+          return self.actions;
+        },
+
+        get getContainer() {
+          return self._storeContext.getContainer;
+        },
+      };
+    }
+
+    return this._selectorContext;
+  }
+
+  public get effectContext(): EffectContext {
+    if (this._effectContext == null) {
+      const self = this;
+      this._effectContext = {
+        get rootAction$() {
+          return self._storeContext.rootAction$;
+        },
+        get rootState$() {
+          return self._storeContext.rootState$;
+        },
+
+        get dependencies() {
+          return self._storeContext.getDependencies();
+        },
+
+        baseNamespace: self.baseNamespace,
+        key: self.key,
+        modelIndex: self.modelIndex,
+
+        getState() {
+          return self.getState();
+        },
+        get getters() {
+          return self.getters;
+        },
+        get actions() {
+          return self.actions;
+        },
+
+        get getContainer() {
+          return self._storeContext.getContainer;
+        },
+      };
+    }
+
+    return this._effectContext;
+  }
+
+  public get epicContext(): EpicContext {
+    if (this._epicContext == null) {
+      const self = this;
+      this._epicContext = {
+        rootAction$: undefined!,
+        rootState$: undefined!,
+
+        get dependencies() {
+          return self._storeContext.getDependencies();
+        },
+
+        baseNamespace: self.baseNamespace,
+        key: self.key,
+        modelIndex: self.modelIndex,
+
+        getState() {
+          return self.getState();
+        },
+        get getters() {
+          return self.getters;
+        },
+        get actions() {
+          return self.actions;
+        },
+
+        get getContainer() {
+          return self._storeContext.getContainer;
+        },
+      };
+    }
+
+    return this._epicContext;
+  }
+
+  private _reducerContext: ReducerContext | undefined;
+  private _selectorContext: SelectorContext | undefined;
+  private _effectContext: EffectContext | undefined;
+  private _epicContext: EpicContext | undefined;
 
   private _cachedState: any;
   private _cachedGetters: any;
@@ -58,7 +199,11 @@ export class ContainerImpl<TModel extends Model = Model>
     public readonly key: string | undefined
   ) {
     this._modelContext = this._storeContext.contextByModel.get(this.model)!;
-    this.namespace = joinLastPart(this._modelContext.baseNamespace, this.key);
+
+    this.baseNamespace = this._modelContext.baseNamespace;
+    this.namespace = joinLastPart(this.baseNamespace, this.key);
+
+    this.modelIndex = this._modelContext.modelIndex;
   }
 
   public get isRegistered(): boolean {
@@ -108,8 +253,10 @@ export class ContainerImpl<TModel extends Model = Model>
           this.model,
           {
             dependencies: this._storeContext.getDependencies(),
-            namespace: this.namespace,
+
+            baseNamespace: this.baseNamespace,
             key: this.key,
+            modelIndex: this.modelIndex,
 
             getContainer: this._storeContext.getContainer,
 
@@ -121,8 +268,10 @@ export class ContainerImpl<TModel extends Model = Model>
 
         this._cachedState = this.model.state({
           dependencies: this._storeContext.getDependencies(),
-          namespace: this.namespace,
+
+          baseNamespace: this.baseNamespace,
           key: this.key,
+          modelIndex: this.modelIndex,
 
           args,
 
@@ -189,8 +338,9 @@ export class ContainerImpl<TModel extends Model = Model>
     this._storeContext.store.dispatch(
       registerActionHelper.create([
         {
-          namespace: this.namespace,
-          model: this._modelContext.modelIndex,
+          baseNamespace: this.baseNamespace,
+          key: this.key,
+          modelIndex: this._modelContext.modelIndex,
           args,
         },
       ])
@@ -202,7 +352,8 @@ export class ContainerImpl<TModel extends Model = Model>
       this._storeContext.store.dispatch(
         unregisterActionHelper.create([
           {
-            namespace: this.namespace,
+            baseNamespace: this.baseNamespace,
+            key: this.key,
           },
         ])
       );
@@ -220,25 +371,25 @@ export class ContainerImpl<TModel extends Model = Model>
 export interface GetContainer {
   <TModel extends Model>(model: TModel): Container<TModel>;
   <TModel extends Model>(model: TModel, key: string): Container<TModel>;
-  <TModel extends Model>(namespace: string): Container<TModel>;
-  <TModel extends Model>(namespace: string, key: string): Container<TModel>;
+  <TModel extends Model>(baseNamespace: string): Container<TModel>;
+  <TModel extends Model>(
+    baseNamespace: string,
+    key: string,
+    modelIndex?: number
+  ): Container<TModel>;
 }
 
 export function createGetContainer(storeContext: StoreContext): GetContainer {
-  return (model: Model | string, key?: string) => {
+  return (model: Model | string, key?: string, modelIndex?: number) => {
     if (typeof model === "string") {
-      const parsed = storeContext.parseNamespace(model);
-      if (parsed == null) {
+      const models = storeContext.modelsByBaseNamespace.get(model);
+      if (models == null) {
         throw new Error(
           `Failed to get container: namespace "${model}" is not registered by model`
         );
       }
 
-      let index = 0;
-      if (parsed.key != null) {
-        index = parseInt(parsed.key, 10);
-      }
-      model = parsed.models[index];
+      model = models[modelIndex ?? 0];
     }
 
     const modelContext = storeContext.contextByModel.get(model);
@@ -281,14 +432,19 @@ export function createSubContainer<
   ExtractActionHelpers<ExtractReducers<TModel>, ExtractEffects<TModel>>[TSubKey]
 > {
   return {
-    get namespace(): string {
-      throw new Error(`Sub container doesn't support namespace`);
+    get baseNamespace(): string {
+      return container.baseNamespace;
     },
     get key(): string | undefined {
-      throw new Error(`Sub container doesn't support key`);
+      return container.key;
+    },
+    get modelIndex(): number | undefined {
+      return container.modelIndex;
     },
 
-    getState: () => container.getState()[subKey],
+    getState() {
+      return container.getState()[subKey];
+    },
     get getters() {
       return container.getters[subKey] as any;
     },

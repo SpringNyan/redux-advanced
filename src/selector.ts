@@ -15,8 +15,10 @@ export interface SelectorContext<
   rootState$: Observable<any>;
 
   dependencies: TDependencies;
-  namespace: string;
+
+  baseNamespace: string;
   key: string | undefined;
+  modelIndex: number | undefined;
 
   getState: () => TState;
   getters: TGetters;
@@ -654,7 +656,7 @@ export function createGetters<TModel extends Model>(
   assignObjectDeeply(
     getters,
     container.model.selectors,
-    (selector, paths, target) => {
+    (selector: OutputSelector, paths, target) => {
       const fullPath = paths.join(".");
 
       Object.defineProperty(target, paths[paths.length - 1], {
@@ -665,23 +667,7 @@ export function createGetters<TModel extends Model>(
             cacheByPath.set(fullPath, cache);
           }
 
-          return selector(
-            {
-              rootAction$: storeContext.rootAction$,
-              rootState$: storeContext.rootState$,
-
-              dependencies: storeContext.getDependencies(),
-              namespace: container.namespace,
-              key: container.key,
-
-              getState: () => container.getState(),
-              getters: container.getters,
-              actions: container.actions,
-
-              getContainer: storeContext.getContainer,
-            },
-            cache
-          );
+          return selector(container.selectorContext, cache);
         },
         enumerable: true,
         configurable: true,

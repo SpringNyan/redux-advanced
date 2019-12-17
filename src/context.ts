@@ -8,7 +8,7 @@ import { Effect } from "./effect";
 import { Model } from "./model";
 import { Reducer } from "./reducer";
 import { ReduxAdvancedOptions } from "./store";
-import { nothingToken, splitLastPart } from "./util";
+import { nothingToken } from "./util";
 
 export interface ModelContext {
   isDynamic: boolean;
@@ -54,14 +54,6 @@ export interface StoreContext {
   resolveActionName: (paths: string[]) => string;
   onUnhandledEffectError: (error: any) => void;
   onUnhandledEpicError: (error: any) => void;
-
-  parseNamespace: (
-    namespace: string
-  ) => {
-    baseNamespace: string;
-    key: string | undefined;
-    models: Model[];
-  } | null;
 }
 
 export function createStoreContext(): StoreContext {
@@ -111,26 +103,6 @@ export function createStoreContext(): StoreContext {
       } else {
         console.error(error);
       }
-    },
-
-    parseNamespace: (namespace) => {
-      let baseNamespace: string = namespace;
-      let key: string | undefined;
-
-      let models = storeContext.modelsByBaseNamespace.get(namespace);
-      if (models == null) {
-        [baseNamespace, key] = splitLastPart(namespace);
-        models = storeContext.modelsByBaseNamespace.get(baseNamespace);
-      }
-      if (models == null) {
-        return null;
-      }
-
-      return {
-        baseNamespace,
-        key,
-        models,
-      };
     },
   };
 

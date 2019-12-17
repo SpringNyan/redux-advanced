@@ -19,8 +19,10 @@ export interface EffectContext<
   rootState$: Observable<any>;
 
   dependencies: TDependencies;
-  namespace: string;
+
+  baseNamespace: string;
   key: string | undefined;
+  modelIndex: number | undefined;
 
   getState: () => TState;
   getters: TGetters;
