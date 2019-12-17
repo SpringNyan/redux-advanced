@@ -220,25 +220,25 @@ export class ContainerImpl<TModel extends Model = Model>
 export interface GetContainer {
   <TModel extends Model>(model: TModel): Container<TModel>;
   <TModel extends Model>(model: TModel, key: string): Container<TModel>;
-  <TModel extends Model>(namespace: string): Container<TModel>;
-  <TModel extends Model>(namespace: string, key: string): Container<TModel>;
+  <TModel extends Model>(baseNamespace: string): Container<TModel>;
+  <TModel extends Model>(
+    baseNamespace: string,
+    key: string,
+    modelIndex?: number
+  ): Container<TModel>;
 }
 
 export function createGetContainer(storeContext: StoreContext): GetContainer {
-  return (model: Model | string, key?: string) => {
+  return (model: Model | string, key?: string, modelIndex?: number) => {
     if (typeof model === "string") {
-      const parsed = storeContext.parseNamespace(model);
-      if (parsed == null) {
+      const models = storeContext.modelsByBaseNamespace.get(model);
+      if (models == null) {
         throw new Error(
           `Failed to get container: namespace "${model}" is not registered by model`
         );
       }
 
-      let index = 0;
-      if (parsed.key != null) {
-        index = parseInt(parsed.key, 10);
-      }
-      model = parsed.models[index];
+      model = models[modelIndex ?? 0];
     }
 
     const modelContext = storeContext.contextByModel.get(model);
