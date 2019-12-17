@@ -7,8 +7,10 @@ export const stateModelsKey = "@@models";
 
 export interface StateContext<TDependencies = any, TArgs extends object = any> {
   dependencies: TDependencies;
-  namespace: string;
+
+  baseNamespace: string;
   key: string | undefined;
+  modelIndex: number | undefined;
 
   args: StateArgs<TArgs>;
 

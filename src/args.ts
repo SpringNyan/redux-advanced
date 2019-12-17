@@ -7,8 +7,10 @@ export const requiredArgToken: unique symbol = "@@REDUX_ADVANCED_REQUIRED_ARG" a
 
 export interface ArgsContext<TDependencies = any> {
   dependencies: TDependencies;
-  namespace: string;
+
+  baseNamespace: string;
   key: string | undefined;
+  modelIndex: number | undefined;
 
   getContainer: GetContainer;
 

@@ -783,17 +783,18 @@ export function createModelBuilder(): ModelBuilder<{}, {}, {}, {}, {}, {}, {}> {
 
 export function registerModel<TModel extends Model>(
   storeContext: StoreContext,
-  namespace: string,
+  baseNamespace: string,
   model: TModel | TModel[]
 ): void {
   const models = Array.isArray(model) ? model : [model];
 
-  let registeredModels = storeContext.modelsByBaseNamespace.get(namespace);
+  let registeredModels = storeContext.modelsByBaseNamespace.get(baseNamespace);
   if (registeredModels == null) {
     registeredModels = [];
-    storeContext.modelsByBaseNamespace.set(namespace, registeredModels);
+    storeContext.modelsByBaseNamespace.set(baseNamespace, registeredModels);
   }
 
+  const isDynamic = Array.isArray(model);
   models.forEach((_model) => {
     if (storeContext.contextByModel.has(_model)) {
       throw new Error("Failed to register model: model is already registered");
@@ -822,11 +823,11 @@ export function registerModel<TModel extends Model>(
     });
 
     storeContext.contextByModel.set(_model, {
-      isDynamic: Array.isArray(model),
-      modelIndex: registeredModels!.length,
+      isDynamic,
+      modelIndex: isDynamic ? registeredModels!.length : undefined,
 
-      baseNamespace: namespace,
-      basePath: convertNamespaceToPath(namespace),
+      baseNamespace,
+      basePath: convertNamespaceToPath(baseNamespace),
 
       reducerByActionName,
       effectByActionName,
@@ -840,25 +841,25 @@ export function registerModel<TModel extends Model>(
 
 export function registerModels(
   storeContext: StoreContext,
-  namespace: string,
+  namespacePrefix: string,
   models: Models
 ): RegisterOptions[] {
   const registerOptionsList: RegisterOptions[] = [];
 
   Object.keys(models).forEach((key) => {
     const model = models[key];
-    const modelNamespace = joinLastPart(namespace, key);
+    const baseNamespace = joinLastPart(namespacePrefix, key);
 
     if (Array.isArray(model)) {
-      registerModel(storeContext, modelNamespace, model);
+      registerModel(storeContext, baseNamespace, model);
     } else if (isModel(model)) {
-      registerModel(storeContext, modelNamespace, model);
+      registerModel(storeContext, baseNamespace, model);
       registerOptionsList.push({
-        namespace: modelNamespace,
+        baseNamespace,
       });
     } else {
       registerOptionsList.push(
-        ...registerModels(storeContext, modelNamespace, model as Models)
+        ...registerModels(storeContext, baseNamespace, model as Models)
       );
     }
   });
