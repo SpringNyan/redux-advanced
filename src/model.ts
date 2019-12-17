@@ -866,23 +866,22 @@ export function registerModels(
   return registerOptionsList;
 }
 
-export function generateNamespaceModelMappings(models: Models, prefix = "") {
-  const mappings: Record<string, Model> = {};
+export function flattenModels(
+  models: Models,
+  prefix = ""
+): Record<string, Model | Model[]> {
+  const result: Record<string, Model | Model[]> = {};
 
   Object.keys(models).forEach((key) => {
     const model = models[key];
     const namespace = joinLastPart(prefix, key);
 
-    if (Array.isArray(model)) {
-      model.forEach((item, index) => {
-        mappings[joinLastPart(namespace, "" + index)] = item;
-      });
-    } else if (isModel(model)) {
-      mappings[namespace] = model;
+    if (Array.isArray(model) || isModel(model)) {
+      result[namespace] = model;
     } else {
-      Object.assign(mappings, generateNamespaceModelMappings(model, namespace));
+      Object.assign(result, flattenModels(model, namespace));
     }
   });
 
-  return mappings;
+  return result;
 }
