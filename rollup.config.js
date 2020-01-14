@@ -1,6 +1,6 @@
+import commonjs from "@rollup/plugin-commonjs";
+import resolve from "@rollup/plugin-node-resolve";
 import cleanup from "rollup-plugin-cleanup";
-import commonjs from "rollup-plugin-commonjs";
-import resolve from "rollup-plugin-node-resolve";
 
 export default {
   input: "./lib/index.js",
@@ -15,7 +15,9 @@ export default {
     },
   ],
   plugins: [
-    resolve(),
+    resolve({
+      browser: true,
+    }),
     commonjs(),
     cleanup({
       comments: "none",

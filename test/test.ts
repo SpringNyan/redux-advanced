@@ -199,7 +199,7 @@ describe("redux-advanced", () => {
     const appDependencies: Dependencies = { appId: 233 };
 
     let unhandledEffectErrorCount = 0;
-    const { getContainer: storeGetContainer, registerModels } = init({
+    const { getContainer: storeGetContainer, registerModels, gc } = init({
       dependencies: appDependencies,
 
       onUnhandledEffectError: () => {
@@ -233,6 +233,11 @@ describe("redux-advanced", () => {
         })
       )
       .toPromise();
+
+    expect(staticModelContainer.isRegistered).eq(true);
+    expect(staticModelContainer.canRegister).eq(false);
+
+    gc();
 
     expect(staticModelContainer.isRegistered).eq(true);
     expect(staticModelContainer.canRegister).eq(false);
@@ -383,5 +388,9 @@ describe("redux-advanced", () => {
 
     expect(autoRegisteredDynamicContainer.isRegistered).eq(true);
     expect(autoRegisteredDynamicContainer.getState().name).eq("^_^");
+
+    gc((container) => container.baseNamespace === "autoRegisteredDynamicModel");
+    expect(autoRegisteredDynamicContainer.isRegistered).eq(false);
+    expect(staticModelContainer.isRegistered).eq(true);
   });
 });
