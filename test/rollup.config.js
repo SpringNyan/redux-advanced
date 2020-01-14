@@ -1,6 +1,5 @@
-import cleanup from "rollup-plugin-cleanup";
-import commonjs from "rollup-plugin-commonjs";
-import resolve from "rollup-plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
+import resolve from "@rollup/plugin-node-resolve";
 
 export default {
   input: "./test/test.js",
@@ -9,14 +8,13 @@ export default {
     format: "cjs",
   },
   plugins: [
-    resolve(),
+    resolve({
+      browser: true,
+    }),
     commonjs({
       namedExports: {
         chai: ["expect"],
       },
-    }),
-    cleanup({
-      comments: "none",
     }),
   ],
 };
