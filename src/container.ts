@@ -357,6 +357,10 @@ export class ContainerImpl<TModel extends Model = Model>
           },
         ])
       );
+    } else {
+      this._storeContext.contextByModel
+        .get(this.model)
+        ?.containerByKey.delete(this.key);
     }
   }
 

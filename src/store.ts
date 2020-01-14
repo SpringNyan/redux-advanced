@@ -8,7 +8,7 @@ import {
 import { createEpicMiddleware, Epic } from "redux-observable";
 import { mergeMap, switchMap } from "rxjs/operators";
 import { registerActionHelper, reloadActionHelper } from "./action";
-import { GetContainer } from "./container";
+import { Container, GetContainer } from "./container";
 import { createStoreContext } from "./context";
 import { createMiddleware } from "./middleware";
 import { Models, registerModels } from "./model";
@@ -34,6 +34,7 @@ export interface ReduxAdvancedInstance {
   getContainer: GetContainer;
   registerModels: (models: Models) => void;
   reload: (state?: any) => void;
+  gc: (fn?: (container: Container) => boolean) => void;
 }
 
 export function init(options: ReduxAdvancedOptions): ReduxAdvancedInstance {
@@ -79,6 +80,19 @@ export function init(options: ReduxAdvancedOptions): ReduxAdvancedInstance {
     },
     reload: (state) => {
       storeContext.store.dispatch(reloadActionHelper.create({ state }));
+    },
+    gc: (fn) => {
+      if (!fn) {
+        fn = (container) => !container.isRegistered;
+      }
+
+      storeContext.contextByModel.forEach((context) => {
+        context.containerByKey.forEach((container) => {
+          if (fn!(container)) {
+            container.unregister();
+          }
+        });
+      });
     },
   };
 }
