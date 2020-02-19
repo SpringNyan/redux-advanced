@@ -78,6 +78,12 @@ export type OverrideEpics<
     : OverrideEpics<TEpics[P], TDependencies, TState, TGetters, TActionHelpers>;
 };
 
+export type LooseEpics<TEpics> = {
+  [P in keyof TEpics]: TEpics[P] extends (...args: any[]) => any
+    ? Epic<any, any, any, any>
+    : LooseEpics<TEpics[P]>;
+};
+
 export function createReduxObservableEpic(
   storeContext: StoreContext,
   container: ContainerImpl

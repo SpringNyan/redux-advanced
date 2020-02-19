@@ -86,12 +86,18 @@ export function init(options: ReduxAdvancedOptions): ReduxAdvancedInstance {
         fn = (container) => !container.isRegistered;
       }
 
+      const containers: Container[] = [];
+
       storeContext.contextByModel.forEach((context) => {
         context.containerByKey.forEach((container) => {
           if (fn!(container)) {
-            container.unregister();
+            containers.push(container);
           }
         });
+      });
+
+      containers.forEach((container) => {
+        container.unregister();
       });
     },
   };

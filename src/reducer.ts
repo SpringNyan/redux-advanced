@@ -61,6 +61,12 @@ export type OverrideReducers<
     : OverrideReducers<TReducers[P], TDependencies, TState>;
 };
 
+export type LooseReducers<TReducers> = {
+  [P in keyof TReducers]: TReducers[P] extends (...args: any[]) => any
+    ? Reducer<any, any, ExtractActionPayload<TReducers[P]>>
+    : LooseReducers<TReducers[P]>;
+};
+
 export function createReduxReducer(storeContext: StoreContext): ReduxReducer {
   function register(rootState: any, optionsList: RegisterOptions[]) {
     optionsList.forEach((options) => {

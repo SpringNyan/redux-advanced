@@ -90,3 +90,16 @@ export type OverrideEffects<
         TActionHelpers
       >;
 };
+
+export type LooseEffects<TEffects> = {
+  [P in keyof TEffects]: TEffects[P] extends (...args: any[]) => any
+    ? Effect<
+        any,
+        any,
+        any,
+        any,
+        ExtractActionPayload<TEffects[P]>,
+        ExtractActionDispatchResult<TEffects[P]>
+      >
+    : LooseEffects<TEffects[P]>;
+};
