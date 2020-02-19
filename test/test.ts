@@ -116,7 +116,7 @@ describe("redux-advanced", () => {
       }))
       .overrideEffects((base) => ({
         overrideSetInfo: async (context) => {
-          await base.overrideSetInfo(context);
+          await base.overrideSetInfo(context, {});
           await context.actions.setAge.dispatch(666);
         },
       }))

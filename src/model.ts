@@ -2,10 +2,17 @@ import { ExtractActionHelpers, RegisterOptions } from "./action";
 import { ArgsFactory, argsObjectToken, ExtractArgs, ModelArgs } from "./args";
 import { StoreContext } from "./context";
 import { ExtractDependencies } from "./dependencies";
-import { Effect, Effects, ExtractEffects, OverrideEffects } from "./effect";
-import { Epic, Epics, ExtractEpics, OverrideEpics } from "./epic";
+import {
+  Effect,
+  Effects,
+  ExtractEffects,
+  LooseEffects,
+  OverrideEffects,
+} from "./effect";
+import { Epic, Epics, ExtractEpics, LooseEpics, OverrideEpics } from "./epic";
 import {
   ExtractReducers,
+  LooseReducers,
   OverrideReducers,
   Reducer,
   Reducers,
@@ -14,6 +21,7 @@ import {
   createSelector,
   ExtractGetters,
   ExtractSelectors,
+  LooseSelectors,
   OutputSelector,
   OverrideSelectors,
   Selectors,
@@ -432,7 +440,7 @@ export class ModelBuilder<
     TDependencies,
     TArgs,
     TState,
-    TSelectors & T,
+    TSelectors & LooseSelectors<T>,
     TReducers,
     TEffects,
     TEpics
@@ -482,13 +490,7 @@ export class ModelBuilder<
     TDependencies,
     TArgs,
     TState,
-    OverrideSelectors<
-      TSelectors,
-      TDependencies,
-      TState,
-      ExtractGetters<TSelectors>,
-      ExtractActionHelpers<TReducers, TEffects>
-    >,
+    TSelectors,
     TReducers,
     TEffects,
     TEpics
@@ -514,7 +516,7 @@ export class ModelBuilder<
     TArgs,
     TState,
     TSelectors,
-    TReducers & T,
+    TReducers & LooseReducers<T>,
     TEffects,
     TEpics
   > {
@@ -536,7 +538,7 @@ export class ModelBuilder<
     TArgs,
     TState,
     TSelectors,
-    OverrideReducers<TReducers, TDependencies, TState>,
+    TReducers,
     TEffects,
     TEpics
   > {
@@ -568,7 +570,7 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    TEffects & T,
+    TEffects & LooseEffects<T>,
     TEpics
   > {
     if (this._isFrozen) {
@@ -598,13 +600,7 @@ export class ModelBuilder<
     TState,
     TSelectors,
     TReducers,
-    OverrideEffects<
-      TEffects,
-      TDependencies,
-      TState,
-      ExtractGetters<TSelectors>,
-      ExtractActionHelpers<TReducers, TEffects>
-    >,
+    TEffects,
     TEpics
   > {
     if (this._isFrozen) {
@@ -645,7 +641,7 @@ export class ModelBuilder<
     TSelectors,
     TReducers,
     TEffects,
-    TEpics & T
+    TEpics & LooseEpics<T>
   > {
     if (this._isFrozen) {
       return this.clone().epics(epics);
@@ -685,13 +681,7 @@ export class ModelBuilder<
     TSelectors,
     TReducers,
     TEffects,
-    OverrideEpics<
-      TEpics,
-      TDependencies,
-      TState,
-      ExtractGetters<TSelectors>,
-      ExtractActionHelpers<TReducers, TEffects>
-    >
+    TEpics
   > {
     if (this._isFrozen) {
       return this.clone().overrideEpics(override);

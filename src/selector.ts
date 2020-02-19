@@ -150,6 +150,12 @@ export type OverrideSelectors<
       >;
 };
 
+export type LooseSelectors<TSelectors> = {
+  [P in keyof TSelectors]: TSelectors[P] extends (...args: any[]) => any
+    ? Selector<any, any, any, any, ExtractSelectorResult<TSelectors[P]>>
+    : LooseSelectors<TSelectors[P]>;
+};
+
 export interface CreateSelector<
   TDependencies = any,
   TState extends object = any,
