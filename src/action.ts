@@ -57,7 +57,7 @@ export type ExtractActionHelperPayloadResultPairs<
         ExtractActionPayload<T[P]>,
         T[P] extends Effect ? ExtractActionDispatchResult<T[P]> : unknown
       ]
-    : T[P] extends {}
+    : T[P] extends Record<string, any>
     ? ExtractActionHelperPayloadResultPairs<T[P]>
     : never;
 };
@@ -65,7 +65,7 @@ export type ExtractActionHelperPayloadResultPairs<
 export type ExtractActionHelpersFromPayloadResultPairs<T> = {
   [P in keyof T]: T[P] extends any[]
     ? ActionHelper<T[P][0], T[P][1]>
-    : T[P] extends {}
+    : T[P] extends Record<string, any>
     ? ExtractActionHelpersFromPayloadResultPairs<T[P]>
     : never;
 };

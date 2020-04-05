@@ -109,7 +109,7 @@ export type ExtractSelectorResult<T extends Selector> = T extends Selector<
 export type ExtractGetters<TSelectors extends Selectors> = {
   [P in keyof TSelectors]: TSelectors[P] extends (...args: any[]) => any
     ? ExtractSelectorResult<TSelectors[P]>
-    : TSelectors[P] extends {}
+    : TSelectors[P] extends Record<string, any>
     ? ExtractGetters<TSelectors[P]>
     : never;
 };
